@@ -40,7 +40,7 @@ queue and an entry that carries a question and its answer at once is a reader tr
 
 ## Open defect queue
 
-No live queue currently. The `v0.2.3..release/0.3.1` adversarial sweep that populated this section
+No live queue currently. The `v0.2.3..release/0.4.0` adversarial sweep that populated this section
 is fully closed: every finding reached a terminal state — 11 fixed (each its own `change/*` + PR,
 cited in the affected code's history and `CHANGELOG.md`), 2 verified moot, 2 refuted, 6 promoted to
 live decisions below, and its own prior two-round sweep's 6 refuted / 6 upheld-by-only-one-lens
@@ -472,12 +472,13 @@ consumer for an undemonstrated deduplication.
   pressure:* release class is decided from what a window's changes **do**, so a window's number is not
   knowable until its cut; a number written into prose beforehand becomes a pointer to nothing the moment the
   class moves. **It has moved three times.** Measured 2026-09-06 over every `X.Y.Z` literal in tracked live
-  Markdown outside `CHANGELOG.md` and `docs/history/`: `0.3.1`, `0.4.1` and `0.5.1` each appear, and none of
-  the three has a dated changelog section or a tag. The trend is the wrong way — 15 occurrences, then 4,
-  then 30. *Observation source:* the promotion-trigger sweep, which reached it sideways: a rename had
-  rewritten `release/0.5.1` to `release/0.6.0` **inside a measurement over merged pull requests**, and GitHub
-  does not retarget a merged pull request's base, so the figure came to name a set not containing its own
-  evidence. That is the sharp end of the class; the other 23 sites merely resolved to nothing.
+  Markdown outside `CHANGELOG.md` and `docs/history/`: three distinct numbers appear with neither a dated
+  changelog section nor a tag, and the trend runs the wrong way — 15 occurrences, then 4, then 30. The
+  numbers themselves are not written here, for the reason the repair below gives. *Observation source:* the
+  promotion-trigger sweep, which reached it sideways: a release branch's rename had been carried into a
+  measurement addressed at that branch **by name**, and GitHub does not retarget a **merged** pull request's
+  base, so the figure came to name a set not containing its own evidence. That is the sharp end of the
+  class; the other 23 sites merely resolved to nothing.
 
   *Current reaction or bound:* prose only, as of this window — `AGENTS.md`'s carrier taxonomy now carries the
   row, and the 24 live occurrences are repaired to name the version each window shipped as. Nothing reacts.
@@ -493,16 +494,20 @@ consumer for an undemonstrated deduplication.
   tracked live Markdown that is **below the workspace version** and has neither a `## [X.Y.Z]` dated section
   nor a `vX.Y.Z` tag names a version that never existed and never will. No judgement over meaning is needed:
   a number above the workspace version is a plan, a number with a section or a tag is a release, and what is
-  left is neither. **After this window the number survives in exactly three places — this entry,
-  `AGENTS.md`'s taxonomy row, and the changelog entry recording the repair — all three of which *declare*
-  the class**, which is the same positional exemption the relative-phrase bound already grants
-  `AGENTS.md`'s own row. Nothing else in the tree names it, `docs/history/` included. So the exemption is a
-  declaration, decidable by where a line sits, and not a judgement about what it means.
+  left is neither. **The number survives nowhere, and that is a change from how this entry first proposed to
+  close it.** The first plan kept it alive in three declaring places — this entry, `AGENTS.md`'s taxonomy
+  row, and the changelog entry recording the repair — on the reasoning that a declaring site is exempt the
+  way the relative-phrase bound exempts `AGENTS.md`'s own row. The steward rejected that on 潛移: what sits
+  in an agent's context is what gets imitated, and a dead number qualified by a clause explaining that it is
+  dead is still that number in the context, with the clause read by a human and skipped by the
+  continuation. The class is decidable without an instance — the shape above states it in full — so no
+  exemption is needed and none is declared. A check would therefore have **no allowlist**, which is the
+  cheaper design as well as the honest one.
 
   Its negative run is this file's own state before the repair: the check must report the 24 sites, and the
   measurement it would have reported alongside them is gone rather than exempted — **which is the part worth
   keeping.** That figure was defended as an observation, on the ground that a query's argument is part of what
-  it measured. It is; the observation was simply the wrong one. Re-addressed from `--base release/0.5.1` to
+  it measured. It is; the observation was simply the wrong one. Re-addressed from the branch name to
   the window's own commit range, the same question answers **103 pull requests and three offences** where the
   branch-addressed corpus answered 22 and one. A dead name is not only unresolvable — this one was holding a
   figure three times too small, and preserving it as an observation would have preserved that.
@@ -1220,7 +1225,7 @@ consumer for an undemonstrated deduplication.
   seen to fire.
 
   **The figure was three times smaller while it was addressed by a branch name.** It read *22 pull requests
-  merged into `release/0.5.1`*, that branch was renamed, and GitHub does not retarget a **merged** pull
+  merged into `release/0.6.0`*, that branch was renamed, and GitHub does not retarget a **merged** pull
   request's recorded base — so the sentence came to name a set not containing its own evidence, and a repair
   that merely restored the old name kept a corpus that had been the wrong one from the start. A branch is
   renameable and a version that never shipped resolves through nothing; the commit range is neither. The
@@ -1283,7 +1288,7 @@ consumer for an undemonstrated deduplication.
   comparing every commit in `v0.4.0..HEAD` against the squash commit of every merged pull request
   (`gh pr list --state merged --limit 800 --json mergeCommit`): **428 of 428 commits resolve to a pull
   request**, so the pressure is structural rather than observed. The fifty that name no `release/0.5.0` pull
-  request are `release/0.4.1`'s, carried forward. *Current reaction or bound:* `require_changed_files` in
+  request are `release/0.5.0`'s, carried forward. *Current reaction or bound:* `require_changed_files` in
   `scripts/merge-pr.sh` closes the adjacent shape this was first mistaken for — a pull request whose diff is
   empty because the content was committed onto the release branch itself — and `require_ci_green` refuses a
   merge whose rollup is not green, so every path *through the wrapper* is covered. Nothing covers a push that
@@ -2796,46 +2801,46 @@ consumer for an undemonstrated deduplication.
     `assert_projection_fresh_with_preamble` already accepts a caller-supplied `&str`. If three
     adopters independently write incorrect preambles containing architectural claims that then
     rot, revisit.
-  - "`.github/CODEOWNERS`'s amendment reaction is unenforced" (0.3.1 sweep). Self-refuted by its
+  - "`.github/CODEOWNERS`'s amendment reaction is unenforced" (0.4.0 sweep). Self-refuted by its
     own citation: the file's own disclaimer at the cited line already states plainly that
     designation alone only auto-requests review, and that branch protection must be separately
     enabled to make it binding — not a hidden gap.
   - "`ci.yml`'s Release-coherence job is the one Definition-of-Done gate CI runs but branch
-    protection doesn't enforce" (0.3.1 sweep). Observations reproduced accurately, but none
+    protection doesn't enforce" (0.4.0 sweep). Observations reproduced accurately, but none
     constitutes a defect under this project's own contract taxonomy — CI running a check and
     branch protection gating a merge are different, both-documented mechanisms, not a claimed
     single guarantee.
   - "漏刻 never diagnoses a module cycle (a circular `#[path]`/symlinked module directory
-    silently collapses instead of exit 2)" (0.3.1 sweep). Refuted: a test already pins the exact
+    silently collapses instead of exit 2)" (0.4.0 sweep). Refuted: a test already pins the exact
     shape, asserting the opposite of the claim — a documented, deliberately-pinned bound, not an
     undetected divergence.
   - "The self-law giving `xingbiao` its canonicalization monopoly only reacts to the
-    free-function form; `path.canonicalize()` (the method call) escapes" (0.3.1 sweep). The
+    free-function form; `path.canonicalize()` (the method call) escapes" (0.4.0 sweep). The
     mechanism reproduces, but it is an explicitly declared, spec'd, and test-pinned observation
     bound of the observation source itself — not a silent false negative, and not a reason
     outside the projected perimeter.
   - "A duplicated field name in a baseline entry's fact is silently last-wins, so the entry
-    suppresses a different violation than the one it records" (0.3.1 sweep,
+    suppresses a different violation than the one it records" (0.4.0 sweep,
     `crates/xuanji/src/identity.rs`). Mechanics reproduced (`Baseline::from_json` on a
     duplicate-keyed `fact.fields` object does resolve last-wins), but the claim does not survive
     the contract lens — the shape cannot arise from any real fact construction path in this
     codebase, only from hand-authored malformed JSON.
   - "The composed baseline dogfood (`cargo test -p shengmo --test examples_suite`) exercises only the suppression
     direction, and its in-script justification misstates what the standalone test proves"
-    (0.3.1 sweep). Refuted: a test-coverage complaint dressed as an unhonored claim — every
+    (0.4.0 sweep). Refuted: a test-coverage complaint dressed as an unhonored claim — every
     documented claim it cites is in fact honored by the referenced test and README.
   - "Feature rules never read the target's own `[features]` table, so `serde/derive` declared
-    there passes a rule that forbids every feature of `serde`" (0.3.1 sweep,
+    there passes a rule that forbids every feature of `serde`" (0.4.0 sweep,
     `crates/guibiao/src/cargo_metadata.rs`). Mechanics accurate, but doubly refuted: the behavior
     is a stated bound (圭表 governs the *declared* per-target layer; resolved whole-graph
     feature unification is `cargo-deny`'s lane, per this file's own architecture decision), and
     separately the specific reproduction's classification didn't hold either.
   - "A `cfg_attr`-wrapped `#[path]` target is never enqueued, so the relocated file's typo'd /
-    un-auditable probes are silently skipped" (0.3.1 sweep, `crates/louke/src/audit/scan/probes.rs`).
+    un-auditable probes are silently skipped" (0.4.0 sweep, `crates/louke/src/audit/scan/probes.rs`).
     Refuted: a stated bound spelled out in three places (spec, public API doc, `CHANGELOG.md`)
     and pinned by a deliberate test, not introduced by the diff under audit.
   - "`first_macro_arg_end` truncates an `as`-cast generic, merging two textually distinct
-    un-auditable probes into one finding" (0.3.1 sweep, `crates/louke/src/audit/scan/lexer.rs`).
+    un-auditable probes into one finding" (0.4.0 sweep, `crates/louke/src/audit/scan/lexer.rs`).
     Mechanics reproduce at the byte-scanner level, but the trigger is not reachable from
     compilable adopter input — refuted on the reproduction lens.
 - **BUILT / HISTORY:**
@@ -2853,7 +2858,7 @@ consumer for an undemonstrated deduplication.
   - Reusable testing harness (`tianheng::testing::GovernanceTest` fluent builder in facade for reaction, coverage, projection freshness with `BLESS=1`, and fixture testing).
   - Self-governance observation depth upgrade (explicit ScanDepth declarations across crates/shengmo/src/law.rs boundaries).
   - `PublicSeam::InherentMethod`/`InherentAssoc` now carry the impl block's own declaring module,
-    closing the two-different-modules false negative verified real during the 0.3.1 sweep
+    closing the two-different-modules false negative verified real during the 0.4.0 sweep
     (`hunyi-public-seam-module-injection`).
   - `unsafe_confinement`'s and `trait_impl`'s `allowed_locations` (`only_implemented_in`/`and_in`,
     `only_under`) now reject a malformed `::`-path entry (an empty segment) as a constitution error,
@@ -3326,7 +3331,7 @@ that also holds a closed READY-PATCH record.
 
 - **`InherentGenerics` seam identity has no per-block distinguisher WITHIN one module.**
   Class: DESIGN-BREAKING. Observed pressure: verified real during
-  0.3.1 sweep cleanup (2026-08-02/03) — two separate inherent impl blocks on the same
+  0.4.0 sweep cleanup (2026-08-02/03) — two separate inherent impl blocks on the same
   type, each exposing the same forbidden subject through a different where-clause
   bound, collapse to one violation. Observation source: direct reproduction against
   `hunyi::check` (`crates/hunyi/src/collect/exposure.rs`'s inherent-generics collector) —
@@ -3366,7 +3371,7 @@ that also holds a closed READY-PATCH record.
 
 - **Trait-impl-locality's violation target/rule-key reads the constitution's declared
   trait spelling instead of the already-resolved canonical anchor.** Class:
-  DESIGN-BREAKING. Observed pressure: verified real during 0.3.1 sweep cleanup
+  DESIGN-BREAKING. Observed pressure: verified real during 0.4.0 sweep cleanup
   (2026-08-02/03) — declaring the identical boundary via two different (but
   re-export-equivalent) spellings of the same trait produces two `ViolationId`s for the
   same real-world fact. Observation source: direct reproduction against
@@ -3396,7 +3401,7 @@ that also holds a closed READY-PATCH record.
   origin, defeating origin-based fail-closed confinement.** (Spelled `OriginEntry::new` when this
   entry was written; renamed `__from_register_origin` and made argument-free in the 0.4.0 window.)
   Class: DESIGN-BREAKING.
-  Observed pressure: verified real during 0.3.1 sweep cleanup (2026-08-02/03) — a
+  Observed pressure: verified real during 0.4.0 sweep cleanup (2026-08-02/03) — a
   hand-built `OriginEntry::new(TypeId::of::<RogueAdapter>(), "loukehot::good", "RogueAdapter")`
   passed to `install` alongside genuine `register_origin!` entries produces zero
   reaction for a seam declared `.only_origins(["loukehot::good"])`, even though
@@ -4201,7 +4206,7 @@ it before assigning a horizon here; the entries below are horizons, not a second
 - **0.3.0 (shipped)** — stable rule identity (`RuleKey`), `StructuredFactIdentity`, unsafe-site decomposition, async seam identity.
 - **0.4.0 (shipped)** — every compiled root governed, identity-coordinate completeness, the `cfg_if!`
   and conditional-remap conformance across all three dimensions.
-- **The open window — now minor-class (`0.5.0`), no longer `0.4.1`.** It opened patch-class: packaging and
+- **The open window — minor-class (`0.5.0`).** It opened patch-class: packaging and
   hygiene, prose and specs, opt-in depth, performance, and diagnostics whose exit code and emitted documents
   do not move, with a false-negative closure explicitly deferred to the next minor. That deferral is what the
   window then spent. A bare-principal resolver closure landed carrying a `BREAKING CHANGE:` footer, and it
@@ -4217,7 +4222,8 @@ it before assigning a horizon here; the entries below are horizons, not a second
   `CHANGELOG.md`'s `[0.5.0]` marks every entry requiring adopter action `**BREAKING**` and its `### Migration`
   section states each step. That classification has one owner and this is not it. What belongs here is the
   version *consequence*: pre-1.0, an adopter having to act earns a minor whatever the diff size, and a recorded
-  baseline going stale is such an action — which is why this window is `0.5.0` rather than `0.4.1`.
+  baseline going stale is such an action — which is why this window is minor-class rather than the patch it
+  opened as.
 
   This paragraph used to classify it anyway: it named the bare-principal resolver closure as the one item, and
   called the rest of the window's public surface additive and therefore free. Both halves went stale inside the
@@ -4234,7 +4240,7 @@ it before assigning a horizon here; the entries below are horizons, not a second
   git log --format='' --name-only v0.4.0..HEAD -- crates \
     | grep '/src/' | grep -v '/tests' | sort -u                       # packaged sources it touched
   ```
-  The **branch now carries the number**: `release/0.4.1` was renamed to `release/0.5.0` on 2026-08-06, so the
+  The **branch now carries the number**: `release/0.5.0` was renamed to `release/0.5.0` on 2026-08-06, so the
   first squash target names the release it will become — the role and the result agree, which is what
   `AGENTS.md`'s branch rule asks of every branch. The rename was clean because nothing pointed at the old
   name: no open pull request targeted it, CI triggers on `main` and on any pull request rather than on a

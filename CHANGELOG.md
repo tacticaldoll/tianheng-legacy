@@ -728,27 +728,54 @@ them.
   whose negative run returns `Below("-extra/kanhe/Cargo.toml")`. The separator half is unobservable here and
   is said so rather than counted as covered.
 
+- **An unreleased version has no admissible form, and the exception was the defect.** The rule below
+  repaired 24 sites by keeping each dead number and qualifying it — *the same sentence says what it became* —
+  and exempted the sites that **declare** the class. The steward rejected both halves on 潛移: what sits in
+  an agent's context is what gets imitated, and a number carrying a clause explaining that it never shipped
+  is still that number in the context, with the clause read by a human and skipped by the continuation. A
+  rule enforced by reverse prose is enforced on the wrong reader.
+
+  So the exception is gone. `AGENTS.md`'s carrier taxonomy row states the rule with **no instance**, which
+  the class's own shape allows — a version literal below the workspace version with neither a dated section
+  nor a tag is decidable without an example — and a check built for it would need no allowlist, which is the
+  cheaper design as well as the honest one. Where a mechanism was carried only by such a number, it is
+  restated as a **property**: a measurement addressed at a release branch *by name* rather than the command
+  that ran it, and a row that reaches `main` *when the next release is cut* rather than when a particular
+  number is.
+
+  Every live document now names the version each window shipped as. Measured after the sweep,
+  `git grep` over tracked `*.md`, `*.rs` and `*.toml` outside `CHANGELOG.md` and `docs/history/` returns
+  **nothing** for the three. What is deliberately left is `CHANGELOG.md`'s own **released** sections: a
+  dated section is a measurement of its moment and an adopter holds that text, so rewriting one would
+  falsify a record rather than clean a context. `AGENTS.md`'s row now says so at the point of use.
+
 - **A version this repository never released was written into its own governance, three times.** The sweep
-  had been treating this as 24 stale references to *the 0.5.1 window*. It is one class, and a different fault
+  had been treating this as 24 stale references to one window. It is one class, and a different fault
   from the relative anchor beside it in `AGENTS.md`'s table: `this window` names a **moving** reference,
-  while `0.5.1` names one that **never came to rest**. Release class is decided from what a window's changes
-  do, so a window's number is not knowable until its cut — and a number written into prose beforehand becomes
-  a pointer to nothing when the class moves.
+  while an unreleased number names one that **never came to rest**. Release class is decided from what a
+  window's changes do, so a window's number is not knowable until its cut — and a number written into prose
+  beforehand becomes a pointer to nothing when the class moves.
 
   **It has moved three times.** Measured over every `X.Y.Z` literal in tracked live Markdown outside
-  `CHANGELOG.md` and `docs/history/`: `0.3.1`, `0.4.1` and `0.5.1` each appear and none has a dated section
+  `CHANGELOG.md` and `docs/history/`: three distinct numbers appear and none has a dated section
   or a tag. The trend runs the wrong way — 15 occurrences, then 4, then 30 — and the reason it will continue
   is that **reclassifying upward is this repository's SemVer honesty working correctly**, so windows will
   keep being renumbered while their prose is written before the number is earned.
 
-  The repair is the form this repository already had right: the four `0.4.1` sites all name what the window
-  became in the same clause, and read correctly today because of it. The 24 unanchored sites now name the
-  version each window shipped as, and the number itself is gone from every live document but the two that
-  **declare** the class. `AGENTS.md`'s carrier taxonomy carries the row.
+  **The repair first proposed was the wrong one, and the steward said so.** It kept the number and qualified
+  it — every site naming what the window became in the same clause — on the reasoning that a site declaring
+  the class is exempt. 潛移 refutes that: what sits in an agent's context is what gets imitated, and a dead
+  number carrying a clause explaining that it is dead is still that number in the context, with the clause
+  read by a human and skipped by the continuation. So there is **no exempt site and no qualified form**.
+  Every live document names the version each window shipped as, and `git grep` for the three finds nothing
+  outside `docs/history/` and this file's own **released** sections, which are records of their moment and
+  stand. `AGENTS.md`'s carrier taxonomy row states the rule without an instance, which the class's own shape
+  allows: a version literal below the workspace version with neither a dated section nor a tag needs no
+  example to be decidable.
 
   **The last holdout was a measurement, and keeping the name there was wrong for a reason better than
-  tidiness.** That figure was addressed by `--base release/0.5.1`, defended on the ground that a query's
-  argument is part of its observation. It is — but the observation was the wrong one: a branch is renameable
+  tidiness.** That figure was addressed at the release branch **by name**, defended on the ground that a
+  query's argument is part of its observation. It is — but the observation was the wrong one: a branch is renameable
   and a version that never shipped resolves through nothing, so the corpus was fragile from the start.
   Re-addressed to the window's commit range, which resolves from any clone, the same question answers **103
   pull requests and three offences** where the branch-addressed corpus answered 22 and one. The two it had
@@ -1658,7 +1685,8 @@ them.
   The row could not be written in `0.5.0` itself: it is an audit **of the tarballs**, so it cannot precede
   them, and the branch that would have carried it is archived at the release squash while `main` takes nothing
   except through a release branch. `BACKLOG.md` carried the pointer across that gap and is retired with it.
-  The lag is structural and remains — this row reaches `main` only when `0.5.1` is cut.
+  The lag is structural and remains — this row reaches `main` only when the next release is cut, whatever
+  number that window earns.
 
   The audit's scope line was restated rather than having its number bumped: the 2026-08-05 audit covered the
   96 tarballs then on the books, and the six new ones were audited on 2026-08-28, so the sentence says which
