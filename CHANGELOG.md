@@ -132,6 +132,39 @@ them.
   Found by re-reading this window's own repairs rather than by running anything, which is where a claim about
   code sits when the code is right.
 
+- **Eleven scenarios pinned a property no requirement declared, and the seam that names this had no owner
+  in exactly that direction.** `AGENTS.md` states it: *requirement prose gaining a clause with no scenario,
+  or a scenario gaining a `PINNED-BY` with no clause declaring what it pins — had none, and both halves of
+  it landed in one commit.* This window then wrote raw-identifier scenarios into `module-boundary`,
+  `semantic-forbidden-marker` and `semantic-signature-coupling` without a clause in any of the three
+  requirements saying an attribute, a derive or a macro is the name it spells. `runtime-origin-assertion`
+  got its clause, which is what made the omission visible — the same corpus-narrower-than-the-claim shape,
+  one level up, in the repairs for it.
+
+  Each requirement now declares the property its scenarios pin, and **the keyword half travels with it**:
+  `r#mut` is an identifier named `mut` and is precisely *not* the keyword, so a reader matching Rust
+  keywords compares as written. A clause stating only the first half is the one a later reader
+  over-applies.
+
+- **A load-bearing evidence clause, falsified by the window that cited it.** The lexical-scanner entry's
+  *Evidence bearing on the choice, and it is not neutral* read: *渾儀 answers this same question through
+  `syn` and has never carried one of these shapes. What failed is hand-rolled lexing specifically, in both
+  crates that do it.* Both halves are false as of this window, and the clause was still standing when a
+  decision citing it was recorded.
+
+  渾儀 carried four shapes, and in three it was the **only** wrong reader — a raw identifier spelling `path`
+  or `cfg_attr` inside a `cfg_attr`, the same on `derive` and its wrapper, and a raw spelling of the
+  transparent macro's own name. None is a lexing defect: `syn` does the lexing, and what failed is
+  `Path::is_ident` comparing an identifier **as written**. The error runs the other way too — 圭表 and 漏刻
+  alone read a qualified applied `path` — and once, on a raw bare `cfg`, all three were wrong together.
+
+  So the class is not a property of hand-rolling, which is what the clause turned into an argument for a
+  token boundary. **It does not reopen the decision; it removes the one argument that pointed at a
+  boundary**, since neither a token boundary nor a shared substrate would have reached the `syn`-side
+  failures. The differential does, and did: reverting that comparison reports eighteen rows. The null
+  option's own cost line loses its count with it — the shapes are named in the entries that closed them,
+  and a figure maintained beside them would drift from those.
+
 - **The instrument built to end a class committed that class, in its first round.** The differential's
   rustc step asked one question with one arm: compile the shape *with* a reference to an item defined only
   in the remap target, and report a failure as *rustc rejects the generated spelling … the corpus claims a
