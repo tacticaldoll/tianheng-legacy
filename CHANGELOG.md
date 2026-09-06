@@ -932,6 +932,40 @@ them.
 
 ### Self-governance
 
+- **The citation reader refused a third party's pin, which governance sanctions by name.** `AGENTS.md`'s
+  commit-object row says it in a sentence of its own: *a third party's object is not this row — an action
+  pinned as `owner/action@<sha>` is correct supply-chain practice*. The reader classified every
+  delimiter-bounded hex run without first classifying the syntax containing it, so the sha after an `@` was
+  read as a citation of a commit of this tree. Nothing had gone red because the workflow carrying the real
+  pins is not prose and never reaches this sweep: the rule and its reaction disagreed with **no instance
+  between them**, which is the state a control fixture exists to end.
+
+  **The criterion governance states is not one a reaction can run.** That row says the same criterion
+  excludes a third party's object *without a list — that sha does not resolve here*. A development commit of
+  this tree does not resolve in a fresh clone either, which is the whole reason the rule exists, so a reader
+  keyed on resolution would report **clean in CI over exactly the citations it is there to find**, and loud
+  on the author's own machine. Resolution is the criterion a person applies; the shape is what a reader can.
+  So the containing syntax is classified first: `<owner>/<name>[/<path>]@<forty lowercase hex>`.
+
+  **The exception is bounded, and the control says by what.** The forty is required — a pin shortened is not
+  the practice the rule sanctions — and the fixture holds three shapes at once: the pin passes, a bare object
+  in the same document is still reported, and a shortened pin is reported too. Negative run with the
+  exception removed, showing the pin reported twice as this repository's object:
+
+  ```
+  a third party's pinned sha is sanctioned by name and must not be reported: {
+      "  GUIDE.md:3 cites the commit object `fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09`, and live text anchors to a release. …",
+      "  GUIDE.md:5 cites the commit object `fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09`, and live text anchors to a release. …",
+      "  GUIDE.md:7 cites the commit object `f41b3b9c`, …",
+      "  GUIDE.md:9 cites the commit object `f41b3b9c`, …",
+  }
+  ```
+
+  It is an escape hatch, and the requirement says which: a citation of this repository's own object spelled
+  `foo/bar@<sha>` would pass. Every sanctioned form is an escape hatch that way, and the alternative is a
+  list of third parties somebody has to keep.
+
+
 - **The repeated-paragraph check's declarations did not match its reader, in three places.** All three are
   declaration defects rather than reader defects, which is what an external review found in the round after
   the check landed — the pattern this repository records about itself, that a new reaction carries a defect
