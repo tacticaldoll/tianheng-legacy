@@ -1999,9 +1999,23 @@ spelling would refuse those. The rule is carried by review, like the rows `AGENT
 
 ### Requirement: A `git` this repository constructs SHALL be the builder's, or SHALL be declared
 
-A tracked file constructing its own `git` SHALL be named in a declared set with why, and SHALL say whether
-it holds the builder's environment properties by hand; a site declaring that it does SHALL make every
-environment operation the builder makes.
+A tracked file constructing its own `git` SHALL be named in a declared set with why, and a site that cannot
+reach the builder SHALL name the child-process direction that proves its isolation, which SHALL exist in
+that file.
+
+**Isolation SHALL be proven by a run, not modelled from the source.** It was modelled: a reader compared the
+environment operations a copy makes against the builder's. Ten rounds of review walked that model through a
+rename, a macro, a literal compared by its rendering, a constant kept while its loop was deleted, and a
+removal made on a decoy receiver — each a different way to write the same program, each closed, each
+followed by the next. The responsibility is split instead: a reader of syntax answers only the ownership
+question it can answer — which files construct their own `git`, and whether a declared site names an
+existing direction — and the isolation is what a run says.
+
+**Each channel SHALL be injected alone, with a reading that channel moves.** A case setting all three
+repository selectors and reading `git log` demonstrates `GIT_DIR` alone: measured, with `GIT_WORK_TREE` or
+`GIT_INDEX_FILE` pointed at a decoy and `GIT_DIR` cleared, `log` still answers the judged subject, so a
+builder clearing one of three passed. Each case SHALL carry the bare-command control, without which a pass
+proves only that the channel never arrived.
 
 `kanhe::hermetic_git::hermetic` decides what a `git` behind a verdict may inherit — the configuration files,
 the `GIT_CONFIG_*` channels, and `GIT_DIR` / `GIT_WORK_TREE` / `GIT_INDEX_FILE`, which move **which
@@ -2022,11 +2036,23 @@ rather than written out here, so an operation the builder starts making is one a
   gains one must be named, and a name that outlives its site must go
 - **PINNED-BY** `every_git_this_repository_constructs_is_the_builders_or_is_declared`
 
-#### Scenario: A declared copy holds fewer properties than it claims
+#### Scenario: A declared copy names the direction that proves it
 
-- **WHEN** a site declares that it holds the builder's environment properties by hand
-- **THEN** every environment operation the builder makes is required of it, and a missing one is named
-- **PINNED-BY** `a_site_that_cannot_reach_the_builder_holds_what_the_builder_holds`
+- **WHEN** a site cannot reach the builder and declares the direction that proves its isolation
+- **THEN** that direction exists in that file — an ownership question a reader of syntax answers, where the
+  isolation itself is what the direction's run says
+- **PINNED-BY** `every_declared_site_names_the_direction_that_proves_it`
+
+#### Scenario: An ambient channel moves what a builder reads
+
+- **WHEN** one channel — a repository selector or a configuration channel — is injected alone into a child
+  process that runs a builder against a known repository
+- **THEN** the builder answers about that repository, while a bare `Command` in the same environment answers
+  about the decoy; the second is the control, without which the first proves only that the channel never
+  arrived
+- **PINNED-BY** `no_ambient_selector_moves_what_a_hermetic_command_reads`
+- **PINNED-BY** `no_ambient_channel_moves_what_the_family_coverage_builder_reads`
+- **PINNED-BY** `no_ambient_channel_moves_what_the_examples_suite_builder_reads`
 
 #### Scenario: A `git` constructed through a program value is not read — a stated bound
 

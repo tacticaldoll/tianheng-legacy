@@ -29,8 +29,9 @@ use std::path::PathBuf;
 enum Isolation {
     /// The builder itself, or a direction whose subject **is** what an un-isolated `git` answers.
     Exempt,
-    /// A site that cannot reach the builder and holds its environment properties by hand.
-    Isolated,
+    /// A site that cannot reach the builder and proves its isolation by the named child-process direction,
+    /// which injects one channel at a time and reads what that channel moves.
+    ProvenBy(&'static str),
 }
 
 /// Every file that constructs a `git` without the builder, why, and what it does about the environment.
@@ -47,66 +48,16 @@ const CONSTRUCTS_GIT_ITSELF: [(&str, Isolation, &str); 3] = [
     ),
     (
         "crates/shengmo/tests/family_coverage.rs",
-        Isolation::Isolated,
+        Isolation::ProvenBy("no_ambient_channel_moves_what_the_family_coverage_builder_reads"),
         "boundary-forced: `shengmo` cannot reach `kanhe`, since `kanhe` depends on `shengmo` and the edge \
          would close a cycle",
     ),
     (
         "crates/shengmo/tests/examples_suite.rs",
-        Isolation::Isolated,
+        Isolation::ProvenBy("no_ambient_channel_moves_what_the_examples_suite_builder_reads"),
         "boundary-forced, for the same reason as its sibling above",
     ),
 ];
-
-/// One environment operation: the method, the variable it names, and the value it assigns.
-///
-/// **A name is not an operation, and this modelled one as the other.** Collected as bare variable names,
-/// the set could not tell `.env_remove("GIT_DIR")` from `.env("GIT_DIR", "/tmp/other")` — a copy that
-/// *points* the selector somewhere satisfied a requirement that it *clear* it — nor `GIT_CONFIG_COUNT`
-/// pinned to `"1"` from the same variable set to `"0"`, which reopens the ambient-key channel the builder's
-/// own header spends a paragraph closing. Both were live falsifiers.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-struct Operation {
-    method: String,
-    variable: String,
-    /// The assigned value for `env`, and `None` for `env_remove`, which assigns nothing.
-    value: Option<String>,
-}
-
-/// The environment operations a site declaring [`Isolation::Isolated`] must make, written out here and held
-/// against the builder **both ways**.
-///
-/// Compared one way it caught the builder dropping an operation and never the builder gaining one, so a
-/// twelfth would have been required of no copy. Written as bare variable names it could not tell
-/// `.env_remove("GIT_DIR")` from `.env("GIT_DIR", "/tmp/other")`, nor `GIT_CONFIG_COUNT` pinned to `"1"`
-/// from the same variable set to `"0"` — a copy that reopens the ambient-key channel while satisfying it.
-fn expected_operations() -> BTreeSet<Operation> {
-    let assigns = |variable: &str, value: &str| Operation {
-        method: "env".to_string(),
-        variable: variable.to_string(),
-        value: Some(value.to_string()),
-    };
-    let clears = |variable: &str| Operation {
-        method: "env_remove".to_string(),
-        variable: variable.to_string(),
-        value: None,
-    };
-    [
-        assigns("GIT_CONFIG_GLOBAL", "/dev/null"),
-        assigns("GIT_CONFIG_SYSTEM", "/dev/null"),
-        assigns("GIT_CONFIG_NOSYSTEM", "1"),
-        assigns("GIT_CONFIG_COUNT", "1"),
-        assigns("GIT_CONFIG_KEY_0", "core.excludesFile"),
-        assigns("GIT_CONFIG_VALUE_0", "/dev/null"),
-        clears("GIT_DIR"),
-        clears("GIT_WORK_TREE"),
-        clears("GIT_INDEX_FILE"),
-        clears("GIT_CONFIG_PARAMETERS"),
-        clears("GIT_CONFIG"),
-    ]
-    .into_iter()
-    .collect()
-}
 
 /// What this reader could decide about a file.
 ///
@@ -176,12 +127,33 @@ struct Aliases {
 
 impl<'ast> syn::visit::Visit<'ast> for Aliases {
     fn visit_item_use(&mut self, node: &'ast syn::ItemUse) {
-        Constructions::walk_use(&node.tree, false, &mut self.names);
+        Constructions::walk_use(&node.tree, &[], &mut self.names);
         syn::visit::visit_item_use(self, node);
     }
 }
 
 impl Constructions {
+    /// Whether any token at any depth names something bound to `Command`.
+    ///
+    /// **At any depth.** Testing the immediate tokens alone, a body nesting the construction inside a
+    /// delimiter — `passthrough!([Command::new("git")] => ())` — named nothing this reader saw, so an
+    /// unclassifiable grammar carrying a construction was reported as carrying none.
+    fn names_a_command(tokens: proc_macro2::TokenStream, aliases: &BTreeSet<String>) -> bool {
+        let mut pending = vec![tokens];
+        while let Some(stream) = pending.pop() {
+            for tree in stream {
+                match tree {
+                    proc_macro2::TokenTree::Group(group) => pending.push(group.stream()),
+                    proc_macro2::TokenTree::Ident(word) if aliases.contains(&word.to_string()) => {
+                        return true;
+                    }
+                    _ => {}
+                }
+            }
+        }
+        false
+    }
+
     /// Every name this file may spell `Command` as, collected before the calls are read.
     ///
     /// **A rename is decidable inside one file and not outside it.** `use std::process::Command as Cmd`
@@ -196,24 +168,45 @@ impl Constructions {
         self.aliases.extend(binder.names);
     }
 
-    /// `under_process` carries whether a `process` segment already stands in the path being walked.
-    fn walk_use(tree: &syn::UseTree, under_process: bool, aliases: &mut BTreeSet<String>) {
+    /// `prefix` carries the segments already walked, so the whole path decides rather than one segment.
+    ///
+    /// **The path, not a `process` somewhere in it.** Binding on *a segment named `process` occurred* made
+    /// `use foo::process::Command as Cmd` a `std::process::Command`, which widens the reaction rather than
+    /// the bound: the declared stop is a name bound **elsewhere**, not a name bound here to something else.
+    /// A leading `::` and a `self`/`crate` prefix are skipped, and what remains must be exactly
+    /// `std::process`.
+    fn walk_use(tree: &syn::UseTree, prefix: &[String], aliases: &mut BTreeSet<String>) {
         match tree {
-            syn::UseTree::Path(path) => Self::walk_use(
-                &path.tree,
-                under_process || path.ident == "process",
-                aliases,
-            ),
+            syn::UseTree::Path(path) => {
+                let mut deeper = prefix.to_vec();
+                deeper.push(path.ident.to_string());
+                Self::walk_use(&path.tree, &deeper, aliases);
+            }
             syn::UseTree::Group(group) => {
                 for item in &group.items {
-                    Self::walk_use(item, under_process, aliases);
+                    Self::walk_use(item, prefix, aliases);
                 }
             }
-            syn::UseTree::Rename(renamed) if under_process && renamed.ident == "Command" => {
+            syn::UseTree::Rename(renamed)
+                if renamed.ident == "Command" && Self::is_std_process(prefix) =>
+            {
                 aliases.insert(renamed.rename.to_string());
             }
             _ => {}
         }
+    }
+
+    /// Whether the walked prefix is `std::process`, past a leading `::`, `self::` or `crate::`.
+    fn is_std_process(prefix: &[String]) -> bool {
+        let mut segments = prefix;
+        while let Some(first) = segments.first() {
+            if first == "self" || first == "crate" || first.is_empty() {
+                segments = &segments[1..];
+            } else {
+                break;
+            }
+        }
+        segments == ["std".to_string(), "process".to_string()]
     }
 }
 
@@ -239,12 +232,7 @@ impl<'ast> syn::visit::Visit<'ast> for Constructions {
             for statement in &statements {
                 syn::visit::Visit::visit_stmt(self, statement);
             }
-        } else if node
-            .tokens
-            .clone()
-            .into_iter()
-            .any(|tree| matches!(&tree, proc_macro2::TokenTree::Ident(word) if self.aliases.contains(&word.to_string())))
-        {
+        } else if Self::names_a_command(node.tokens.clone(), &self.aliases) {
             // Neither grammar, and the body names something this file binds to `Command`. Saying so is the
             // safe direction: the alternative is reporting a file clean over tokens nothing classified.
             self.undecided = true;
@@ -274,6 +262,14 @@ impl<'ast> syn::visit::Visit<'ast> for Constructions {
     }
 }
 
+fn workspace_root() -> Option<PathBuf> {
+    shengmo::workspace::locate(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."),
+        |root| root.join("crates/kanhe/src/hermetic_git.rs").is_file(),
+        shengmo::workspace::marker_set(),
+    )
+}
+
 /// Whether `text` constructs a `git`, or says it could not decide.
 fn constructs_git(text: &str) -> Reading {
     let Ok(parsed) = syn::parse_file(text) else {
@@ -291,214 +287,9 @@ fn constructs_git(text: &str) -> Reading {
     }
 }
 
-/// The two readings a direction asserts, so a tri-state reader is not flattened at every call site.
+/// The reading a direction asserts, so a tri-state reader is not flattened at every call site.
 fn reads(text: &str) -> bool {
     matches!(constructs_git(text), Reading::Constructs)
-}
-
-/// Every `.env(…)` / `.env_remove(…)` operation a syntax node makes, values included.
-///
-/// A value spelled as an identifier is kept as that identifier and resolved by the caller against the
-/// builder's own constants: `hermetic` writes `.env("GIT_CONFIG_KEY_0", EXCLUDES_SETTING)` where a copy that
-/// cannot reach it writes the string, and those are the same operation.
-#[derive(Default)]
-struct Environment {
-    made: BTreeSet<Operation>,
-    /// Identifiers passed to `env_remove` — a loop's element rather than a variable's name.
-    bound: BTreeSet<String>,
-}
-
-impl<'ast> syn::visit::Visit<'ast> for Environment {
-    fn visit_expr_method_call(&mut self, node: &'ast syn::ExprMethodCall) {
-        let method = node.method.to_string();
-        if method == "env" || method == "env_remove" {
-            // A removal whose argument is a binding rather than a literal names the loop element, which
-            // `IteratedRemoval` is what reads.
-            if method == "env_remove" {
-                if let Some(syn::Expr::Path(bound)) = node.args.first() {
-                    if let Some(ident) = bound.path.get_ident() {
-                        self.bound.insert(ident.to_string());
-                    }
-                }
-            }
-            if let Some(variable) = node.args.first().and_then(string_of) {
-                let value = node.args.iter().nth(1).and_then(|assigned| match assigned {
-                    syn::Expr::Lit(literal) => literal_value(&literal.lit),
-                    syn::Expr::Path(constant) => {
-                        constant.path.get_ident().map(|ident| ident.to_string())
-                    }
-                    _ => None,
-                });
-                self.made.insert(Operation {
-                    variable,
-                    value: if method == "env_remove" { None } else { value },
-                    method,
-                });
-            }
-        }
-        syn::visit::visit_expr_method_call(self, node);
-    }
-}
-
-/// Every string literal's value in an expression — the two arrays [`kanhe::hermetic_git::hermetic`] iterates.
-#[derive(Default)]
-struct Strings {
-    found: BTreeSet<String>,
-}
-
-impl<'ast> syn::visit::Visit<'ast> for Strings {
-    fn visit_lit(&mut self, node: &'ast syn::Lit) {
-        if let Some(value) = literal_value(node) {
-            self.found.insert(value);
-        }
-    }
-}
-
-/// The value a `const` in `file` declares, as a string.
-fn const_string(file: &syn::File, name: &str) -> Option<String> {
-    const_strings(file, name).into_iter().next()
-}
-
-/// Every string a `const` in `file` declares — one for a plain value, several for an array.
-///
-/// An item named by the parser, so there is no terminator to pick. Sliced out of text by searching for one,
-/// the two single-line `const` openings took the *next function's* closing brace — an 87-line span for a
-/// one-line subject — and the arm written for them was a branch no input could reach.
-fn const_strings(file: &syn::File, name: &str) -> BTreeSet<String> {
-    for item in &file.items {
-        if let syn::Item::Const(declared) = item {
-            if declared.ident == name {
-                let mut strings = Strings::default();
-                syn::visit::Visit::visit_expr(&mut strings, &declared.expr);
-                return strings.found;
-            }
-        }
-    }
-    BTreeSet::new()
-}
-
-/// Whether `hermetic` iterates `array` and calls `env_remove` on what it binds.
-///
-/// The membership of a constant is not an operation: a `const` kept while its loop is deleted is a name the
-/// builder no longer acts on, and reading the array alone reported the removals as still made. The loop is
-/// what performs them, so the loop is what is read — its iterable being that constant, and its body calling
-/// `env_remove` on the element it binds rather than on anything else.
-struct IteratedRemoval<'a> {
-    array: &'a str,
-    found: bool,
-}
-
-impl<'ast> syn::visit::Visit<'ast> for IteratedRemoval<'_> {
-    fn visit_expr_for_loop(&mut self, node: &'ast syn::ExprForLoop) {
-        let over_the_array = matches!(
-            &*node.expr,
-            syn::Expr::Path(path) if path.path.is_ident(self.array)
-        );
-        if over_the_array {
-            if let syn::Pat::Ident(binding) = &*node.pat {
-                let mut removals = Environment::default();
-                syn::visit::Visit::visit_block(&mut removals, &node.body);
-                let element = binding.ident.to_string();
-                if removals.bound.contains(&element) {
-                    self.found = true;
-                }
-            }
-        }
-        syn::visit::visit_expr_for_loop(self, node);
-    }
-}
-
-fn iterated_into_env_remove(file: &syn::File, array: &str) -> bool {
-    for item in &file.items {
-        if let syn::Item::Fn(function) = item {
-            if function.sig.ident == "hermetic" {
-                let mut reader = IteratedRemoval {
-                    array,
-                    found: false,
-                };
-                syn::visit::Visit::visit_block(&mut reader, &function.block);
-                return reader.found;
-            }
-        }
-    }
-    false
-}
-
-/// Every environment operation [`kanhe::hermetic_git::hermetic`] makes, read from the builder's own items.
-///
-/// `hermetic`'s own body for the calls it makes, and the two arrays it iterates for the names it removes.
-/// The fixture-side `commit` names `GIT_AUTHOR_DATE` and `GIT_COMMITTER_DATE`, which are no part of what a
-/// *read* inherits and are outside these items by construction rather than by a filter over a wider span.
-///
-/// A value the builder spells as a constant is resolved to that constant's own value, so a copy writing the
-/// string and the builder writing the name are read as the one operation they are.
-fn environment_operations_of(builder: &str) -> BTreeSet<Operation> {
-    let parsed = syn::parse_file(builder).expect("the builder is Rust this reader can parse");
-
-    let mut inside = Environment::default();
-    let mut seen = false;
-    for item in &parsed.items {
-        if let syn::Item::Fn(function) = item {
-            if function.sig.ident == "hermetic" {
-                seen = true;
-                syn::visit::Visit::visit_block(&mut inside, &function.block);
-            }
-        }
-    }
-    assert!(
-        seen,
-        "the builder no longer holds a `fn hermetic`, so this reader's subject is not its subject"
-    );
-
-    let mut found: BTreeSet<Operation> = inside
-        .made
-        .into_iter()
-        .map(|operation| Operation {
-            value: operation
-                .value
-                .map(|value| const_string(&parsed, &value).unwrap_or(value)),
-            ..operation
-        })
-        .collect();
-
-    // **The loop, not the constant.** Expanding an array into removals because the array still exists let
-    // the constant stand in for an operation the builder no longer performs: deleting
-    // `for selector in REPOSITORY_SELECTORS { command.env_remove(selector) }` while keeping the array left
-    // this check green over a builder that had stopped clearing every repository selector. What is read now
-    // is a `for` loop in `hermetic` whose iterable IS that constant and whose body calls `env_remove` on the
-    // element it binds.
-    let mut arrays = 0usize;
-    for array in ["CONFIG_CHANNELS", "REPOSITORY_SELECTORS"] {
-        if !iterated_into_env_remove(&parsed, array) {
-            continue;
-        }
-        let names = const_strings(&parsed, array);
-        if names.is_empty() {
-            continue;
-        }
-        arrays += 1;
-        for variable in names {
-            found.insert(Operation {
-                method: "env_remove".to_string(),
-                variable,
-                value: None,
-            });
-        }
-    }
-    assert_eq!(
-        arrays, 2,
-        "`hermetic` no longer iterates both arrays into `env_remove`, so this reader would derive a set \
-         from whichever half it still performs"
-    );
-    found
-}
-
-fn workspace_root() -> Option<PathBuf> {
-    shengmo::workspace::locate(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."),
-        |root| root.join("crates/kanhe/src/hermetic_git.rs").is_file(),
-        shengmo::workspace::marker_set(),
-    )
 }
 
 #[test]
@@ -515,7 +306,10 @@ fn every_git_this_repository_constructs_is_the_builders_or_is_declared() {
     let mut examined = 0usize;
     for path in &tracked {
         let text = std::fs::read_to_string(root.join(path)).unwrap_or_else(|err| {
-            panic!("cannot read tracked file '{path}' — a file this check claims to have inspected must have been read: {err}")
+            panic!(
+                "cannot read tracked file '{path}' — a file this check claims to have inspected must have \
+                 been read: {err}"
+            )
         });
         examined += 1;
         match constructs_git(&text) {
@@ -535,7 +329,8 @@ fn every_git_this_repository_constructs_is_the_builders_or_is_declared() {
     // it never read.
     assert!(
         undecidable.is_empty(),
-        "tracked Rust this reader could not parse, so whether it constructs a `git` was never decided:\n  {}",
+        "tracked Rust this reader could not decide, so whether it constructs a `git` was never \
+         answered:\n  {}",
         undecidable.join("\n  ")
     );
 
@@ -550,70 +345,52 @@ fn every_git_this_repository_constructs_is_the_builders_or_is_declared() {
     );
 }
 
+/// Every declared site names the direction that proves it, and that direction is there.
+///
+/// **The isolation itself is no longer read from the source.** It was: this case compared the environment
+/// operations a copy makes against the builder's, modelled from syntax. Ten rounds of review walked that
+/// model through a rename, a macro, a literal compared by its rendering, a constant kept while its loop was
+/// deleted, and a removal made on a decoy receiver — each a different way to write the same program, each
+/// closed, each followed by the next. A run does not care how the program is written.
+///
+/// So the responsibility is split. **Isolation is proven by a child-process direction in the site's own
+/// file**, one channel injected at a time with a reading that channel moves; this check answers only the
+/// ownership question a reader of syntax can answer — that the site names such a direction and that the
+/// direction exists. An item's name is what `syn` reports, not something modelled from it.
 #[test]
-fn a_site_that_cannot_reach_the_builder_holds_what_the_builder_holds() {
+fn every_declared_site_names_the_direction_that_proves_it() {
     let Some(root) = workspace_root() else {
         return;
     };
-
-    // **Both directions, which the first spelling of this claimed and did not do.** Compared one way it
-    // caught the builder dropping a variable and never the builder gaining one: a twelfth `env_remove` in
-    // `hermetic` would be required of no copy, and both boundary-forced copies would fall silently behind —
-    // this file's own constant carrying the class the file exists to close. The scope is `hermetic`'s own
-    // span plus the two arrays it iterates, not the whole file: `commit` names `GIT_AUTHOR_DATE` and
-    // `GIT_COMMITTER_DATE` for the fixture side, and those are no part of what a read inherits.
-    let builder = std::fs::read_to_string(root.join("crates/kanhe/src/hermetic_git.rs"))
-        .expect("the builder is readable");
-    let makes = environment_operations_of(&builder);
-    let required = expected_operations();
-    assert_eq!(
-        makes, required,
-        "the environment operations `hermetic` makes differ from the set this check requires of a copy. \
-         An operation the builder gains is one a copy owes, and a name that outlives the builder must go"
-    );
-
     let mut missing = Vec::new();
     let mut checked = 0usize;
     for (path, isolation, _) in CONSTRUCTS_GIT_ITSELF {
-        if isolation != Isolation::Isolated {
+        let Isolation::ProvenBy(direction) = isolation else {
             continue;
-        }
+        };
         checked += 1;
         let text = std::fs::read_to_string(root.join(path))
             .unwrap_or_else(|err| panic!("cannot read the declared site '{path}': {err}"));
-        // **The call, not the name occurring somewhere.** Written as `line.contains(variable)` over
-        // non-comment text, this was satisfied by `let _ = "GIT_DIR";` — an inert string standing in for an
-        // isolation that is not made. The line filter it carried was itself a repair of the same shape one
-        // round earlier, when the paragraph explaining the isolation named every variable it removes and so
-        // satisfied the check on its own. Both go away by reading the calls.
         let parsed = syn::parse_file(&text).unwrap_or_else(|err| {
             panic!("the declared site '{path}' is not Rust this reader parses: {err}")
         });
-        let mut inside = Environment::default();
-        syn::visit::Visit::visit_file(&mut inside, &parsed);
-        for operation in &makes {
-            if !inside.made.contains(operation) {
-                missing.push(format!(
-                    "  {path}: makes no `.{}({:?}{})` call",
-                    operation.method,
-                    operation.variable,
-                    operation
-                        .value
-                        .as_ref()
-                        .map_or(String::new(), |value| format!(", {value:?}"))
-                ));
-            }
+        let declares = parsed.items.iter().any(|item| match item {
+            syn::Item::Fn(function) => function.sig.ident == direction,
+            _ => false,
+        });
+        if !declares {
+            missing.push(format!("  {path}: declares no `{direction}`"));
         }
     }
     assert!(
         checked > 0,
-        "no declared site claims the isolation, so this direction would hold over nothing — the state it \
-         was written for is a copy that claims it and does not carry it"
+        "no declared site names a proving direction, so this would hold over nothing — the state it was \
+         written for is a copy whose isolation nothing runs"
     );
     assert!(
         missing.is_empty(),
-        "a site declared to hold the builder's environment properties does not hold all of them, which is \
-         the partial-transcription class this check exists for:\n{}",
+        "a site names a direction that proves its isolation and the direction is not there, so nothing \
+         runs it:\n{}",
         missing.join("\n")
     );
 }
@@ -752,46 +529,6 @@ fn a_construction_spelled_another_way_is_still_read() {
     ));
 }
 
-/// An operation is its method and its value, not the variable it names.
-///
-/// Collected as bare names, the set could not tell clearing a selector from **pointing** it somewhere, nor
-/// a count pinned to `"1"` from the same count set to `"0"` — which reopens the ambient-key channel the
-/// builder's header spends a paragraph closing. Both were falsifiers a review supplied and both passed.
-#[test]
-fn an_operation_is_its_method_and_its_value() {
-    let operations = |source: &str| {
-        let parsed = syn::parse_file(source).expect("the probe is Rust");
-        let mut inside = Environment::default();
-        syn::visit::Visit::visit_file(&mut inside, &parsed);
-        inside.made
-    };
-    let clears = operations("fn f() {\n    c.env_remove(\"GIT_DIR\");\n}");
-    let points = operations("fn f() {\n    c.env(\"GIT_DIR\", \"/tmp/other\");\n}");
-    assert_ne!(
-        clears, points,
-        "clearing a repository selector and pointing it somewhere are not one operation"
-    );
-
-    let pinned = operations("fn f() {\n    c.env(\"GIT_CONFIG_COUNT\", \"1\");\n}");
-    let opened = operations("fn f() {\n    c.env(\"GIT_CONFIG_COUNT\", \"0\");\n}");
-    assert_ne!(
-        pinned, opened,
-        "a count pinned to one and a count set to zero are not one operation: the second reopens the \
-         ambient-key channel while naming the same variable"
-    );
-
-    // And the builder's own constant-spelled value is resolved, so a copy writing the string and the
-    // builder writing the name are read as the one operation they are.
-    assert!(
-        expected_operations().contains(&Operation {
-            method: "env".to_string(),
-            variable: "GIT_CONFIG_KEY_0".to_string(),
-            value: Some("core.excludesFile".to_string()),
-        }),
-        "the expected set carries the resolved value, not the constant's name"
-    );
-}
-
 /// A file this reader cannot parse is undecidable, not a file that constructs nothing.
 ///
 /// The tokeniser's failure arm fell back to an exact substring, which answers `false` for a construction
@@ -847,6 +584,18 @@ fn a_construction_through_a_rename_or_inside_a_macro_is_read() {
     assert!(!reads(
         "use foo::Command as Cmd;\nfn f() {\n    let c = Cmd::new(\"git\");\n}"
     ));
+    // **The path, not a `process` somewhere in it.** Binding on *a segment named `process` occurred* made
+    // somebody else's `Command` a `std::process::Command`, which widens the reaction rather than the bound.
+    assert!(!reads(
+        "use foo::process::Command as Cmd;\nfn f() {\n    let c = Cmd::new(\"git\");\n}"
+    ));
+    // And the canonical spellings past a leading `::` are bound.
+    assert!(reads(
+        "use ::std::process::Command as Cmd;\nfn f() {\n    let c = Cmd::new(\"git\");\n}"
+    ));
+    assert!(reads(
+        "use std::process::{Command as Cmd, Stdio};\nfn f() {\n    let c = Cmd::new(\"git\");\n}"
+    ));
     assert!(!reads("fn f() {\n    dbg!(Command::new(\"cargo\"));\n}"));
 }
 
@@ -864,6 +613,12 @@ fn an_unclassifiable_macro_body_naming_a_command_is_undecidable() {
     assert_eq!(
         constructs_git("fn f() {\n    matches!(x, Some(_) if true);\n}"),
         Reading::DoesNot
+    );
+    // **At any depth.** Testing the immediate tokens alone, a body nesting the construction inside a
+    // delimiter named nothing this reader saw.
+    assert_eq!(
+        constructs_git("fn f() {\n    weird!([Command::new(\"git\")] => ());\n}"),
+        Reading::Undecidable
     );
 }
 
