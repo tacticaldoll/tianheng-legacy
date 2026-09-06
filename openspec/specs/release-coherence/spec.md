@@ -828,6 +828,16 @@ its own. A slug shared between two sites excuses whichever one was looked at.
 - **WHEN** iterating an enumerated directory fails part-way
 - **THEN** the judgement refuses rather than continuing over the entries it did receive
 
+#### Scenario: An entry under `examples/` cannot be stated
+
+- **WHEN** an entry `read_dir` names under `examples/` cannot be stated — a symlink loop, or a component the
+  reader cannot traverse
+- **THEN** the gate refuses as a cannot-judge naming the entry, rather than skipping it as one holding no
+  example. `is_dir()` answers `false` for *not a directory* and for *this reader could not stat it*, and the
+  count floor catches only the case where **every** example is unreachable: with one of several skipped, the
+  readable examples satisfy the floor and that example's stale family pin reaches `cargo publish` unjudged
+- **PINNED-BY** `an_example_directory_that_cannot_be_stated_is_not_an_absent_one`
+
 #### Scenario: A value cargo decodes
 
 The scenarios above reach a **file** that cannot be read. This reaches a **value**, and a value carrying an

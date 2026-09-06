@@ -3332,6 +3332,58 @@ fn an_example_manifest_that_is_not_a_regular_file_is_not_an_absent_one() {
     let _ = std::fs::remove_dir_all(&root);
 }
 
+/// An example directory this reader cannot stat is not an entry holding no example.
+///
+/// The same collapse `an_example_manifest_that_is_not_a_regular_file_is_not_an_absent_one` refuses for the
+/// manifest: `is_dir()` reports `false` for *not a directory* and for *this reader could not stat it*, so an
+/// entry it cannot reach was skipped as though it held no example.
+///
+/// **The floor does not catch this, and the fixture is built to show why.** `example_manifests == 0` catches
+/// every example being unreachable; the dangerous shape is *one of several*, where the readable examples
+/// carry the count, the floor is satisfied, and the skipped example's stale family pin reaches
+/// `cargo publish` unjudged. So this fixture keeps one readable example beside one unreachable entry — a
+/// symlink loop, whose `metadata` fails with `ELOOP` for that entry alone. A mode-stripped `examples/` was
+/// the first spelling and it was the wrong one: it makes **every** entry unstatable, so the negative run
+/// showed the floor firing rather than the silent skip, which is the case that was already closed.
+///
+/// Negative run, with the read restored to `is_dir()`: the gate reports **clean**, because the loop entry is
+/// skipped and the readable example carries the count.
+#[cfg(unix)]
+#[test]
+fn an_example_directory_that_cannot_be_stated_is_not_an_absent_one() {
+    let root = scratch("example-directory-unreadable");
+    let fixture = build_fixture(&root, "example-directory-unreadable", "0.2.0");
+
+    // A loop rather than a dangling link: an absent target answers `NotFound`, which is the absence this
+    // loop may legitimately skip. `ELOOP` is the answer that is neither *absent* nor *readable*.
+    let looping = fixture.repo.join("examples/broken");
+    std::os::unix::fs::symlink("broken", &looping).expect("a symlink may loop");
+
+    development_changelog(&fixture.repo, "0.2.0", true);
+    commit(
+        &fixture.repo,
+        "chore: an entry under examples/ that cannot be stated",
+    );
+
+    // The readable example is still there, so the count below the loop is satisfied and a skip would be
+    // silent — the state this direction exists to refuse.
+    assert!(
+        fixture.repo.join("examples/adopter/Cargo.toml").is_file(),
+        "the fixture keeps one readable example, or the floor would catch this instead of the skip"
+    );
+    assert!(
+        std::fs::metadata(&looping).is_err(),
+        "the loop is what makes this entry unstatable; without it the fixture perturbs nothing"
+    );
+
+    refusal::expect(
+        "release-coherence#example-directory-unreadable",
+        &judge(&fixture.repo)
+            .expect_err("an entry this reader cannot stat is not one holding no example"),
+    );
+    let _ = std::fs::remove_dir_all(&root);
+}
+
 /// A member manifest the parser cannot read is not judged, and the refusal names which member.
 ///
 /// **A site of its own rather than the one `declared_dependencies` already carries.** Both refuse the same
