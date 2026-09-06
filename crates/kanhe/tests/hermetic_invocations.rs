@@ -154,9 +154,62 @@ fn string_of(expression: &syn::Expr) -> Option<String> {
 #[derive(Default)]
 struct Constructions {
     found: bool,
+    /// Names this file binds to `Command` — `use std::process::Command as Cmd` makes `Cmd` one.
+    aliases: BTreeSet<String>,
+}
+
+impl Constructions {
+    /// Every name this file may spell `Command` as, collected before the calls are read.
+    ///
+    /// **A rename is decidable inside one file and not outside it.** `use std::process::Command as Cmd`
+    /// makes `Cmd::new("git")` the same construction, and reading only the segment `Command` missed it. What
+    /// a rename *elsewhere* binds is not written down anywhere a parse tree carries — the floor
+    /// `repository-checks/a-construction-shape-the-register-s-reader-does-not-model-a-stated-bound` already
+    /// names for this repository's other reader of its own Rust, reached here by the same road.
+    fn bind_aliases(&mut self, file: &syn::File) {
+        self.aliases.insert("Command".to_string());
+        for item in &file.items {
+            if let syn::Item::Use(imported) = item {
+                Self::walk_use(&imported.tree, &mut self.aliases);
+            }
+        }
+    }
+
+    fn walk_use(tree: &syn::UseTree, aliases: &mut BTreeSet<String>) {
+        match tree {
+            syn::UseTree::Path(path) => Self::walk_use(&path.tree, aliases),
+            syn::UseTree::Group(group) => {
+                for item in &group.items {
+                    Self::walk_use(item, aliases);
+                }
+            }
+            syn::UseTree::Rename(renamed) if renamed.ident == "Command" => {
+                aliases.insert(renamed.rename.to_string());
+            }
+            _ => {}
+        }
+    }
 }
 
 impl<'ast> syn::visit::Visit<'ast> for Constructions {
+    /// A construction inside a macro is read, by visiting the body the macro was handed.
+    ///
+    /// `dbg!(Command::new("git"))` is a construction the default walk never reaches, because a macro's
+    /// tokens are not expressions until something parses them. The body is parsed as an expression list
+    /// where it is one; a body that is not — an `assert!` with a message, a `matches!` pattern — carries no
+    /// call this reader would have read anyway, and the file is not made undecidable for it.
+    fn visit_macro(&mut self, node: &'ast syn::Macro) {
+        use syn::punctuated::Punctuated;
+        if let Ok(arguments) =
+            node.parse_body_with(Punctuated::<syn::Expr, syn::Token![,]>::parse_terminated)
+        {
+            for argument in &arguments {
+                syn::visit::Visit::visit_expr(self, argument);
+            }
+        }
+        syn::visit::visit_macro(self, node);
+    }
+
     fn visit_expr_call(&mut self, node: &'ast syn::ExprCall) {
         if let syn::Expr::Path(callee) = &*node.func {
             let segments: Vec<String> = callee
@@ -166,7 +219,7 @@ impl<'ast> syn::visit::Visit<'ast> for Constructions {
                 .map(|segment| segment.ident.to_string())
                 .collect();
             let names_command = segments.len() >= 2
-                && segments[segments.len() - 2] == "Command"
+                && self.aliases.contains(&segments[segments.len() - 2])
                 && segments[segments.len() - 1] == "new";
             if names_command
                 && node.args.len() == 1
@@ -185,6 +238,7 @@ fn constructs_git(text: &str) -> Reading {
         return Reading::Undecidable;
     };
     let mut constructions = Constructions::default();
+    constructions.bind_aliases(&parsed);
     syn::visit::Visit::visit_file(&mut constructions, &parsed);
     if constructions.found {
         Reading::Constructs
@@ -206,12 +260,23 @@ fn reads(text: &str) -> bool {
 #[derive(Default)]
 struct Environment {
     made: BTreeSet<Operation>,
+    /// Identifiers passed to `env_remove` — a loop's element rather than a variable's name.
+    bound: BTreeSet<String>,
 }
 
 impl<'ast> syn::visit::Visit<'ast> for Environment {
     fn visit_expr_method_call(&mut self, node: &'ast syn::ExprMethodCall) {
         let method = node.method.to_string();
         if method == "env" || method == "env_remove" {
+            // A removal whose argument is a binding rather than a literal names the loop element, which
+            // `IteratedRemoval` is what reads.
+            if method == "env_remove" {
+                if let Some(syn::Expr::Path(bound)) = node.args.first() {
+                    if let Some(ident) = bound.path.get_ident() {
+                        self.bound.insert(ident.to_string());
+                    }
+                }
+            }
             if let Some(variable) = node.args.first().and_then(string_of) {
                 let value = node.args.iter().nth(1).and_then(|assigned| match assigned {
                     syn::Expr::Lit(literal) => literal_value(&literal.lit),
@@ -268,6 +333,53 @@ fn const_strings(file: &syn::File, name: &str) -> BTreeSet<String> {
     BTreeSet::new()
 }
 
+/// Whether `hermetic` iterates `array` and calls `env_remove` on what it binds.
+///
+/// The membership of a constant is not an operation: a `const` kept while its loop is deleted is a name the
+/// builder no longer acts on, and reading the array alone reported the removals as still made. The loop is
+/// what performs them, so the loop is what is read — its iterable being that constant, and its body calling
+/// `env_remove` on the element it binds rather than on anything else.
+struct IteratedRemoval<'a> {
+    array: &'a str,
+    found: bool,
+}
+
+impl<'ast> syn::visit::Visit<'ast> for IteratedRemoval<'_> {
+    fn visit_expr_for_loop(&mut self, node: &'ast syn::ExprForLoop) {
+        let over_the_array = matches!(
+            &*node.expr,
+            syn::Expr::Path(path) if path.path.is_ident(self.array)
+        );
+        if over_the_array {
+            if let syn::Pat::Ident(binding) = &*node.pat {
+                let mut removals = Environment::default();
+                syn::visit::Visit::visit_block(&mut removals, &node.body);
+                let element = binding.ident.to_string();
+                if removals.bound.contains(&element) {
+                    self.found = true;
+                }
+            }
+        }
+        syn::visit::visit_expr_for_loop(self, node);
+    }
+}
+
+fn iterated_into_env_remove(file: &syn::File, array: &str) -> bool {
+    for item in &file.items {
+        if let syn::Item::Fn(function) = item {
+            if function.sig.ident == "hermetic" {
+                let mut reader = IteratedRemoval {
+                    array,
+                    found: false,
+                };
+                syn::visit::Visit::visit_block(&mut reader, &function.block);
+                return reader.found;
+            }
+        }
+    }
+    false
+}
+
 /// Every environment operation [`kanhe::hermetic_git::hermetic`] makes, read from the builder's own items.
 ///
 /// `hermetic`'s own body for the calls it makes, and the two arrays it iterates for the names it removes.
@@ -305,8 +417,17 @@ fn environment_operations_of(builder: &str) -> BTreeSet<Operation> {
         })
         .collect();
 
+    // **The loop, not the constant.** Expanding an array into removals because the array still exists let
+    // the constant stand in for an operation the builder no longer performs: deleting
+    // `for selector in REPOSITORY_SELECTORS { command.env_remove(selector) }` while keeping the array left
+    // this check green over a builder that had stopped clearing every repository selector. What is read now
+    // is a `for` loop in `hermetic` whose iterable IS that constant and whose body calls `env_remove` on the
+    // element it binds.
     let mut arrays = 0usize;
     for array in ["CONFIG_CHANNELS", "REPOSITORY_SELECTORS"] {
+        if !iterated_into_env_remove(&parsed, array) {
+            continue;
+        }
         let names = const_strings(&parsed, array);
         if names.is_empty() {
             continue;
@@ -322,8 +443,8 @@ fn environment_operations_of(builder: &str) -> BTreeSet<Operation> {
     }
     assert_eq!(
         arrays, 2,
-        "the builder no longer holds both arrays `hermetic` iterates, so this reader would derive a set \
-         from whichever half it found"
+        "`hermetic` no longer iterates both arrays into `env_remove`, so this reader would derive a set \
+         from whichever half it still performs"
     );
     found
 }
@@ -640,6 +761,31 @@ fn a_file_this_reader_cannot_parse_is_undecidable() {
         Reading::Constructs
     );
     assert_eq!(constructs_git("fn f() {}"), Reading::DoesNot);
+}
+
+/// A construction through a rename or inside a macro is the same construction.
+///
+/// Both were escapes a review supplied and both worked: reading only the segment `Command` missed
+/// `use std::process::Command as Cmd; Cmd::new("git")`, and the default walk never reaches a macro's tokens,
+/// so `dbg!(Command::new("git"))` was a construction in an undeclared file that this check reported as none.
+#[test]
+fn a_construction_through_a_rename_or_inside_a_macro_is_read() {
+    assert!(reads(
+        "use std::process::Command as Cmd;\nfn f() {\n    let c = Cmd::new(\"git\");\n}"
+    ));
+    assert!(reads("fn f() {\n    dbg!(Command::new(\"git\"));\n}"));
+    assert!(reads(
+        "use std::process::Command as Cmd;\nfn f() {\n    dbg!(Cmd::new(\"git\"));\n}"
+    ));
+    assert!(reads(
+        "fn f() {\n    let c = std::process::Command::new(\"git\");\n}"
+    ));
+
+    // The controls: a rename this file does not bind is not `Command`, and a macro carrying another program
+    // is not read — so the assertions above are about the binding and the body rather than about a reader
+    // that reports every `new`.
+    assert!(!reads("fn f() {\n    let c = Cmd::new(\"git\");\n}"));
+    assert!(!reads("fn f() {\n    dbg!(Command::new(\"cargo\"));\n}"));
 }
 
 /// The declared set names a path this repository tracks.

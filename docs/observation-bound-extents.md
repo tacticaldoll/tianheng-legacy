@@ -3,7 +3,7 @@
 Where each declared **observation bound** stops the measure — not how far a scan walks (that is
 `ScanDepth`, an adopter's knob), but where this family's own reaction deliberately stops.
 
-**55 of 103 declared bounds are declared false negatives** — the reaction fires less than the truth, which is the one direction this family treats as a defect. That figure leads this document because a number in a footnote is not read, and each such bound names who must act:
+**56 of 104 declared bounds are declared false negatives** — the reaction fires less than the truth, which is the one direction this family treats as a defect. That figure leads this document because a number in a footnote is not read, and each such bound names who must act:
 
 - `external-crate-confinement/an-extern-crate-declaration-is-not-observed-a-stated-bound` — owner: engine
 - `inline-symbol-path-confinement/a-future-read-verb-outside-the-declared-set-is-a-documented-bound` — owner: adopter
@@ -40,6 +40,7 @@ Where each declared **observation bound** stops the measure — not how far a sc
 - `repository-checks/a-figure-written-in-words-at-one-hundred-or-above-is-not-matched-a-stated-bound` — owner: engine
 - `repository-checks/a-gate-reached-without-the-wrapper-a-stated-bound` — owner: engine
 - `repository-checks/a-git-constructed-inside-a-string-literal-is-not-read-a-stated-bound` — owner: engine
+- `repository-checks/a-git-constructed-through-a-name-bound-elsewhere-is-not-read-a-stated-bound` — owner: engine
 - `repository-checks/a-git-constructed-through-a-program-value-is-not-read-a-stated-bound` — owner: engine
 - `repository-checks/a-git-named-in-prose-is-not-read-a-stated-bound` — owner: engine
 - `repository-checks/a-marker-is-reached-through-some-other-primitive-a-stated-bound` — owner: engine
@@ -462,7 +463,7 @@ Generated from each dimension's `observation_bounds()` by `crates/kanhe/tests/ob
 - **its defence must show**: reacts on a harmless shape
 - **pinned by**: `a_pub_in_narrow_path_over_reacts_under_a_module_ceiling`
 
-## under-reacts (55)
+## under-reacts (56)
 
 ### `external-crate-confinement/an-extern-crate-declaration-is-not-observed-a-stated-bound`
 
@@ -743,6 +744,14 @@ Generated from each dimension's `observation_bounds()` by `crates/kanhe/tests/ob
 - **because**: a literal is one token, so what it carries is that token's text and not a call. Reading lines, this split in two: an ordinary literal escaped its quotes and dropped out on its own, while a RAW string carried the spelling verbatim and was reported -- an over-report that reading tokens closed rather than declared. One stop remains, in both forms. No mutation record isolates it: a literal's contents are not a token stream, so reaching into them is a different reader rather than a perturbation of this one
 - **its defence must show**: does not react
 - **pinned by**: `a_construction_inside_an_ordinary_string_literal_is_not_read`
+
+### `repository-checks/a-git-constructed-through-a-name-bound-elsewhere-is-not-read-a-stated-bound`
+
+> a `git` constructed through a name this file does not bind to `Command` -- a rename in another module, a type alias, a re-export
+
+- **because**: a rename is decidable inside one file, where `use std::process::Command as Cmd` is written down, and this reader binds those. What a name means when it is bound somewhere else is not written down anywhere a parse tree carries, and answering it needs name resolution -- the same floor `a-construction-shape-the-register-s-reader-does-not-model-a-stated-bound` already names for this repository's other reader of its own Rust, reached here by the same road. The direction pinning it is the control that a name this file does not bind is not read
+- **its defence must show**: does not react
+- **pinned by**: `a_construction_through_a_rename_or_inside_a_macro_is_read`
 
 ### `repository-checks/a-git-constructed-through-a-program-value-is-not-read-a-stated-bound`
 
