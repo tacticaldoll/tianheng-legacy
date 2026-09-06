@@ -932,6 +932,46 @@ them.
 
 ### Self-governance
 
+- **The repeated-paragraph check's declarations did not match its reader, in three places.** All three are
+  declaration defects rather than reader defects, which is what an external review found in the round after
+  the check landed — the pattern this repository records about itself, that a new reaction carries a defect
+  into the next round.
+
+  **A stop the reader had and nothing declared.** The span floor sat at two lines, so a one-line comment
+  paragraph written twice was not read, while the module doc claimed *no comment paragraph is written twice
+  in a row* — and a one-line paragraph is a paragraph. The check's two other stops each carry a `BoundDecl`
+  with a reason and a pinning direction; this third one was written nowhere, so the reader claimed more than
+  it had. Measured over the whole tracked Rust corpus at both floors — **zero either way** — so the floor
+  came down to one rather than being declared, and the content requirement is what keeps a repeated
+  paragraph break out. Negative run with the floor restored:
+
+  ```
+  assertion `left == right` failed: a single comment line repeated is the shortest paste there is
+    left: []
+   right: [(3, 1)]
+  ```
+
+  **A precision the requirement claimed and the reader does not have.** The requirement said *byte-identical
+  copy*; `str::lines` drops `\r\n` and `\n` alike, so the comparison is over line content and a block
+  terminated one way is one repetition with a copy terminated the other. Reacting there is right — a paste
+  an editor re-terminated is still a paste, and requiring the terminators to agree would let it through,
+  which is a silent false negative — so the requirement now says *line content, not line bytes* and a
+  direction supplies the shape, since every tracked file is `i/lf` and there is no `.gitattributes` for the
+  corpus to acquire it from. Negative run with the terminators required to agree:
+
+  ```
+  assertion `left == right` failed: the terminators differ and the paragraph is the same, which is the paste this reads
+    left: []
+   right: [(3, 2)]
+  ```
+
+  **A pin whose name stated the other of the two facts its direction held.** The out-of-line bound cited
+  `identical_code_lines_are_not_read`, which does hold the fact — in its second assertion — but a reader
+  following the citation landed on a name about repeated *code*. Split, so the bound cites
+  `a_repetition_split_by_code_is_not_read` and each name states its own subject. An identifier is a carrier
+  of a claim, which is this repository's own rule about names, applied here to the change that wrote it.
+
+
 - **A new reader spelled its own `git` call and renamed the paths it enumerated.** The repeated-paragraph
   check ran `git ls-files -z` through its own `Command` and took the output through `from_utf8_lossy` — the
   exact decode `hermetic_git::run` exists to refuse, in a header that names **this command** as its reason:

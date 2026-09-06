@@ -1955,8 +1955,12 @@ and the parse failure passed over: 389 tracked files, **zero** inspected, and th
 
 ### Requirement: A comment paragraph SHALL NOT be written twice in a row
 
-No tracked Rust file SHALL carry a comment paragraph immediately followed by a byte-identical copy of
-itself. Membership SHALL be produced by `git ls-files -z`, so a path git quotes is read as git holds it
+No tracked Rust file SHALL carry a comment paragraph immediately followed by a copy of itself. The
+comparison is over **line content, not line bytes** — `str::lines` drops `\r\n` and `\n` alike, so a block
+terminated one way and its copy terminated the other are one repetition. That is deliberate and is stated
+here in place of *byte-identical*, which claimed a precision the reader does not have: a paste an editor
+re-terminated is still a paste, and requiring the terminators to agree would let it through, which is a
+silent false negative. Membership SHALL be produced by `git ls-files -z`, so a path git quotes is read as git holds it
 rather than as a quoted spelling that names no file, and SHALL be read through the runner that refuses
 bytes it cannot represent: `-z` promises nothing about encoding, so a lossy decode answers a path the
 repository does not hold and every read below it is made against that name.
@@ -1974,14 +1978,19 @@ that disagrees, and SHALL assert that it inspected at least one file before reac
 corpus can collapse both by the enumeration answering nothing and by the extension filter matching nothing,
 and neither is visible in an empty offence set.
 
-Every line of a repeated block SHALL carry content after its marker. Without that, four consecutive bare
-`//` lines — a paragraph break spelled twice, which is formatting — are a two-line block repeated, and the
+Every line of a repeated block SHALL carry content after its marker. Without that, two consecutive bare
+`//` lines — a paragraph break spelled twice, which is formatting — are a one-line block repeated, and the
 check would report text exactly as its author wrote it.
+
+**A block SHALL be as short as one line.** That requirement, not a minimum length, is what keeps formatting
+out, and a one-line comment paragraph is a paragraph. The reader's floor stood at two lines while nothing
+declared it and this requirement claimed every paragraph — a stop in the reader and in none of its
+declarations. Measured over the whole tracked Rust corpus at both floors: zero either way, so the wider
+reach costs no report an author would argue with.
 
 #### Scenario: A comment paragraph is pasted twice
 
-- **WHEN** a tracked Rust file carries two or more comment lines immediately followed by a byte-identical
-  copy of them
+- **WHEN** a tracked Rust file carries one or more comment lines immediately followed by a copy of them
 - **THEN** the check reports a violation naming the path, the line the second copy begins at, and how many
   lines it spans; the longest run at a position is reported and the reader resumes past both copies, so the
   paste is named once rather than once per nested half
@@ -2008,6 +2017,20 @@ check would report text exactly as its author wrote it.
 - **THEN** the check fails on the vacuity, naming how many tracked paths it enumerated, rather than
   reporting the empty offence set as cleanliness
 
+#### Scenario: A copy is terminated differently from the block it copies
+
+- **WHEN** a comment block and the copy immediately following it differ only in their line terminators
+- **THEN** the check reports it, because the comparison is over line content: a paste an editor
+  re-terminated is still a paste, and requiring the terminators to agree would let it through
+- **PINNED-BY** `a_copy_terminated_differently_is_still_read`
+
+#### Scenario: A one-line comment paragraph is written twice
+
+- **WHEN** a single comment line carrying content is immediately followed by a copy of itself
+- **THEN** the check reports it — a one-line paragraph is a paragraph, and the content requirement rather
+  than a minimum length is what keeps a repeated paragraph break out
+- **PINNED-BY** `a_one_line_paragraph_written_twice_is_read`
+
 #### Scenario: A paragraph break is spelled twice
 
 - **WHEN** consecutive comment lines carrying no content after their marker repeat
@@ -2023,7 +2046,7 @@ check would report text exactly as its author wrote it.
   are as often two sites documented alike as one pasted twice, and this repository keeps both. Widening past
   adjacency would buy the rarer defect with a report the author has to argue with, which is the permanent
   authoring tax this repository refuses
-- **PINNED-BY** `identical_code_lines_are_not_read`
+- **PINNED-BY** `a_repetition_split_by_code_is_not_read`
 
 #### Scenario: A paragraph repeated in prose is not read — a stated bound
 

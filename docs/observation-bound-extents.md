@@ -755,7 +755,7 @@ Generated from each dimension's `observation_bounds()` by `crates/kanhe/tests/ob
 
 - **because**: adjacency is what a paste leaves behind, and it is also what can be judged without deciding whether a repetition is deliberate. Two paragraphs that read the same in different places are as often two sites documented alike as one pasted twice, and this repository keeps both -- so widening past adjacency would buy the rarer defect with a report the author has to argue with, which is the authoring tax `PROJECT.md` refuses
 - **its defence must show**: does not react
-- **pinned by**: `identical_code_lines_are_not_read`
+- **pinned by**: `a_repetition_split_by_code_is_not_read`
 
 ### `repository-checks/a-refusal-constructed-outside-the-register-s-corpus-is-not-triaged-a-stated-bound`
 
