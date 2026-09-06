@@ -62,6 +62,12 @@ The system SHALL react when a governed type acquires a forbidden trait by **eith
 - **WHEN** a governed type declares `#[cfg_attr(all(), cfg_attr(all(), derive(serde::Serialize)))] pub struct Order;`
 - **THEN** the system recurses into the nested `cfg_attr` and emits a violation, rather than silently dropping the derive
 
+#### Scenario: A raw-identifier spelling of derive or of its cfg_attr wrapper reacts
+
+- **WHEN** a governed type carries `#[r#derive(serde::Serialize)]`, `#[r#cfg_attr(unix, derive(serde::Serialize))]`, or `#[cfg_attr(unix, r#derive(serde::Serialize))]`, and `serde::Serialize` is forbidden on that subtree
+- **THEN** each reacts, because `r#` changes an identifier's lexical spelling and not the name it spells — measured under rustc 1.96.0, edition 2021, `--crate-type lib`, all three declarations apply the derive, and a marker this reader does not see is one this capability cannot refuse
+- **PINNED-BY** `a_raw_identifier_derive_reacts_in_every_spelling_rustc_applies`
+
 #### Scenario: A non-forbidden trait is clean
 
 - **WHEN** a governed type derives or impls only traits not in the forbidden set

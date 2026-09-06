@@ -117,6 +117,29 @@ them.
 
 ### Semantic and runtime
 
+- **BREAKING** — **A third reader of attribute names, found because the sweep that closed the first two
+  took one file as its corpus and the claim was about the crate.** `scan::items::extract_derives` reads
+  `#[derive(…)]` and the `cfg_attr` that wraps one, and it compared both names as written. Measured
+  against rustc 1.96.0, edition 2021, `--crate-type lib`: `#[r#derive(Clone)]`,
+  `#[r#cfg_attr(unix, derive(Clone))]` and `#[cfg_attr(unix, r#derive(Clone))]` each apply the derive — a
+  `.clone()` on all three types compiles. Read as written, all three were invisible.
+
+  A derive this reader does not see is a marker `semantic-forbidden-marker` cannot refuse. Perturbed, the
+  direction returns `[]`: three forbidden `serde::Serialize` derives, none of them found, on a subtree that
+  declares it forbidden. That is the false negative the Core Contract names, in a capability whose whole
+  subject is refusing a marker.
+
+  **What found it was the corpus, not another round of reading.** The two repairs before this one swept
+  `crates/hunyi/src/syn_util.rs` while claiming a property of 渾儀's attribute reading; the crate holds a
+  second file that reads attribute names, and it was never in the corpus. The seed that reaches the class is
+  the identifier rather than the wording, and the search is `git grep -n 'is_ident(' crates/hunyi/src`. With
+  this change landed it returns **one** site — a `cfg` predicate combinator (`not`), a different grammar
+  that stays as it is — so the command doubles as the check that nothing else compares an attribute name as
+  written.
+
+  **Why breaking:** an adopter whose source spells a derive or its `cfg_attr` wrapper with a raw identifier
+  has a 渾儀 baseline that no longer describes their tree.
+
 - **BREAKING** — **The attribute's own name position takes a raw identifier too, and closing it in one
   dimension is how the second position was found.** The repair below reached the spelling inside a
   `cfg_attr`'s argument list, where both byte scanners already consumed the `r#` prefix with its segment.

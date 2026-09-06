@@ -1166,3 +1166,47 @@ pub(super) fn diamond_alias_expansion_does_not_leak_intermediate_aliases() {
         "diamond alias expansion must yield strictly terminal target without intermediate alias leakage: {expanded:?}"
     );
 }
+
+/// A raw-identifier spelling of `derive`, or of the `cfg_attr` wrapping one, is the built-in it spells.
+///
+/// **Measured against rustc 1.96.0, edition 2021, `--crate-type lib`**: `#[r#derive(Clone)]`,
+/// `#[r#cfg_attr(unix, derive(Clone))]` and `#[cfg_attr(unix, r#derive(Clone))]` each apply the derive —
+/// a `.clone()` call on each type compiles. `r#` changes an identifier's lexical spelling and not the name
+/// it spells.
+///
+/// Read as written, all three were invisible here, and a derive this reader does not see is a marker this
+/// capability cannot refuse. The spelling was closed for `path`, `cfg` and `cfg_attr` in the module
+/// resolution readers one round earlier; this reader was outside that sweep's corpus, which was one file
+/// while the claim was about the crate.
+///
+/// Negative run: with the four names compared as written again (`is_ident`), this returns `[]` — all three
+/// forbidden derives invisible at once. `Plain` is the control for the opposite direction: it carries
+/// derives that are not forbidden, so it produces no finding either way and proves the three above are
+/// found for their marker rather than for carrying a derive at all.
+#[test]
+pub(super) fn a_raw_identifier_derive_reacts_in_every_spelling_rustc_applies() {
+    let out = marker_findings(
+        "raw-derive",
+        &[
+            ("lib.rs", "pub mod domain;\n"),
+            (
+                "domain.rs",
+                "#[r#derive(serde::Serialize)]\npub struct Outer;\n\
+                 #[r#cfg_attr(unix, derive(serde::Serialize))]\npub struct RawWrapper;\n\
+                 #[cfg_attr(unix, r#derive(serde::Serialize))]\npub struct RawApplied;\n\
+                 #[derive(Clone, Debug)]\npub struct Plain;\n",
+            ),
+        ],
+        "crate::domain",
+        &["serde::Serialize"],
+    )
+    .unwrap();
+    assert_eq!(
+        out,
+        [
+            "derive serde::Serialize on crate::domain::Outer",
+            "derive serde::Serialize on crate::domain::RawApplied",
+            "derive serde::Serialize on crate::domain::RawWrapper",
+        ]
+    );
+}
