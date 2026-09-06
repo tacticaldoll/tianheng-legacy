@@ -932,6 +932,34 @@ them.
 
 ### Self-governance
 
+- **An example directory the release gate could not stat was skipped as one holding no
+  example, and the stale pin behind it reached `cargo publish` unjudged.** `is_dir()` answers `false` for
+  *not a directory* and for *this reader could not stat it*, so the entry it could not reach was passed over
+  — the identical collapse the manifest read in the same loop goes to length to avoid, one step before it.
+
+  **The count floor does not catch this, which is why it survived.** `example_manifests == 0` catches every
+  example being unreachable; the dangerous shape is *one of several*, where the readable examples carry the
+  count, the floor is satisfied and the gate reports clean. Negative run with the collapse restored, over a
+  fixture holding one readable example beside one entry that cannot be stated:
+
+  ```
+  an entry this reader cannot stat is not one holding no example: "ok release coherence (development: 0.2.0)"
+  ```
+
+  The three-arm `metadata` match the manifest already uses now stands here too: `NotFound` is the absence the
+  loop may skip, anything else refuses and names the entry, and a `Cargo.toml`-less file such as a README
+  still passes over.
+
+  **The fixture's first spelling measured the wrong thing.** A mode-stripped `examples/` makes *every* entry
+  unstatable, so the negative run showed the floor firing — the case that was already closed — rather than
+  the silent skip. A symlink loop fails `stat` for **one** entry while its siblings stay readable, which is
+  the shape the finding is about. An absent target answers `NotFound` and is the absence the loop may
+  legitimately skip, so the loop rather than a dangling link is what makes the fixture perturb anything.
+
+  Found by opening the last unopened reader, not by re-running a sweep — five review passes had gone by
+  without `require_example_pins` being read.
+
+
 - **A copy inherits nothing, so it holds whatever was carried across by hand — and two of three were.** The
   enumeration owner states three properties a caller of `ls-files` must not decide for itself: `-z`, a strict
   decode, and the hermetic builder, *because a verdict must not move with configuration outside the

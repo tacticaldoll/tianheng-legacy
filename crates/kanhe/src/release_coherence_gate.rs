@@ -1446,8 +1446,31 @@ pub(crate) fn require_example_pins(
         // An example is a **directory**, and `examples/` holds files of its own — a README among them. The
         // entry that is not a directory holds no example, which is a different fact from a directory whose
         // manifest cannot be read, and it is the one this loop may pass over.
-        if !dir.is_dir() {
-            continue;
+        //
+        // **`is_dir()` answered a third fact with the same `false`.** It reports false for *not a directory*
+        // and for *this reader could not stat it*, so an entry it cannot reach was skipped as though it held
+        // no example — the identical collapse the `std::fs::metadata` read for `Cargo.toml` goes to length
+        // to avoid. The floor on `example_manifests` catches the case where every example is
+        // unreachable; it does not catch one of eight. Measured: `examples/` at mode `r--` allows `read_dir`
+        // while `stat` on each entry fails, so a single unreachable example leaves the counter at seven, the
+        // floor satisfied, and that example's stale family pin reaching `cargo publish` unjudged.
+        //
+        // `xingbiao::is_directory` owns this question elsewhere and is outside `kanhe`'s dependency
+        // allowlist, so the three arms are spelled here rather than borrowed.
+        match std::fs::metadata(&dir) {
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(err) => {
+                return Err(cannot_judge_at(
+                    "release-coherence#example-directory-unreadable",
+                    format!(
+                        "the entry {} under examples/ could not be read — {err}, which is not the same fact \
+                         as an entry holding no example",
+                        dir.display()
+                    ),
+                ));
+            }
+            Ok(found) if !found.is_dir() => continue,
+            Ok(_) => {}
         }
         let manifest = dir.join("Cargo.toml");
         // Absent is not unreadable. Skipping both alike let the remaining readable examples satisfy the
