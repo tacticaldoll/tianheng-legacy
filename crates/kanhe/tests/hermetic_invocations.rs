@@ -399,10 +399,12 @@ fn every_declared_site_names_a_direction_that_runs_and_passes() {
             .unwrap_or_else(|err| panic!("cannot run {package}/{target}::{direction}: {err}"));
         let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
         if !out.status.success() {
+            // Labelled, and separated: trimmed and concatenated, a non-empty stdout's last line ran into a
+            // non-empty stderr's first and the reader could not tell which stream said what.
             missing.push(format!(
-                "  {path}: `{direction}` did not pass:\n{}{}",
-                stdout.trim(),
-                String::from_utf8_lossy(&out.stderr).trim()
+                "  {path}: `{direction}` did not pass\n    stdout:\n{}\n    stderr:\n{}",
+                stdout.trim_end(),
+                String::from_utf8_lossy(&out.stderr).trim_end()
             ));
             continue;
         }
@@ -411,13 +413,20 @@ fn every_declared_site_names_a_direction_that_runs_and_passes() {
         // process output carrying those words, including a build line or another target's summary, and it
         // cannot tell one passing test from one passing test beside a failure.
         match summary(&stdout) {
-            Some(Summary { passed: 1, failed: 0 }) => {}
-            Some(Summary { passed, failed }) => missing.push(format!(
+            Ok(Summary {
+                passed: 1,
+                failed: 0,
+            }) => {}
+            Ok(Summary { passed, failed }) => missing.push(format!(
                 "  {path}: running `{direction}` reported {passed} passed and {failed} failed, where the \
                  proof is exactly one test passing"
             )),
-            None => missing.push(format!(
+            Err(NoSummary::Missing) => missing.push(format!(
                 "  {path}: running `{direction}` produced no test summary, so nothing says it ran"
+            )),
+            Err(NoSummary::Multiple(count)) => missing.push(format!(
+                "  {path}: running `{direction}` produced {count} test summaries, so which one carried the \
+                 proof is not decidable from here"
             )),
         }
     }
@@ -440,13 +449,26 @@ struct Summary {
     failed: usize,
 }
 
-/// The single libtest summary in `stdout`, or `None` where there is not exactly one.
+/// Why a run carried no single summary.
+///
+/// **Two refusals, not one message.** Held as `None` for both, the report said *produced no test summary*
+/// where two runs had produced two — a diagnostic naming the wrong fact about the tree, which is the class
+/// this repository refuses in its own words.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum NoSummary {
+    /// Nothing in the output opened a line with a libtest summary.
+    Missing,
+    /// More than one did: two summaries are two runs, and which carried the proof is not decidable here.
+    Multiple(usize),
+}
+
+/// The single libtest summary in `stdout`, or which of the two ways there was not one.
 ///
 /// **Anchored, and exactly one.** Held as `contains("1 passed")`, the evidence was a token that any output
 /// could carry — a build line, another target's summary, or a run of one passing test beside a failing one.
 /// A summary opens its line, carries both counts, and there must be one of it.
-fn summary(stdout: &str) -> Option<Summary> {
-    let mut found = None;
+fn summary(stdout: &str) -> Result<Summary, NoSummary> {
+    let mut found = Vec::new();
     for line in stdout.lines() {
         let Some(rest) = line.trim_start().strip_prefix("test result: ") else {
             continue;
@@ -460,14 +482,13 @@ fn summary(stdout: &str) -> Option<Summary> {
         let (Some(passed), Some(failed)) = (counts("passed"), counts("failed")) else {
             continue;
         };
-        if found.is_some() {
-            // Two summaries is two runs; the proof is one test in one of them, and which is not decidable
-            // from here.
-            return None;
-        }
-        found = Some(Summary { passed, failed });
+        found.push(Summary { passed, failed });
     }
-    found
+    match found.as_slice() {
+        [] => Err(NoSummary::Missing),
+        [only] => Ok(*only),
+        many => Err(NoSummary::Multiple(many.len())),
+    }
 }
 
 /// The `(package, test target)` a declared path names — `crates/<package>/tests/<target>.rs`.
@@ -734,7 +755,7 @@ fn a_summary_is_parsed_rather_than_matched() {
     let one = "running 1 test\ntest a ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.01s\n";
     assert_eq!(
         summary(one),
-        Some(Summary {
+        Ok(Summary {
             passed: 1,
             failed: 0
         })
@@ -744,7 +765,7 @@ fn a_summary_is_parsed_rather_than_matched() {
     let none = "running 0 tests\n\ntest result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s\n";
     assert_eq!(
         summary(none),
-        Some(Summary {
+        Ok(Summary {
             passed: 0,
             failed: 0
         })
@@ -753,17 +774,19 @@ fn a_summary_is_parsed_rather_than_matched() {
     // The token without a summary: what the old reading accepted.
     assert_eq!(
         summary("Compiling something that says 1 passed somewhere\n"),
-        None
+        Err(NoSummary::Missing)
     );
 
-    // Two summaries are two runs, and which carried the proof is not decidable from here.
-    assert_eq!(summary(&format!("{one}{one}")), None);
+    // Two summaries are two runs, and which carried the proof is not decidable from here — and **which of
+    // the two refusals** it is, is what the report says. Both answered `None` before, so a run producing two
+    // summaries was reported as producing none.
+    assert_eq!(summary(&format!("{one}{one}")), Err(NoSummary::Multiple(2)));
 
     // One passing beside one failing is not one passing.
     let mixed = "test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s\n";
     assert_eq!(
         summary(mixed),
-        Some(Summary {
+        Ok(Summary {
             passed: 1,
             failed: 1
         })

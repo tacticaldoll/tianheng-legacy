@@ -932,6 +932,26 @@ them.
 
 ### Self-governance
 
+- **Two refusals shared one message, and two output streams shared one line.** Neither makes a gate report
+  clean; both make it name the wrong fact when it does not, which is the class this repository refuses in
+  its own words.
+
+  `summary` answered `None` for *no summary produced* and for *more than one*, and the report said the
+  first — so a run that produced two summaries was reported as producing none. It answers which:
+
+  ```
+  left: Err(Missing)   right: Err(Multiple(2))
+  ```
+
+  And a failed run's two streams were trimmed and concatenated, so a non-empty stdout's last line ran into
+  a non-empty stderr's first. They carry labels and a newline now.
+
+  **Scoped deliberately.** Two narrow repairs, no spec change — the contract was already right — and no
+  proof-run framework, which would add a reviewing surface to close a diagnostic gap. What a check reports
+  when it refuses is worth being exact about; what it would take to make that exactness general is not, at
+  one caller.
+
+
 - **Three places where the evidence's type still admitted a state its contract calls impossible.** All three
   are the same shape one level down from the last change: a token where a parse belongs, a list where a set
   belongs, a path where an owner belongs.
