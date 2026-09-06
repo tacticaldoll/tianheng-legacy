@@ -1968,6 +1968,7 @@ fn no_reference_names_a_line_number() {
 /// number and every other line is empty — so the shared pairing reader answers with the document's own line
 /// numbers and a run of prose is one paragraph.
 fn unanchored_citation_offences_in(corpus_root: &Path, corpus: &[String]) -> BTreeSet<String> {
+    let own = own_repository(corpus_root);
     let mut offences = BTreeSet::new();
     let mut read = 0usize;
     for path in corpus.iter() {
@@ -2016,7 +2017,7 @@ fn unanchored_citation_offences_in(corpus_root: &Path, corpus: &[String]) -> BTr
             // resolve here* — is one a person applies and a reaction cannot: a development commit of this
             // tree does not resolve in a fresh clone either, so a reader keyed on resolution would report
             // clean in CI over exactly what it exists to find.
-            let sanctioned = action_pin_objects(&span);
+            let sanctioned = action_pin_objects(&span, own.as_deref());
             for token in hex_runs(&span) {
                 if !is_abbreviated_object(&token) || sanctioned.contains(&token) {
                     continue;
@@ -2134,51 +2135,105 @@ fn a_citation_glued_to_punctuation_is_read() {
     let _ = std::fs::remove_dir_all(&root);
 }
 
-/// A third party's pin is not this repository's object, and a bare object beside it still is.
+/// A third party's pin is not this repository's object, and everything narrower than that still is.
 ///
-/// The control beside the three positive spans above. `AGENTS.md` sanctions `owner/action@<sha>` by name as
-/// correct supply-chain practice, and this reader refused it: every delimiter-bounded hex run was classified
-/// without first classifying the syntax containing it, so the sha after an `@` was read as a citation of a
-/// commit of this tree. The workflow that carries the real pins is not prose and never reached this sweep,
-/// which is why nothing had gone red — the rule and its reaction disagreed with no instance between them.
+/// The control beside the three positive spans above, holding the sanction's whole boundary at once.
+/// `AGENTS.md` sanctions `owner/action@<sha>` by name as correct supply-chain practice, and this reader
+/// refused it: every delimiter-bounded hex run was classified without first classifying the syntax
+/// containing it. The workflow that carries the real pins is not prose and never reached this sweep, so the
+/// rule and its reaction disagreed with no instance between them — which is the state this fixture ends.
 ///
-/// Three shapes, so the exception is bounded rather than open: the pin passes, a bare object in the same
-/// document is still reported, and a **shortened** pin is reported too, because a pin shortened is not the
-/// practice the rule sanctions.
+/// **Then the sanction was wider than the sanction.** Read by shape alone it covered
+/// `tacticaldoll/tianheng@<sha>` — GitHub's cross-reference for a commit of *this* tree, which is what the
+/// requirement exists to refuse — and it accepted a suffix (`^{commit}`, `..HEAD`) that makes the reference
+/// a revision expression rather than a pin, and an empty path segment that GitHub resolves for nobody. Each
+/// is a way to spell the prohibited form behind the sanctioned one's prefix, so each is a row here.
 #[test]
 fn a_third_partys_action_pin_is_not_read_as_this_repositorys_object() {
     let root = std::env::temp_dir().join(format!("kanhe-action-pin-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     xingbiao::claim_scratch(&root).expect("the fixture root is writable");
 
+    // The manifest, because the exclusion is a fact about the repository being read rather than a constant:
+    // `own_repository` takes it from the field the workspace already declares.
+    std::fs::write(
+        root.join("Cargo.toml"),
+        "[workspace.package]\nrepository = \"https://github.com/tacticaldoll/tianheng\"\n",
+    )
+    .expect("the fixture manifest is writable");
+
     // Assembled, for the reason the sibling above assembles its object: this file is swept by the live
     // direction, so no piece written here is object-shaped on its own.
     let object: String = ["f4", "1b", "3b", "9c"].concat();
     let full: String = ["fbc6f399", "2d24b796", "d5a048ff", "273f7fcc", "4a7b6c09"].concat();
+    let sanctioned = [
+        format!("A pinned action: `actions/checkout@{full}`."),
+        format!("A pin under a path: `owner/name/sub@{full}`."),
+    ];
+    let refused = [
+        format!("This repository's own commit: `tacticaldoll/tianheng@{full}`."),
+        format!("A pin with a revision suffix: `owner/action@{full}^{{commit}}`."),
+        format!("A pin opening a range: `owner/action@{full}..HEAD`."),
+        format!("A pin with an empty segment: `owner//action@{full}`."),
+        format!("A bare object: `git show {object}`."),
+        format!("A shortened pin: `actions/checkout@{object}`."),
+    ];
     let document = format!(
-        "# Fixture\n\nA pinned action: `actions/checkout@{full}`.\n\n         A pin under a path: `owner/name/sub@{full}`.\n\n         A bare object: `git show {object}`.\n\n         A shortened pin: `actions/checkout@{object}`.\n"
+        "# Fixture\n\n{}\n",
+        sanctioned
+            .iter()
+            .chain(refused.iter())
+            .map(String::as_str)
+            .collect::<Vec<_>>()
+            .join("\n\n         ")
     );
     std::fs::write(root.join("GUIDE.md"), document).expect("the fixture document is writable");
 
     let offences = unanchored_citation_offences_in(&root, &["GUIDE.md".to_string()]);
     let _ = std::fs::remove_dir_all(&root);
 
-    assert!(
-        offences.iter().all(|offence| !offence.contains(&full)),
-        "a third party's pinned sha is sanctioned by name and must not be reported: {offences:#?}"
-    );
     assert_eq!(
         offences.len(),
-        2,
-        "the bare object and the shortened pin are both reported, and the two full pins are not; got \
-         {offences:#?}"
+        refused.len(),
+        "every span but the two sanctioned pins is reported; got {offences:#?}"
     );
-    for offence in &offences {
+    for (index, span) in refused.iter().enumerate() {
+        let line = 3 + (sanctioned.len() + index) * 2;
         assert!(
-            offence.contains(&object),
-            "each remaining offence names the object it found: {offence}"
+            offences
+                .iter()
+                .any(|offence| offence.contains(&format!("GUIDE.md:{line} "))),
+            "the span {span:?} at line {line} must be reported; got {offences:#?}"
         );
     }
+    for (index, span) in sanctioned.iter().enumerate() {
+        let line = 3 + index * 2;
+        assert!(
+            !offences
+                .iter()
+                .any(|offence| offence.contains(&format!("GUIDE.md:{line} "))),
+            "a third party's pinned sha is sanctioned by name — {span:?} at line {line} must not be \
+             reported: {offences:#?}"
+        );
+    }
+}
+
+/// The workspace declares the repository this exclusion is taken from.
+///
+/// The vacuity direction for [`own_repository`]: an unread field leaves the sanction with nothing to exclude
+/// and this repository's own cross-references silently sanctioned again, which is indistinguishable in a
+/// green run from the exclusion working.
+#[test]
+fn the_workspace_declares_the_repository_the_sanction_excludes() {
+    let Some(root) = workspace_root() else {
+        return;
+    };
+    assert_eq!(
+        own_repository(&root).as_deref(),
+        Some("tacticaldoll/tianheng"),
+        "the exclusion is read from `[workspace.package] repository`, and an exclusion that evaluates to \
+         nothing is one that stopped excluding"
+    );
 }
 
 /// Every maximal run of lowercase hex characters in `span` whose neighbours are not alphanumeric.
@@ -2210,7 +2265,63 @@ fn hex_runs(span: &str) -> Vec<String> {
     runs
 }
 
-/// Every object a span cites as a third-party action pin, which this rule sanctions by name.
+/// The `owner/name` this workspace declares as its own repository, from `[workspace.package] repository`.
+///
+/// The one value that separates *a third party's pin* from *this repository's own commit written in GitHub's
+/// cross-reference notation*, and the manifest already carries it. `None` where the root holds no manifest
+/// or no such field — the fixtures below supply their own, and the live direction asserts it resolved,
+/// because an exclusion that silently evaluates to nothing is an exclusion that stopped excluding.
+fn own_repository(root: &Path) -> Option<String> {
+    let manifest = std::fs::read_to_string(root.join("Cargo.toml")).ok()?;
+    let document = manifest.parse::<toml_edit::DocumentMut>().ok()?;
+    let url = document
+        .get("workspace")?
+        .get("package")?
+        .get("repository")?
+        .as_str()?
+        .trim_end_matches('/')
+        .trim_end_matches(".git");
+    let mut segments = url.rsplit('/');
+    let name = segments.next()?;
+    let owner = segments.next()?;
+    (!name.is_empty() && !owner.is_empty()).then(|| format!("{owner}/{name}"))
+}
+
+/// Whether `text` is the owner path of an action reference: two or more non-empty segments.
+///
+/// Non-empty is the point. `owner//action@<sha>` is not a reference GitHub resolves, and a reader that
+/// counted slashes rather than reading segments sanctioned it — an empty segment is the cheapest way to
+/// spell a shape that looks pinned and is not.
+fn is_owner_path(text: &str) -> bool {
+    let segments: Vec<&str> = text.split('/').collect();
+    segments.len() >= 2
+        && segments.iter().all(|segment| {
+            !segment.is_empty()
+                && segment
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-'))
+        })
+}
+
+/// Whether the object ends the reference — the sha is the last of it, bar closing prose punctuation.
+///
+/// **A suffix makes it a revision expression, not a pin.** `owner/action@<sha>^{commit}` and
+/// `owner/action@<sha>..HEAD` each name a *commit reached from* the pin, which is a citation of a moment and
+/// is what this rule refuses; sanctioning them would let the prohibited form back in behind the sanctioned
+/// one's prefix. So the terminator is an allowlist of what closes a sentence, and a single `.` counts only
+/// where a second does not follow it.
+fn closes_the_reference(after: Option<char>, then: Option<char>) -> bool {
+    match after {
+        None => true,
+        Some('.') => then != Some('.'),
+        Some(c) => matches!(
+            c,
+            ' ' | '`' | ',' | ';' | ')' | ']' | '}' | '"' | '\'' | '\n'
+        ),
+    }
+}
+
+/// Every object a span cites as a **third party's** action pin, which this rule sanctions by name.
 ///
 /// **`AGENTS.md` states the exception and states its criterion**: *an action pinned as `owner/action@<sha>`
 /// is correct supply-chain practice, and the same criterion excludes it without a list — that sha does not
@@ -2219,17 +2330,20 @@ fn hex_runs(span: &str) -> Vec<String> {
 /// resolution would report clean in CI over exactly the citations it is there to find, and loud on the
 /// author's own machine. Resolution is the criterion a person applies; the shape is what a reader can.
 ///
-/// So the containing syntax is classified before the run inside it is: `<owner>/<name>[/<path>]@<40 lowercase
-/// hex>`, the form a pinned action has and a prose citation of a commit does not. The sha is required to be
-/// the full forty, because a pin shortened is not correct practice and this rule's default is to refuse.
+/// **A third party's, and the manifest says whose this is.** Read by shape alone, the sanction covered
+/// `<this repository's owner>/<its name>@<sha>` — GitHub's canonical cross-reference for a commit of this
+/// tree, which is precisely what the requirement exists to refuse. The escape hatch was recorded and
+/// accepted on the ground that the alternative was *a list of third parties somebody has to keep*; that
+/// reason does not survive, because excluding this repository needs no list, only `own_repository` — one
+/// field the workspace manifest already carries. An unread manifest leaves the exclusion empty, which the
+/// live direction refuses rather than passing over.
 ///
-/// This is an escape hatch, and it is worth saying which: a citation of this repository's own object spelled
-/// `foo/bar@<sha>` would pass. Every sanctioned form is an escape hatch that way, and the alternative is a
-/// list of third parties that has to be kept.
-fn action_pin_objects(span: &str) -> BTreeSet<String> {
+/// The shape is `<owner>/<name>[/<path>]@<forty lowercase hex>`, with every segment non-empty and the sha
+/// closing the reference. The forty is required: a pin shortened is not the practice the rule sanctions.
+fn action_pin_objects(span: &str, own: Option<&str>) -> BTreeSet<String> {
     let chars: Vec<char> = span.chars().collect();
     let mut pinned = BTreeSet::new();
-    for (at, _) in chars.iter().enumerate().filter(|(_, c)| **c == '@') {
+    for at in (0..chars.len()).filter(|index| chars[*index] == '@') {
         let mut end = at + 1;
         while end < chars.len()
             && chars[end].is_ascii_hexdigit()
@@ -2237,25 +2351,31 @@ fn action_pin_objects(span: &str) -> BTreeSet<String> {
         {
             end += 1;
         }
-        if end - (at + 1) != 40 || (end < chars.len() && chars[end].is_alphanumeric()) {
+        if end - (at + 1) != 40 {
             continue;
         }
-        // The owner path immediately before the `@`: path characters carrying at least one `/`, which is
-        // what separates `owner/action` from a bare word that happens to precede one.
+        if !closes_the_reference(chars.get(end).copied(), chars.get(end + 1).copied()) {
+            continue;
+        }
+        // The owner path immediately before the `@`, taken as far as path characters run and then read as
+        // segments — counting slashes admitted an empty one.
         let mut start = at;
-        let mut slashes = 0usize;
         while start > 0 {
             let previous = chars[start - 1];
-            if previous == '/' {
-                slashes += 1;
-            } else if !(previous.is_ascii_alphanumeric() || matches!(previous, '_' | '.' | '-')) {
+            if !(previous.is_ascii_alphanumeric() || matches!(previous, '_' | '.' | '-' | '/')) {
                 break;
             }
             start -= 1;
         }
-        if slashes >= 1 && start < at && chars[start] != '/' && chars[at - 1] != '/' {
-            pinned.insert(chars[at + 1..end].iter().collect());
+        let owner_path: String = chars[start..at].iter().collect();
+        if !is_owner_path(&owner_path) {
+            continue;
         }
+        // This repository's own commit, spelled as a cross-reference, is the rule rather than its exception.
+        if own.is_some_and(|own| owner_path == own || owner_path.starts_with(&format!("{own}/"))) {
+            continue;
+        }
+        pinned.insert(chars[at + 1..end].iter().collect());
     }
     pinned
 }

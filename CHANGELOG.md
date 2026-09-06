@@ -932,6 +932,39 @@ them.
 
 ### Self-governance
 
+- **The exception added for a third party's pin was wider than the sanction it was added for, three ways.**
+  Two independent reviews arrived at the same unit and each found what the other did not.
+
+  **It never asked whose repository the pin names.** Read by shape alone, the sanction covered
+  `<this repository's owner>/<its name>@<sha>` — GitHub's canonical cross-reference for a commit of this
+  tree, which is precisely what the requirement exists to refuse. The hatch was recorded and accepted on the
+  ground that *the alternative is a list of third parties somebody has to keep*; that reason does not
+  survive, because excluding this repository needs no list — only the `repository` field the workspace
+  manifest already declares. It is read from there now, and a direction refuses an exclusion that resolves
+  to nothing, since that is indistinguishable in a green run from one that works.
+
+  **A suffix made a revision expression wear a pin's prefix.** `owner/action@<sha>^{commit}` and
+  `owner/action@<sha>..HEAD` each name a commit *reached from* the pin, which is a citation of a moment —
+  the prohibited form itself. What may follow the object is an allowlist of sentence-closing punctuation
+  now, in which a single `.` counts only where a second does not follow it.
+
+  **And an empty path segment resolved for nobody.** `owner//action@<sha>` passed a reader that counted
+  slashes; segments are read rather than counted now, each required non-empty.
+
+  The control fixture holds the whole boundary at once — two sanctioned spans and six refused — and each
+  narrowing has its own negative run, so what each buys is stated separately rather than as one figure:
+
+  ```
+  own-repository exclusion removed:  reported 9, 11, 13, 15, 17   — 7  escapes (this repository's own commit)
+  terminator allowlist removed:      reported 7, 13, 15, 17       — 9, 11 escape (`^{commit}`, `..HEAD`)
+  segment check removed:             reported 7, 9, 11, 15, 17    — 13 escapes (`owner//action`)
+  ```
+
+  The `useless_format` the tightened control first carried was caught by `cargo clippy --all-targets`, not
+  by the suite: the assertion hard-coded the two sanctioned line numbers where its sibling loop derived
+  them. It derives them now, from the same fixture layout.
+
+
 - **The citation reader refused a third party's pin, which governance sanctions by name.** `AGENTS.md`'s
   commit-object row says it in a sentence of its own: *a third party's object is not this row — an action
   pinned as `owner/action@<sha>` is correct supply-chain practice*. The reader classified every
