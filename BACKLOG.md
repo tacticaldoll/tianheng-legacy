@@ -2486,9 +2486,11 @@ consumer for an undemonstrated deduplication.
   because where a shared lexical answer may live is an architectural call and this file is where such a
   call waits for one.
 
-  **Null option — keep answering one spelling at a time.** Its cost is measured rather than feared: eight
-  wrong answers across two crates, every one a **clean verdict** over source no build compiles or a
-  violation reported against source the governed tree does not have. Each was found by reading, none by a
+  **Null option — keep answering one spelling at a time.** Its cost is measured rather than feared: wrong
+  answers in **all three dimensions** — the count is not written here, because the shapes are named in the
+  `0.6.0` changelog entries that closed them and a figure maintained beside them would drift from that. Each
+  is a **clean verdict** over source no build compiles, or a violation reported against source the governed
+  tree does not have. Each was found by reading, none by a
   report from the field, and each repair was correct and followed by another shape. What it buys is that
   nothing structural moves. What it does not buy is any statement about what remains: the corpus is *every
   lexical form Rust admits*, which no inspection enumerates, so the next shape's arrival is the only
@@ -2518,10 +2520,26 @@ consumer for an undemonstrated deduplication.
   its own directions, and the suites would still cross-check interpretation — but it is a real one and
   it is the argument Option A rests on.
 
-  *Evidence bearing on the choice, and it is not neutral:* 渾儀 answers this same question through `syn`
-  and has never carried one of these shapes. What failed is hand-rolled lexing specifically, in both
-  crates that do it. That is an argument for the boundary and **not** for `syn`, whose exclusion is a
-  recorded decision for 圭表's dependency-light core and 漏刻's std-light prod face.
+  *Evidence bearing on the choice — and the clause that stood here was falsified by the window that cited
+  it.* It read: *渾儀 answers this same question through `syn` and has never carried one of these shapes.
+  What failed is hand-rolled lexing specifically, in both crates that do it.* Both halves are false.
+
+  渾儀 carried four, all closed in the `0.6.0` window, and in three of them it was the **only** wrong reader:
+  a raw identifier spelling `path` or `cfg_attr` inside a `cfg_attr`, the same spelling on `derive` and on
+  the `cfg_attr` wrapping one, and a raw spelling of the transparent macro's own name. None of those is a
+  lexing defect — `syn` does the lexing, and what failed is `Path::is_ident` comparing an identifier **as
+  written**. The byte scanners accepted the macro-name spelling that defeated it, and by accident rather
+  than design: each walks backwards over identifier bytes from the `!`, and `#` is not one.
+
+  The error also runs the other way — 圭表 and 漏刻 alone read a qualified applied `path`, where 渾儀's
+  `get_ident` was correct — and once, on a raw bare `cfg`, all three were wrong together.
+
+  So the class is **not a property of hand-rolling**, which is what the old clause turned into an argument
+  for a token boundary. It is a property of comparing a name as written, and a reader can do that wrongly
+  through `syn` as readily as through bytes — in opposite directions, on the same day. That does not reopen
+  the decision below; it removes the one argument that pointed at Option A, since neither a token boundary
+  nor a shared substrate would have reached the `syn`-side failures at all. The differential does, and did:
+  reverting the `syn` comparison reports eighteen rows.
 
   *What would decide it:* a reading of whether the interpretation's states, once separated from lexing,
   are enumerable and generable — because that is what distinguishes this from a fourth hand-rolling. If

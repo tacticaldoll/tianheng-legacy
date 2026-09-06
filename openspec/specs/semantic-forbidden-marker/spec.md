@@ -37,6 +37,8 @@ A type SHALL be governed by the boundary iff its **definition** is under the anc
 
 The system SHALL react when a governed type acquires a forbidden trait by **either** form: a `#[derive(T)]` on the type's declaration, **or** an `impl T for X` block anywhere in the crate whose self-type `X` resolves to a definition under the subtree. Covering both is required — a derive-only or impl-only rule would silently pass the other idiomatic form. A `#[cfg_attr(<pred>, derive(T))]` SHALL be read (the nested derive, cfg-agnostic), including a **nested** `#[cfg_attr(a, cfg_attr(b, derive(T)))]`.
 
+**A derive is the name it spells.** A raw-identifier spelling of `derive`, or of the `cfg_attr` wrapping one, SHALL be read as the built-in it names — `r#` changes an identifier's lexical spelling and not the name it spells, and neither is a keyword. A marker this reader does not see is one this capability cannot refuse, so the spelling is a false negative rather than a cosmetic gap.
+
 #### Scenario: A forbidden derive on a subtree type reacts
 
 - **WHEN** `crate::domain::order` declares `#[derive(serde::Serialize)] pub struct Order;` under a boundary forbidding `serde::Serialize` on `crate::domain`
