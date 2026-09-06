@@ -76,67 +76,148 @@ const ENVIRONMENT_OPERATIONS: [&str; 11] = [
     "GIT_CONFIG",
 ];
 
-/// Every `GIT_*` variable [`kanhe::hermetic_git::hermetic`] acts on, read from the builder's own source.
+/// Every string literal a `.env(…)` or `.env_remove(…)` call in `stream` names.
 ///
-/// Its span plus the two arrays it iterates, rather than the whole file: the fixture-side `commit` names
-/// `GIT_AUTHOR_DATE` and `GIT_COMMITTER_DATE`, which are no part of what a *read* inherits, so taking the
-/// file would require two operations of every copy that the copies have no reason to make.
-fn environment_operations_of(builder: &str) -> BTreeSet<String> {
-    let mut spans = Vec::new();
-    for opening in [
-        "pub fn hermetic(program: &str) -> Command {",
-        "const CONFIG_CHANNELS:",
-        "const REPOSITORY_SELECTORS:",
-    ] {
-        let start = builder
-            .find(opening)
-            .unwrap_or_else(|| panic!("the builder no longer spells `{opening}`, so this reader's scope is not its subject"));
-        // **The earlier of the two, not the first that matches.** Written as `.find("\n}\n")` with `"];\n"`
-        // as a fallback, both single-line `const` openings took the *next function's* closing brace, so the
-        // arm written for them was a branch no input could reach — dead code rather than a guard, which is
-        // the shape this repository refuses in its own words. Measured: `CONFIG_CHANNELS` got an 87-line
-        // span where its subject is one line and `REPOSITORY_SELECTORS` a 45-line one, both swallowing the
-        // whole of `run_exact`. Latent only because the per-line comment filter kept the doc table naming
-        // `GIT_OBJECT_DIRECTORY` out of the derived set; a `GIT_*` in executed code inserted between them
-        // would have entered `makes` and reported the builder as disagreeing with this check, naming a
-        // function that had not changed.
-        let end = [
-            builder[start..].find("\n}\n"),
-            builder[start..].find("];\n"),
-        ]
-        .into_iter()
-        .flatten()
-        .min()
-        .map_or(builder.len(), |offset| start + offset);
-        spans.push(&builder[start..end]);
-    }
-
-    let mut found = BTreeSet::new();
-    for span in spans {
-        for line in span
-            .lines()
-            .filter(|line| !line.trim_start().starts_with("//"))
-        {
-            let bytes: Vec<char> = line.chars().collect();
-            let mut index = 0;
-            while index < bytes.len() {
-                if bytes[index..].starts_with(&['G', 'I', 'T', '_']) {
-                    let mut end = index;
-                    while end < bytes.len()
-                        && (bytes[end].is_ascii_uppercase()
-                            || bytes[end] == '_'
-                            || bytes[end].is_ascii_digit())
-                    {
-                        end += 1;
-                    }
-                    found.insert(bytes[index..end].iter().collect::<String>());
-                    index = end;
-                } else {
-                    index += 1;
+/// **The operation, not the name appearing somewhere.** Held as `line.contains(variable)` over non-comment
+/// text, this check was satisfied by `let _ = "GIT_DIR";` — an inert string standing in for an isolation
+/// that is not made. It asked whether a *name* occurs where the property is whether a *call* happens, which
+/// is the third round in a row this file read Rust as text for a question about code.
+fn environment_calls(stream: proc_macro2::TokenStream) -> BTreeSet<String> {
+    let mut named = BTreeSet::new();
+    let mut pending = vec![stream];
+    while let Some(stream) = pending.pop() {
+        let trees: Vec<proc_macro2::TokenTree> = stream.into_iter().collect();
+        for (index, tree) in trees.iter().enumerate() {
+            if let proc_macro2::TokenTree::Group(group) = tree {
+                pending.push(group.stream());
+            }
+            let proc_macro2::TokenTree::Ident(method) = tree else {
+                continue;
+            };
+            if (method != "env" && method != "env_remove") || index == 0 || index + 1 >= trees.len()
+            {
+                continue;
+            }
+            let called = matches!(&trees[index - 1], proc_macro2::TokenTree::Punct(dot) if dot.as_char() == '.');
+            let proc_macro2::TokenTree::Group(arguments) = &trees[index + 1] else {
+                continue;
+            };
+            if !called || arguments.delimiter() != proc_macro2::Delimiter::Parenthesis {
+                continue;
+            }
+            // Spelled without a `let` chain: this crate's MSRV predates them, and the workspace toolchain
+            // compiles one silently — the MSRV job is what said so.
+            if let Some(proc_macro2::TokenTree::Literal(variable)) =
+                arguments.stream().into_iter().next()
+            {
+                if let Some(name) = variable
+                    .to_string()
+                    .strip_prefix('"')
+                    .and_then(|rest| rest.strip_suffix('"'))
+                {
+                    named.insert(name.to_string());
                 }
             }
         }
     }
+    named
+}
+
+/// Every string literal in `stream`, for the two arrays [`kanhe::hermetic_git::hermetic`] iterates.
+fn string_literals(stream: proc_macro2::TokenStream) -> BTreeSet<String> {
+    let mut found = BTreeSet::new();
+    let mut pending = vec![stream];
+    while let Some(stream) = pending.pop() {
+        for tree in stream {
+            match tree {
+                proc_macro2::TokenTree::Group(group) => pending.push(group.stream()),
+                proc_macro2::TokenTree::Literal(literal) => {
+                    if let Some(name) = literal
+                        .to_string()
+                        .strip_prefix('"')
+                        .and_then(|rest| rest.strip_suffix('"'))
+                    {
+                        found.insert(name.to_string());
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    found
+}
+
+/// The token group that is `name`'s body — a `fn`'s braces, or a `const`'s value after its `=`.
+///
+/// Named by its opening rather than sliced to a terminator. Searched for `"\n}\n"` with `"];\n"` as a
+/// fallback, the two single-line `const` openings took the *next function's* closing brace — an 87-line span
+/// for a one-line subject — and the fallback was a branch no input could reach. A group carries its own end,
+/// so there is no terminator to pick and nothing to get wrong.
+fn item_body(
+    stream: proc_macro2::TokenStream,
+    keyword: &str,
+    name: &str,
+) -> Option<proc_macro2::TokenStream> {
+    let trees: Vec<proc_macro2::TokenTree> = stream.into_iter().collect();
+    for index in 0..trees.len().saturating_sub(1) {
+        let opens = matches!(&trees[index], proc_macro2::TokenTree::Ident(word) if word == keyword)
+            && matches!(&trees[index + 1], proc_macro2::TokenTree::Ident(word) if word == name);
+        if !opens {
+            continue;
+        }
+        // A `fn`'s body is its first brace group; a `const`'s value is the group after its `=`, which keeps
+        // the type's own brackets and the doc attribute's out.
+        let mut cursor = index + 2;
+        if keyword == "const" {
+            while cursor < trees.len()
+                && !matches!(&trees[cursor], proc_macro2::TokenTree::Punct(equals) if equals.as_char() == '=')
+            {
+                cursor += 1;
+            }
+        }
+        while cursor < trees.len() {
+            if let proc_macro2::TokenTree::Group(group) = &trees[cursor] {
+                let wanted = if keyword == "const" {
+                    proc_macro2::Delimiter::Bracket
+                } else {
+                    proc_macro2::Delimiter::Brace
+                };
+                if group.delimiter() == wanted {
+                    return Some(group.stream());
+                }
+            }
+            cursor += 1;
+        }
+    }
+    None
+}
+
+/// Every `GIT_*` variable [`kanhe::hermetic_git::hermetic`] acts on, read from the builder's own items.
+///
+/// `hermetic`'s own body for the calls it makes, and the two arrays it iterates for the names it removes.
+/// The fixture-side `commit` names `GIT_AUTHOR_DATE` and `GIT_COMMITTER_DATE`, which are no part of what a
+/// *read* inherits and are outside these items by construction rather than by a filter over a wider span.
+fn environment_operations_of(builder: &str) -> BTreeSet<String> {
+    let stream: proc_macro2::TokenStream = builder
+        .parse()
+        .expect("the builder is Rust this reader can tokenise");
+    let body = item_body(stream.clone(), "fn", "hermetic").expect(
+        "the builder no longer holds a `fn hermetic`, so this reader's subject is not its subject",
+    );
+    let mut found = environment_calls(body);
+    let mut arrays = 0usize;
+    for array in ["CONFIG_CHANNELS", "REPOSITORY_SELECTORS"] {
+        let Some(value) = item_body(stream.clone(), "const", array) else {
+            continue;
+        };
+        arrays += 1;
+        found.extend(string_literals(value));
+    }
+    assert_eq!(
+        arrays, 2,
+        "the builder no longer holds both arrays `hermetic` iterates, so this reader would derive a set \
+         from whichever half it found"
+    );
     found
 }
 
@@ -148,27 +229,66 @@ fn workspace_root() -> Option<PathBuf> {
     )
 }
 
-/// Whether `line` constructs a `git` rather than mentioning one.
+/// Whether `text` constructs a `git` — read as tokens, because that is what the question is about.
 ///
-/// **A line whose trimmed text opens a comment is prose**, and that is a stop this reader makes: this
-/// repository's own documentation names the shape it forbids in several places, and a reader counting those
-/// would refuse the sentences explaining the rule. Declared as
-/// `repository-checks/a-git-named-in-prose-is-not-read-a-stated-bound`.
+/// **Three rounds of findings in this file were one cause: it read Rust as lines.** A substring over a
+/// trimmed line missed a construction rustfmt split across lines, and read one inside a `/* … */` block —
+/// contradicting the requirement in one direction and the prose bound in the other, at once. Comments are
+/// what a lexer discards and a line break is not a token, so both go away by asking `proc_macro2` instead
+/// of by adding an arm per shape. It is already a dev-dependency here, and `repeated_paragraph` took the
+/// same route for the same reason.
 ///
-/// **The literal form, and the builder is not written in it.** `hermetic` takes its program as a parameter,
-/// so `Command::new(program)` is what it spells and this reader does not see it — which is correct here,
-/// since the builder is the construction everything else is routed *through* rather than one to declare.
-/// Declared as `repository-checks/a-git-constructed-through-a-program-value-is-not-read-a-stated-bound`.
-///
-/// **A construction inside a string literal is not a third stop, and this doc said it was.** Measured, the
-/// direction is the opposite of what was claimed: an ordinary literal carries the spelling escaped, which is
-/// not the text this reader looks for, so it drops out on its own rather than by any decision; a **raw**
-/// string carries it verbatim and **is read**. That is an over-report rather than a stop — visible and
-/// arguable where a miss would be silent — so it is stated here as behaviour rather than declared as a
-/// bound, and the alternative is the lexer `repeated_paragraph` had to carry to decide the same question.
-fn constructs_git(line: &str) -> bool {
-    let trimmed = line.trim_start();
-    !trimmed.starts_with("//") && trimmed.contains("Command::new(\"git\")")
+/// The shape sought is `Command :: new ( "git" )` — the `Command` segment included, so a `new` on something
+/// else is not read, and the argument compared as a **literal token** rather than as text, so any spelling
+/// of the same string that a lexer produces is the same answer.
+fn constructs_git(text: &str) -> bool {
+    let Ok(stream) = text.parse::<proc_macro2::TokenStream>() else {
+        // A file this reader cannot tokenise is one it cannot classify. Reporting it as constructing is the
+        // over-reporting direction, which is visible; the corpus check reports how many it read either way.
+        return text.contains("Command::new(\"git\")");
+    };
+    let mut pending = vec![stream];
+    while let Some(stream) = pending.pop() {
+        let trees: Vec<proc_macro2::TokenTree> = stream.into_iter().collect();
+        for (index, tree) in trees.iter().enumerate() {
+            if let proc_macro2::TokenTree::Group(group) = tree {
+                pending.push(group.stream());
+            }
+            let proc_macro2::TokenTree::Ident(ident) = tree else {
+                continue;
+            };
+            if ident != "new" || index < 3 || index + 1 >= trees.len() {
+                continue;
+            }
+            let named_command = matches!(&trees[index - 3], proc_macro2::TokenTree::Ident(owner) if owner == "Command")
+                && matches!(&trees[index - 2], proc_macro2::TokenTree::Punct(colon) if colon.as_char() == ':')
+                && matches!(&trees[index - 1], proc_macro2::TokenTree::Punct(colon) if colon.as_char() == ':');
+            if !named_command {
+                continue;
+            }
+            let proc_macro2::TokenTree::Group(arguments) = &trees[index + 1] else {
+                continue;
+            };
+            if arguments.delimiter() != proc_macro2::Delimiter::Parenthesis {
+                continue;
+            }
+            // A trailing comma is what rustfmt leaves when it wraps the argument, so the group is the
+            // literal and optionally that comma — the shape, not the spelling.
+            let inner: Vec<proc_macro2::TokenTree> = arguments.stream().into_iter().collect();
+            let program = match inner.as_slice() {
+                [proc_macro2::TokenTree::Literal(program)] => Some(program),
+                [
+                    proc_macro2::TokenTree::Literal(program),
+                    proc_macro2::TokenTree::Punct(comma),
+                ] if comma.as_char() == ',' => Some(program),
+                _ => None,
+            };
+            if program.is_some_and(|program| program.to_string() == "\"git\"") {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 #[test]
@@ -187,7 +307,7 @@ fn every_git_this_repository_constructs_is_the_builders_or_is_declared() {
             panic!("cannot read tracked file '{path}' — a file this check claims to have inspected must have been read: {err}")
         });
         examined += 1;
-        if text.lines().any(constructs_git) {
+        if constructs_git(&text) {
             constructing.insert(path.clone());
         }
     }
@@ -241,17 +361,20 @@ fn a_site_that_cannot_reach_the_builder_holds_what_the_builder_holds() {
         checked += 1;
         let text = std::fs::read_to_string(root.join(path))
             .unwrap_or_else(|err| panic!("cannot read the declared site '{path}': {err}"));
-        // **Code, not the comment beside it.** Written against the whole text this direction passed with the
-        // three `env_remove` calls deleted, because the paragraph explaining why they are there names every
-        // variable it removes — a reader counting its own explanation, which is the class
-        // `repeated_paragraph` met from the other side.
-        let code: Vec<&str> = text
-            .lines()
-            .filter(|line| !line.trim_start().starts_with("//"))
-            .collect();
+        // **The call, not the name occurring somewhere.** Written as `line.contains(variable)` over
+        // non-comment text, this was satisfied by `let _ = "GIT_DIR";` — an inert string standing in for an
+        // isolation that is not made. The line filter it carried was itself a repair of the same shape one
+        // round earlier, when the paragraph explaining the isolation named every variable it removes and so
+        // satisfied the check on its own. Both go away by reading the calls.
+        let stream: proc_macro2::TokenStream = text
+            .parse()
+            .unwrap_or_else(|err| panic!("the declared site '{path}' is not tokenisable: {err}"));
+        let made = environment_calls(stream);
         for variable in ENVIRONMENT_OPERATIONS {
-            if !code.iter().any(|line| line.contains(variable)) {
-                missing.push(format!("  {path}: does not handle {variable}"));
+            if !made.contains(variable) {
+                missing.push(format!(
+                    "  {path}: makes no `env`/`env_remove` call naming {variable}"
+                ));
             }
         }
     }
@@ -277,13 +400,43 @@ fn a_site_that_cannot_reach_the_builder_holds_what_the_builder_holds() {
 #[test]
 fn a_construction_named_in_prose_is_not_read() {
     assert!(!constructs_git(
-        "/// `Command::new(\"git\")` is what this forbids"
+        "/// `Command::new(\"git\")` is what this forbids\nfn f() {}"
     ));
     assert!(!constructs_git(
-        "    // a bare Command::new(\"git\") inherits the environment"
+        "fn f() {\n    // a bare Command::new(\"git\") inherits the environment\n}"
     ));
-    assert!(constructs_git("    let out = Command::new(\"git\")"));
-    assert!(constructs_git("Command::new(\"git\")"));
+    // **Every comment form, which is what asking a lexer buys.** A trimmed-line reader saw `//` and not
+    // `/* … */`, so a block comment carrying the spelling was read as a construction — the prose bound
+    // saying the opposite two files away.
+    assert!(!constructs_git(
+        "fn f() {\n    /* a bare Command::new(\"git\") inherits the environment */\n}"
+    ));
+    assert!(!constructs_git(
+        "fn f() {\n    let x = 1; /* Command::new(\"git\") */\n}"
+    ));
+    assert!(constructs_git(
+        "fn f() {\n    let out = Command::new(\"git\");\n}"
+    ));
+}
+
+/// A construction rustfmt split across lines is still a construction.
+///
+/// The other half of what reading lines cost: a substring over one trimmed line saw neither the opening nor
+/// the argument, so a file whose construction wrapped was **not** in the constructing set and the check's
+/// own requirement — that every file constructing a `git` is declared — was wider than its reader.
+#[test]
+fn a_construction_split_across_lines_is_read() {
+    assert!(constructs_git(
+        "fn f() {\n    let out = Command::new(\n        \"git\",\n    );\n}"
+    ));
+    // The control: the same wrapping around a different program is not read, so the assertion above is
+    // about the argument rather than about a reader that reports every `new`.
+    assert!(!constructs_git(
+        "fn f() {\n    let out = Command::new(\n        \"cargo\",\n    );\n}"
+    ));
+    assert!(!constructs_git(
+        "fn f() {\n    let out = Other::new(\"git\");\n}"
+    ));
 }
 
 /// A `git` constructed through a program value is not read.
@@ -341,20 +494,22 @@ fn a_construction_inside_an_ordinary_string_literal_is_not_read() {
     )));
 }
 
-/// A construction inside a **raw** string is read, which is the same stop pointing the other way.
+/// A construction inside a **raw** string is not read either, which reading tokens closed.
 ///
-/// Not a bound, because it is an over-report: a raw string carries the spelling verbatim, so a fixture
-/// written that way is reported as constructing a `git`. Visible and arguable, where the ordinary-literal
-/// half is silent — so the ordinary half is declared and this half is pinned as behaviour. Measured when it
-/// was found: writing this fixture out made the live sweep report this file.
+/// It was an over-report while this file read lines: a raw string carries the spelling verbatim, so a
+/// fixture written that way was reported as constructing a `git` — measured, by this file reporting itself.
+/// A literal is one token, so asking a lexer answers both literal forms the same way and the over-report is
+/// gone rather than declared. What remains is the one stop, in both forms, and the bound says so.
 #[test]
-fn a_construction_inside_a_raw_string_is_read() {
+fn a_construction_inside_a_raw_string_is_not_read() {
+    // Assembled, because this file is inside the corpus the live sweep reads.
     let quote = '"';
-    let raw =
-        format!("    let fixture = r#{quote}let out = Command::new({quote}git{quote}){quote}#;");
+    let raw = format!(
+        "fn f() {{\n    let fixture = r#{quote}let out = Command::new({quote}git{quote}){quote}#;\n}}"
+    );
     assert!(
-        constructs_git(&raw),
-        "a raw string carries the spelling verbatim and is reported — the over-report this states"
+        !constructs_git(&raw),
+        "a raw string is one literal token, so what it carries is that token's text and not a call"
     );
 }
 

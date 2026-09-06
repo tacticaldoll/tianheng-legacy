@@ -738,9 +738,9 @@ Generated from each dimension's `observation_bounds()` by `crates/kanhe/tests/ob
 
 ### `repository-checks/a-git-constructed-inside-a-string-literal-is-not-read-a-stated-bound`
 
-> a `git` construction written inside an ordinary string literal, where a file that emits Rust and compiles it carries one
+> a `git` construction written inside a string literal of any form, where a file that emits Rust and compiles it carries one
 
-- **because**: the mechanism is escaping rather than a decision: Rust source spells such a construction with its quotes escaped, which is not the plain text this reader looks for, so the file drops out on its own. Deciding it properly means separating a literal from the code around it, which `repeated_paragraph` carries a lexer to do and this check does not. The same shape points the other way in a RAW string, which carries the spelling verbatim and IS reported -- an over-report, visible where this half is silent, which is why this half is the one declared
+- **because**: a literal is one token, so what it carries is that token's text and not a call. Reading lines, this split in two: an ordinary literal escaped its quotes and dropped out on its own, while a RAW string carried the spelling verbatim and was reported -- an over-report that reading tokens closed rather than declared. One stop remains, in both forms. No mutation record isolates it: a literal's contents are not a token stream, so reaching into them is a different reader rather than a perturbation of this one
 - **its defence must show**: does not react
 - **pinned by**: `a_construction_inside_an_ordinary_string_literal_is_not_read`
 
@@ -756,7 +756,7 @@ Generated from each dimension's `observation_bounds()` by `crates/kanhe/tests/ob
 
 > a `git` construction written inside a comment rather than executed
 
-- **because**: this repository's own documentation names the shape it forbids in order to explain it, and a reader counting those sentences would refuse the rule's own statement of itself. The stop is the line's opening marker, which is decidable; what it costs is that a construction commented out rather than deleted is also unread, and `unreachable_branch` is where commented-out code is the subject
+- **because**: comments are what a lexer discards, and this reader asks one -- so the stop is what a token stream IS rather than an arm this check chose, which also closes the block-comment form a line-opening test could not see. What it costs is that a construction commented out rather than deleted is unread, and `unreachable_branch` is where commented-out code is the subject. No mutation record isolates it: perturbing it means giving this reader a text path back, which is the defect rather than a perturbation of it
 - **its defence must show**: does not react
 - **pinned by**: `a_construction_named_in_prose_is_not_read`
 

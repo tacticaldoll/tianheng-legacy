@@ -457,7 +457,7 @@ fallback used where no manifest exists, which the register spec describes.
 
 ### `repository-checks/a-git-constructed-inside-a-string-literal-is-not-read-a-stated-bound`
 
-> nothing reads it, and the mechanism is escaping rather than a decision: Rust source spells the construction with its quotes escaped, which is not the plain text this reader looks for. Deciding it properly means separating a literal from the code around it, which `repeated_paragraph` carries a lexer to do and this check does not
+> nothing reads it: a literal is one token, so what it carries is that token's text and not a call
 
 - **pinned by**: `a_construction_inside_an_ordinary_string_literal_is_not_read`
 
