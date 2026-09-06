@@ -932,6 +932,48 @@ them.
 
 ### Self-governance
 
+- **A comment-shaped line inside a string literal was read as a comment, and the workaround was the
+  evidence.** The repeated-paragraph check decided *is this a comment* by reading the trimmed line, which
+  cannot tell a comment from a line of a multi-line string — and this repository holds Rust fixtures as Rust
+  strings everywhere. The class was met the day the check was written: its own six-line fixture *was* such a
+  string, the live sweep reported this file at its own line 200, and that was got out of the way by
+  assembling the fixture at run time. The defect stayed, and the workaround became a tax on whoever wrote
+  the next fixture.
+
+  **Comments are what a lexer discards**, so the classification is taken from one. `proc_macro2` was already
+  a dev-dependency here — for the register that reads this repository's own Rust with a real parser instead
+  of scanning it — so a literal's span says which lines are its text, and a comment-shaped line strictly
+  inside one is not a comment. A file that does not lex is refused as a cannot-judge: a comment it cannot
+  separate from a string is a question it did not decide. Measured: all 293 tracked Rust files lex.
+
+  **The risk was entirely in the other direction, and it is pinned.** A doc comment reaches the lexer as a
+  synthesised `#[doc = "…"]` whose literal spans the comment's own line, so shadowing literals naively would
+  have stopped this check reading `///` paragraphs **at all** — most of this repository's prose, and a
+  silent false negative rather than a tax. They are told apart by the only thing that distinguishes them: a
+  literal whose own first line is comment-shaped is a doc comment. One direction holds both halves, because
+  getting either wrong breaks the other. Negative run with the shadow removed:
+
+  ```
+  assertion `left == right` failed: a duplicated comment paragraph inside a string literal is that string's text
+    left: [(4, 1)]
+   right: []
+  ```
+
+  **The fixture is written out again**, which is the second direction: it is now a duplicated comment
+  paragraph inside a string literal, in a file the live sweep reads — a live instance of the class rather
+  than a description of one. Written first as a `fn`, it tripped a sibling: the refusal register asserts that
+  its span reader loses no declaration, and its own comment states the convention embedded Rust here follows
+  — behind a call, never opening a line. It is a `mod` now. One guard caught what another had just been
+  taught to ignore, which is the arrangement working.
+
+  Also in this change: the enumeration takes `run_exact` rather than `run`. That module assigns the two by
+  what the caller does with the answer — `run` trims for a caller reading a value, `run_exact` keeps the
+  bytes for one comparing content — and a NUL-separated path list is the second. The trim was harmless here,
+  since `\0` is not ASCII whitespace, but taking the accessor whose stated criterion fits is what keeps the
+  criterion true of its callers. And `repetitions`' own first line still promised a *byte-identical*
+  comparison after the module, the specification and its fixtures had all moved to line content.
+
+
 - **The exception added for a third party's pin was wider than the sanction it was added for, three ways.**
   Two independent reviews arrived at the same unit and each found what the other did not.
 
