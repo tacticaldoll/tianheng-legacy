@@ -132,6 +132,25 @@ them.
   Found by re-reading this window's own repairs rather than by running anything, which is where a claim about
   code sits when the code is right.
 
+- **A requirement narrower than the reaction it governs, in the capability that owns the reader.**
+  `runtime-origin-assertion` states the single-segment rule for the `cfg_attr` **wrapper** — a qualified
+  look-alike carries no module target — and said nothing about the applied `path` meta itself. The repair
+  below moved the reaction; the requirement it is checked against still described the narrower shape, which
+  is the direction this window has already corrected once for the same spec.
+
+  The clause and its scenario now cover the target, with the consequence stated in this capability's own
+  terms: a probe inside a file no build compiles counted as coverage, so the audit reported clean over a
+  seam nothing probes.
+
+  **What found it was a differential probe rather than a reading.** Sixteen `cfg_attr` spellings rustc
+  accepts were run through all three dimensions, then nine more whose target must **not** be read, with the
+  violations placed only in the file that must not be reached. Current tree: no disagreement and no
+  over-read. The instrument was checked for bite before that null result was believed — reverting the
+  qualified-path repair turns two of the nine red, `圭表=1 渾儀=0 漏刻=1`, and one of those two is a
+  raw-and-qualified combination nobody had written a direction for. The probe is not kept here; what it
+  produced is evidence for the standing architectural entry, which is where the question of enumerating this
+  reader's corpus waits.
+
 - **BREAKING** — **The narrowing that closed a qualified `cfg_attr` was never applied to the target it
   wraps.** Both byte scanners compute whether a segment was reached through `::` and both spend it on the
   `cfg_attr` decision alone — 圭表 captures the flag and tests it in that arm only, 漏刻 clears it before
