@@ -81,16 +81,13 @@ fn registered_tests(root: &Path) -> BTreeMap<String, BTreeSet<String>> {
     // some entries and then fails leaves a short list that reads as authoritative, and every citation in a
     // package never enumerated is then reported as one the harness does not register — a filesystem failure
     // charged to the register. This capability's own requirement says so; nothing held it until now.
-    let manifests = must(
-        root,
-        "`git ls-files -- crates/*/Cargo.toml`",
-        "git",
-        &["ls-files", "--", "crates/*/Cargo.toml"],
-    );
+    let manifests = kanhe::hermetic_git::tracked_paths(root, &["crates/*/Cargo.toml"])
+        .unwrap_or_else(|failure| panic!("`git ls-files -- crates/*/Cargo.toml`: {failure:?}"));
     // git's pathspec `*` crosses directory separators, unlike the shell's — measured, the glob above also
     // matched fixture manifests nested under a member's tests. A workspace member is one segment deep.
     let members: Vec<String> = manifests
-        .lines()
+        .iter()
+        .map(String::as_str)
         .filter_map(|path| path.strip_prefix("crates/"))
         .filter_map(|rest| rest.strip_suffix("/Cargo.toml"))
         .filter(|member| !member.contains('/'))
@@ -479,9 +476,9 @@ fn every_unpinned_bound_names_a_tracked_tracker() {
     let Some(root) = workspace_root() else {
         return;
     };
-    let tracked: BTreeSet<String> = must(&root, "`git ls-files`", "git", &["ls-files"])
-        .lines()
-        .map(str::to_string)
+    let tracked: BTreeSet<String> = kanhe::hermetic_git::tracked_paths(&root, &[])
+        .unwrap_or_else(|failure| panic!("`git ls-files`: {failure:?}"))
+        .into_iter()
         .collect();
 
     let mut offences = Vec::new();
@@ -875,9 +872,11 @@ fn every_bare_bound_reference_resolves_to_a_declared_bound() {
          reference — a corpus that never arrived is not one in which nothing resolves"
     );
 
-    let listing = must(&root, "`git ls-files`", "git", &["ls-files"]);
+    let listing = kanhe::hermetic_git::tracked_paths(&root, &[])
+        .unwrap_or_else(|failure| panic!("`git ls-files`: {failure:?}"));
     let corpus: Vec<&str> = listing
-        .lines()
+        .iter()
+        .map(String::as_str)
         .filter(|path| path.ends_with(".rs") || path.ends_with(".md"))
         .collect();
     assert!(

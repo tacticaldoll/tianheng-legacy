@@ -32,12 +32,9 @@ fn subject_manifests(root: &std::path::Path) -> Result<Vec<String>, Refusal> {
     // ignore file, so this read is not in that channel — but one file spawning git two ways is the twin this
     // crate keeps converging, and the builder's failure type already separates *git could not run* from
     // *git ran and refused*, which the hand-rolled form folded into one sentence.
-    let out = kanhe::hermetic_git::run(
+    let out = kanhe::hermetic_git::tracked_paths(
         root,
-        &[],
         &[
-            "ls-files",
-            "--",
             "crates/*/tests/fixtures/*/Cargo.toml",
             "examples/*/Cargo.toml",
         ],
@@ -46,15 +43,11 @@ fn subject_manifests(root: &std::path::Path) -> Result<Vec<String>, Refusal> {
         Ok(listing) => listing,
         Err(err) => {
             return Err(cannot_judge(format!(
-                "cannot enumerate the tracked manifests: {err}"
+                "cannot enumerate the tracked manifests: {err:?}"
             )));
         }
     };
-    Ok(listing
-        .lines()
-        .filter(|line| !line.is_empty())
-        .map(str::to_string)
-        .collect())
+    Ok(listing.into_iter().collect())
 }
 
 /// Whether a manifest declares itself a workspace root.

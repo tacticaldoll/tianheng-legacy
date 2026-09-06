@@ -121,17 +121,10 @@ fn no_governance_document_restates_a_declared_allowlist() {
     let Some(root) = workspace_root() else {
         return;
     };
-    let out = std::process::Command::new("git")
-        .args(["ls-files", "*.md"])
-        .current_dir(&root)
-        .output()
-        .expect("run git ls-files");
-    assert!(
-        out.status.success(),
-        "could not enumerate tracked Markdown; a failed enumeration is not an empty corpus"
-    );
-    let listing = String::from_utf8_lossy(&out.stdout).to_string();
-    let paths: Vec<&str> = listing.lines().filter(|p| !p.is_empty()).collect();
+    let listing = kanhe::hermetic_git::tracked_paths(&root, &["*.md"]).unwrap_or_else(|failure| {
+        panic!("could not enumerate tracked Markdown ({failure:?}); a failed enumeration is not an empty corpus")
+    });
+    let paths: Vec<&str> = listing.iter().map(String::as_str).collect();
     assert!(
         !paths.is_empty(),
         "no tracked Markdown was enumerated, so this check would report clean over nothing"

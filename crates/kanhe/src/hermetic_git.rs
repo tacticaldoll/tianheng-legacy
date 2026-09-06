@@ -240,6 +240,54 @@ pub fn run(repo: &Path, flags: &[&str], args: &[&str]) -> Result<String, Failure
     run_exact(repo, flags, args).map(|text| text.trim_end().to_string())
 }
 
+/// Every record `git ls-files` answers under `pathspec`, NUL-separated, through [`run_exact`].
+///
+/// **One owner for *which paths does git track*.** Nineteen invocations across this repository's checks
+/// asked it and each decided three things for itself, so each could decide any of them differently:
+///
+/// - **`-z`, because git quotes a path it cannot write plainly.** `core.quotePath` defaults on, so a tracked
+///   path carrying a non-ASCII byte is answered as `"\344\270\255.md"` — a spelling that names no file.
+///   Measured on a scratch repository: a tracked `圭表.md` reads back quoted from a line-oriented listing and
+///   the quoted spelling opens nothing. This repository's whole vocabulary is those characters, and its
+///   crates are named for them, so the shape is one edit away rather than hypothetical.
+/// - **[`run_exact`], not a lossy decode.** `ls-files -z` promises nothing about encoding, so a path that is
+///   not UTF-8 arrives as a different path than the one on disk if it is decoded lossily, and every read
+///   below is made against that name. A verdict is not owed on an input this reader cannot represent.
+/// - **[`hermetic`], because a verdict must not move with config outside the repository being judged** —
+///   the Purpose `reference-integrity` states for its whole capability.
+///
+/// The property was discovered three separate times before it had an owner — `release_coherence_gate`'s
+/// walk, `projection_register`'s reader and `repeated_paragraph`'s enumeration each carry their own sentence
+/// about `core.quotePath` — which is what a fact with no owner looks like from inside.
+///
+/// Records rather than paths, because one caller asks `--eol` and reads `<info>\t<path>`; [`tracked_paths`]
+/// is the ordinary question and is spelled once in terms of this.
+pub fn tracked_records(
+    repo: &Path,
+    flags: &[&str],
+    pathspec: &[&str],
+) -> Result<Vec<String>, Failure> {
+    let mut args = vec!["ls-files", "-z"];
+    args.extend_from_slice(flags);
+    if !pathspec.is_empty() {
+        args.push("--");
+        args.extend_from_slice(pathspec);
+    }
+    let listing = run_exact(repo, &[], &args)?;
+    Ok(listing
+        .split('\0')
+        .filter(|record| !record.is_empty())
+        .map(str::to_string)
+        .collect())
+}
+
+/// Every path `git` tracks under `pathspec`, exactly as git spells it.
+///
+/// The ordinary form of [`tracked_records`]. An empty `pathspec` is the whole tracked set.
+pub fn tracked_paths(repo: &Path, pathspec: &[&str]) -> Result<Vec<String>, Failure> {
+    tracked_records(repo, &[], pathspec)
+}
+
 /// Run `program` in `dir` through [`hermetic`] and assert it succeeded — the fixture side of this module.
 ///
 /// **It lived twice too, and the extraction that took [`hermetic`] and [`run`] walked past it.** The two

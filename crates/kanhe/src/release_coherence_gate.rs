@@ -1979,13 +1979,13 @@ pub(crate) fn machinery_names(repo: &Path) -> Result<BTreeSet<String>, Refusal> 
         // `adopter_cited_machinery` cannot recognise a record citing that file, a false negative in the
         // release gate. Latent today (no tracked path needs quoting) and the sibling capability already
         // raises the class to a SHALL, which is why it is closed rather than declared.
-        let listing = git(repo, &["ls-files", "-z", &directory]).map_err(|err| {
+        let listing = crate::hermetic_git::tracked_paths(repo, &[&directory]).map_err(|err| {
             cannot_judge_at(
                 "release-coherence#directory-listing-unreadable",
-                format!("could not enumerate {directory}: {err}"),
+                format!("could not enumerate {directory}: {err:?}"),
             )
         })?;
-        for path in listing.split('\0').filter(|l| !l.is_empty()) {
+        for path in listing.iter().map(String::as_str) {
             enumerated += 1;
             if unpublished {
                 machinery.push(path.to_string());
@@ -2031,15 +2031,16 @@ pub(crate) fn machinery_names(repo: &Path) -> Result<BTreeSet<String>, Refusal> 
             ),
         ));
     }
-    let scripts = git(repo, &["ls-files", "-z", "scripts/"]).map_err(|err| {
+    let scripts = crate::hermetic_git::tracked_paths(repo, &["scripts/"]).map_err(|err| {
         cannot_judge_at(
             "release-coherence#scripts-not-enumerable",
-            format!("could not enumerate scripts/: {err}"),
+            format!("could not enumerate scripts/: {err:?}"),
         )
     })?;
     machinery.extend(
         scripts
-            .split('\0')
+            .iter()
+            .map(String::as_str)
             .filter(|l| !l.is_empty())
             .map(str::to_string),
     );

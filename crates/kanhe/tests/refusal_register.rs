@@ -25,7 +25,6 @@ use shengmo::workspace::MARKER;
 use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Range;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use syn::spanned::Spanned;
 use syn::visit::Visit;
 use syn::{
@@ -48,18 +47,13 @@ fn workspace_root() -> Option<PathBuf> {
 /// The corpus is what the repository tracks, for the reason every sibling here gives: an untracked scratch
 /// copy of a gate file is not repository content and must not decide a verdict.
 fn tracked(root: &Path, dir: &str) -> Vec<PathBuf> {
-    let out = Command::new("git")
-        .args(["ls-files", "-z", "--", dir])
-        .current_dir(root)
-        .output()
-        .unwrap_or_else(|err| panic!("cannot enumerate {dir}: {err}"));
-    assert!(
-        out.status.success(),
-        "git ls-files failed over {dir}, which is not the same fact as an empty directory: {}",
-        String::from_utf8_lossy(&out.stderr)
-    );
-    String::from_utf8_lossy(&out.stdout)
-        .split('\0')
+    kanhe::hermetic_git::tracked_paths(root, &[dir])
+        .unwrap_or_else(|failure| {
+            panic!(
+                "cannot enumerate {dir} ({failure:?}), which is not the same fact as an empty directory"
+            )
+        })
+        .into_iter()
         .filter(|p| p.ends_with(".rs"))
         .map(|p| root.join(p))
         .collect()

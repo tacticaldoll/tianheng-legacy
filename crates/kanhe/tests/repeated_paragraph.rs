@@ -236,12 +236,8 @@ fn offences(root: &Path, listing: &[String]) -> (Vec<Refusal>, usize) {
 /// whitespace, so nothing was being lost — but taking the accessor whose stated criterion fits is what keeps
 /// that criterion true of its callers.
 fn tracked(root: &Path) -> Vec<String> {
-    match kanhe::hermetic_git::run_exact(root, &[], &["ls-files", "-z"]) {
-        Ok(listing) => listing
-            .split('\0')
-            .filter(|path| !path.is_empty())
-            .map(str::to_string)
-            .collect(),
+    match kanhe::hermetic_git::tracked_paths(root, &[]) {
+        Ok(listing) => listing,
         Err(failure) => panic!(
             "CannotJudge: `git ls-files -z` did not answer a path list this reader can hold ({failure:?}), \
              so no file was inspected — an enumeration that could not be read is not an empty repository"

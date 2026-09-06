@@ -334,8 +334,12 @@ fn every_tracked_example_is_declared_and_every_declaration_exists() {
     let Some(root) = workspace_root() else {
         return;
     };
+    // `-z` and no lossy decode, spelled here for the reason `family_coverage`'s enumeration states: the
+    // owner is `kanhe::hermetic_git::tracked_paths` and `shengmo` cannot reach `kanhe` without closing a
+    // dependency cycle. The property is what must not differ — git quotes a path it cannot write plainly,
+    // and a replaced byte names a path the repository does not hold.
     let out = Command::new("git")
-        .args(["ls-files", "examples"])
+        .args(["ls-files", "-z", "examples"])
         .current_dir(&root)
         .output()
         .expect("run git ls-files examples");
@@ -343,8 +347,11 @@ fn every_tracked_example_is_declared_and_every_declaration_exists() {
         out.status.success(),
         "`git ls-files examples` failed, and a failed enumeration is not a repository with no examples"
     );
-    let tracked: std::collections::BTreeSet<String> = String::from_utf8_lossy(&out.stdout)
-        .lines()
+    let listing = String::from_utf8(out.stdout)
+        .expect("a tracked path this reader cannot represent is refused, not renamed");
+    let tracked: std::collections::BTreeSet<String> = listing
+        .split('\0')
+        .filter(|path| !path.is_empty())
         .filter(|path| path.ends_with("/Cargo.toml"))
         .filter_map(|path| path.strip_prefix("examples/"))
         .filter_map(|rest| rest.split_once('/'))

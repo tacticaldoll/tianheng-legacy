@@ -197,16 +197,18 @@ fn offences(path: &str, text: &str) -> Vec<String> {
 
 /// Every tracked Rust file under `crates/`, read through the hermetic builder.
 fn tracked_rust(root: &std::path::Path) -> Result<Vec<(String, String)>, Refusal> {
-    let listing = kanhe::hermetic_git::run(root, &[], &["ls-files", "-z", "crates"]).map_err(
-        |failure| {
-            cannot_judge(format!(
-                "CannotJudge: could not enumerate the tracked Rust sources ({failure:?}), so no file was \
-                 inspected"
-            ))
-        },
-    )?;
+    let listing = kanhe::hermetic_git::tracked_paths(root, &["crates"]).map_err(|failure| {
+        cannot_judge(format!(
+            "CannotJudge: could not enumerate the tracked Rust sources ({failure:?}), so no file was \
+             inspected"
+        ))
+    })?;
     let mut read = Vec::new();
-    for path in listing.split('\0').filter(|p| p.ends_with(".rs")) {
+    for path in listing
+        .iter()
+        .map(String::as_str)
+        .filter(|p| p.ends_with(".rs"))
+    {
         let text = std::fs::read_to_string(root.join(path)).map_err(|err| {
             cannot_judge(format!(
                 "CannotJudge: {path} is tracked and could not be read ({err}) — an unread file is not a file \

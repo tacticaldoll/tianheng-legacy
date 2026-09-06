@@ -44,14 +44,13 @@ fn run(root: &Path, args: &[&str]) -> Result<String, String> {
 /// would be judged by one direction and not the other — which is the granularity defect this file's newer
 /// direction exists to close, reintroduced one level up.
 fn tracked_scripts(root: &Path) -> Vec<(String, String)> {
-    let listing = run(root, &["git", "ls-files", "scripts/"]).expect(
+    let listing = kanhe::hermetic_git::tracked_paths(root, &["scripts/"]).expect(
         "the tracked scripts are enumerable; a failed enumeration returns exactly what a repository holding \
          no scripts returns, and reporting that as clean is the vacuity direction",
     );
     let scripts: Vec<String> = listing
-        .lines()
+        .into_iter()
         .filter(|path| path.ends_with(".sh"))
-        .map(str::to_string)
         .collect();
     assert!(
         !scripts.is_empty(),
@@ -188,11 +187,11 @@ fn every_command_a_document_hands_a_reader_names_a_target_that_exists() {
         "cargo named no test target, so this direction would hold over nothing"
     );
 
-    let listing =
-        run(&root, &["git", "ls-files", "*.md"]).expect("the tracked Markdown is listable");
+    let listing = kanhe::hermetic_git::tracked_paths(&root, &["*.md"])
+        .expect("the tracked Markdown is listable");
     let mut examined = 0usize;
     let mut broken = Vec::new();
-    for path in listing.lines().filter(|l| !l.is_empty()) {
+    for path in listing.iter().map(String::as_str) {
         // `examined` counts what was opened, which is a vacuity guard and not a completeness one: one
         // unreadable document leaves every command it hands a reader unchecked while the count still says
         // this direction ran.
