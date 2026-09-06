@@ -12,12 +12,17 @@
 //! once, and a reader comparing only the three would have reported that as clean. So each shape carries a
 //! **declared** answer, and rustc is asked whether that declaration is true:
 //!
-//! 1. Every generated shape is compiled. A shape rustc rejects is a fixture artefact rather than a spelling
-//!    a maintainer could write, and this direction refuses it — the generator, not the dimensions, is what
-//!    failed.
-//! 2. Where the predicate is **true on this host**, rustc is asked *which file the build contains*, by
-//!    referencing an item defined only in the remap target. That is what keeps the declared answer honest
-//!    rather than merely asserted.
+//! 1. **Is the spelling legal Rust?** Every shape is compiled with no cross-module reference. A failure
+//!    here is the **generator's**: it claimed a shape Rust does not admit.
+//! 2. **Does the remap apply?** The same source, plus a reference to an item defined only in the named
+//!    target. For a governed shape under a live predicate this must resolve; for a look-alike its live
+//!    probe must **not**, either by rustc refusing the attribute outright or by compiling without it.
+//!
+//! **The two questions were one arm, and the arm asserted the wrong fact.** A single compile carrying the
+//! reference fails both when the spelling is illegal and when the spelling is fine and the *declared
+//! answer* is wrong, and the message named only the first — measured, `#[cfg_attr(unix, allow(dead_code))]`
+//! declared governed reported *rustc rejects the generated spelling … the corpus claims a shape Rust does
+//! not admit*, over source rustc accepts. Two facts an author repairs in opposite places, so two questions.
 //!
 //! **What rustc cannot decide here, said rather than left to be assumed.** Under a false predicate no
 //! configuration on this host compiles the target, so rustc can say only that the source is legal. The
@@ -153,10 +158,8 @@ fn corpus() -> Vec<Shape> {
     out
 }
 
-/// Compile `attribute` as real source, and where the predicate is live, resolve an item defined **only**
-/// in the remap target — so a success is rustc saying which file the build contains rather than only that
-/// the source parses.
-fn rustc_says(name: &str, shape: &Shape) -> Result<(), String> {
+/// Compile `source` as a crate and hand back rustc's own first line on failure.
+fn compiles(name: &str, source: &str) -> Result<(), String> {
     let dir = std::env::temp_dir().join(format!("tianheng-spelling-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     xingbiao::claim_scratch(&dir).expect("the rustc scratch root is writable");
@@ -168,17 +171,8 @@ fn rustc_says(name: &str, shape: &Shape) -> Result<(), String> {
     )
     .expect("write");
     std::fs::write(dir.join("imp.rs"), CLEAN).expect("write");
-    let reference = if shape.answer == Answer::Governed && shape.live_predicate {
-        "pub fn use_it() -> u8 { imp::only_in_target() }\n"
-    } else {
-        "pub fn use_it() -> u8 { imp::conventional() }\n"
-    };
     let lib = dir.join("lib.rs");
-    std::fs::write(
-        &lib,
-        format!("{}\npub mod imp;\n{reference}", shape.attribute),
-    )
-    .expect("write");
+    std::fs::write(&lib, source).expect("write");
 
     let run = std::process::Command::new("rustc")
         .args(["--crate-type", "lib", "--edition", "2021"])
@@ -190,10 +184,32 @@ fn rustc_says(name: &str, shape: &Shape) -> Result<(), String> {
     let verdict = if run.status.success() {
         Ok(())
     } else {
-        Err(String::from_utf8_lossy(&run.stderr).trim().to_string())
+        Err(String::from_utf8_lossy(&run.stderr)
+            .lines()
+            .next()
+            .unwrap_or("(no stderr)")
+            .to_string())
     };
     let _ = std::fs::remove_dir_all(&dir);
     verdict
+}
+
+/// The shape with no cross-module reference: the source whose legality is the generator's claim.
+fn plain(attribute: &str) -> String {
+    format!("{attribute}\npub mod imp;\n")
+}
+
+/// The same source, resolving an item defined **only** in the named target — so success is rustc saying
+/// the remap applied and the build contains that file.
+fn referencing_the_target(attribute: &str) -> String {
+    format!("{attribute}\npub mod imp;\npub fn use_it() -> u8 {{ imp::only_in_target() }}\n")
+}
+
+/// A look-alike's live probe: the same spelling with its false predicate made true, so *no remap applies*
+/// is a fact rustc can be asked rather than one the generator asserts. A shape carrying no `any()` is
+/// already live — its predicate is the look-alike — and is probed as written.
+fn live_probe(attribute: &str) -> String {
+    attribute.replace("any()", "unix")
 }
 
 /// Every generated spelling is legal Rust, and every dimension answers it the way the generator declares —
@@ -214,17 +230,55 @@ fn every_generated_spelling_is_answered_the_same_way_by_every_dimension() {
     for (i, shape) in corpus.iter().enumerate() {
         let name = format!("diff-{i:02}");
 
-        // The generator is held first: a shape rustc will not take is not a spelling, and reporting the
-        // dimensions' answers about it would attribute the generator's defect to them.
-        if let Err(stderr) = rustc_says(&name, shape) {
+        // **Question one, and the generator is what it holds.** A shape rustc will not take is not a
+        // spelling a maintainer could write, and reporting the dimensions' answers about it would attribute
+        // the generator's defect to them. No cross-module reference here, so this failure can mean only
+        // one thing.
+        if let Err(stderr) = compiles(&format!("{name}-plain"), &plain(&shape.attribute)) {
             offences.push(format!(
-                "{}: rustc rejects the generated spelling `{}`, so the corpus claims a shape Rust does not \
-                 admit — {}",
-                shape.label,
-                shape.attribute,
-                stderr.lines().next().unwrap_or("(no stderr)")
+                "{}: rustc will not take the generated spelling `{}`, so the corpus claims a shape Rust \
+                 does not admit — {stderr}",
+                shape.label, shape.attribute
             ));
             continue;
+        }
+
+        // **Question two: is the declared answer true of a real build?** The same source, resolving an item
+        // defined only in the named target. A failure here is the *declaration*, not the spelling — the
+        // two were one arm and the arm named only the first.
+        match shape.answer {
+            Answer::Governed if shape.live_predicate => {
+                if let Err(stderr) = compiles(
+                    &format!("{name}-ref"),
+                    &referencing_the_target(&shape.attribute),
+                ) {
+                    offences.push(format!(
+                        "{}: rustc takes `{}` but the build does not contain the named target, so the \
+                         corpus declares a remap that does not apply — {stderr}",
+                        shape.label, shape.attribute
+                    ));
+                    continue;
+                }
+            }
+            Answer::Decoy => {
+                // Measured rather than asserted: with the predicate made live, the look-alike must still
+                // name no remap — either rustc refuses the attribute outright, or it compiles and the
+                // target's item does not resolve. Both are *no remap applies*; a success would mean the
+                // generator called a real remap a decoy.
+                let probe = live_probe(&shape.attribute);
+                if compiles(&format!("{name}-decoy"), &referencing_the_target(&probe)).is_ok() {
+                    offences.push(format!(
+                        "{}: with its predicate made live, `{probe}` DOES apply a remap, so the corpus \
+                         calls a real module target a look-alike",
+                        shape.label
+                    ));
+                    continue;
+                }
+            }
+            // A governed shape under a dead predicate: rustc on this host compiles no configuration that
+            // reaches the target, so question one is all it can answer and the declaration carries the
+            // rest. The live rows above are what keep that declaration honest.
+            Answer::Governed => {}
         }
 
         let lib = format!("{FORBIDDEN}{PROBED}{}\npub mod imp;\n", shape.attribute);
@@ -274,9 +328,16 @@ fn every_generated_spelling_is_answered_the_same_way_by_every_dimension() {
         corpus.len(),
         offences.join("\n  ")
     );
+    let (governed, decoys) = corpus
+        .iter()
+        .fold((0, 0), |(g, d), shape| match shape.answer {
+            Answer::Governed => (g + 1, d),
+            Answer::Decoy => (g, d + 1),
+        });
     println!(
-        "spelling differential: {} generated spellings, each compiled by rustc and answered identically by \
-         all three dimensions",
+        "spelling differential: {} spellings — {governed} governed and {decoys} look-alikes. Every one is \
+         legal Rust; every look-alike was shown to apply no remap with its predicate made live; and every \
+         dimension answered every one the way the corpus declares.",
         corpus.len()
     );
 }
