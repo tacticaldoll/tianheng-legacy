@@ -2000,15 +2000,23 @@ fn unanchored_citation_offences_in(corpus_root: &Path, corpus: &[String]) -> BTr
         // `no_source_outside_the_shared_reader_pairs_backticks_by_hand` refuses, and it refused this file
         // when the first draft did exactly that.
         for (line, span) in kanhe::reading::backticked_by_paragraph(&live) {
-            if !is_abbreviated_object(&span) {
-                continue;
+            // **Every token in the span, not the span itself.** Testing whether the span IS the hex missed an
+            // object cited inside a longer one — `git show <sha>` is a single span whose content carries
+            // spaces, so the whole-span predicate answered no while the object was plainly there. Three such
+            // objects stood in live governance documents until an outside review read them, and this reader
+            // had been over the same lines. Splitting on whitespace is what makes the reader's corpus the
+            // claim's corpus: the predicate below is unchanged and is what keeps the noise out.
+            for token in span.split_whitespace() {
+                if !is_abbreviated_object(token) {
+                    continue;
+                }
+                offences.insert(format!(
+                    "  {path}:{line} cites the commit object `{token}`, and live text anchors to a release. \
+                     `main` carries one commit per release, so a development commit is unreachable from a \
+                     fresh clone by construction; a release commit is reachable and is still named better by \
+                     its version. Name the release window, or move the citation into a record"
+                ));
             }
-            offences.insert(format!(
-                "  {path}:{line} cites the commit object `{span}`, and live text anchors to a release. \
-                 `main` carries one commit per release, so a development commit is unreachable from a fresh \
-                 clone by construction; a release commit is reachable and is still named better by its \
-                 version. Name the release window, or move the citation into a record"
-            ));
         }
     }
     assert!(
