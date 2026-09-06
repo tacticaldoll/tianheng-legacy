@@ -2431,7 +2431,8 @@ consumer for an undemonstrated deduplication.
   `jq`, which reads to EOF, and in the one `head` and the one `grep` the reaction already names. No stage
   reads a value through some other program that exits early.
 
-- **WATCH: `path_meta_values` answers a lexical question with a byte scanner.** *Observed pressure:*
+- **ACCEPTED DEBT: `path_meta_values` answers a lexical question with a byte scanner, and a generated
+  differential is what bounds it.** *Observed pressure:*
   the reader decides which positions in a `cfg_attr` span are applied module targets, and every property
   that decision rests on is lexical — where a group's predicate ends, whether a group is a `cfg_attr`'s,
   whether a segment is reached through `::`, and what one identifier is. Each is answered from bytes rather
@@ -2527,6 +2528,32 @@ consumer for an undemonstrated deduplication.
   they are, the enumeration is the instrument and the boundary is how it becomes possible; if they are
   not, Option A's independence argument wins on the evidence above. *Authority:* steward — neither option
   is a commit-level call.
+
+  **DECIDED: none of the three, and the premise under *what would decide it* was false.** It assumed the
+  boundary is *how enumeration becomes possible*. It is not: the enumeration was built over the readers **as
+  they stand** and needed nothing structural, because what makes a differential possible is exactly the
+  property Option A defends — the three implementations are independent, so they can be asked the same
+  question separately. A boundary is the one thing that would have made it harder.
+
+  Two parties are not enough, and that is what the instrument adds over a reading. A differential over the
+  three dimensions alone answers *do they agree*, and agreement is not correctness — the raw bare-`cfg`
+  spelling was missed by all three at once. So **rustc is the third party**:
+  `crates/tianheng/tests/attribute_spelling_differential.rs` generates the corpus, compiles every shape,
+  refuses one rustc will not take as the **generator's** defect rather than a dimension's, resolves an item
+  defined only in the remap target wherever the predicate is live, and holds all three to the declared
+  answer.
+
+  What this buys is the sentence the null option could never write: over a generated corpus, every spelling
+  is legal Rust and every dimension answers it identically. What it does not buy is the corpus being *every*
+  lexical form Rust admits — the generator's axes are what someone thought to generate, which is strictly
+  better than what someone thought to read, and unlike a reading it can be grown cheaply and its coverage is
+  inspectable in one file. **Growing an axis is now the repair a new spelling earns**, rather than a patch to
+  two scanners and a hope about the third.
+
+  The instrument was checked for bite before its null result was believed: reverting 圭表's qualification
+  narrowing reports two rows, 漏刻's reports two, 渾儀's raw-identifier comparison reports eighteen, and a
+  deliberately malformed shape is reported against the generator rather than against any dimension.
+  *Decided 2026-09-06 by the steward.*
 - **WATCH: no fixture separates 圭表's two states for an unreadable module target.** *Observed pressure:*
   the `is_file()` absence/unreadable collapse was repaired in all three dimensions by routing every read
   through `xingbiao::is_regular_file` / `is_directory`, which carry the criterion. 渾儀's repair was seen to
