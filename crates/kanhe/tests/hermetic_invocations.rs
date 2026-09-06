@@ -355,19 +355,20 @@ fn every_git_this_repository_constructs_is_the_builders_or_is_declared() {
     );
 }
 
-/// Every declared site's proving direction is one the harness **lists**.
+/// Every declared site's proving direction is one that **runs, and passes**.
 ///
-/// **Executability is an execution result, not an attribute read.** The first spelling compared `sig.ident`
-/// alone, so an ordinary function of the same name satisfied a citation nothing runs. The second required
-/// `#[test]` and refused `#[ignore]` — and `#[cfg(any())] #[test]`, or an `ignore` reached through
-/// `cfg_attr`, still satisfied it while never entering the harness. Each repair closed the spelling a review
-/// brought and left the next one, because *whether a test runs* is decided by cfg evaluation and the harness
-/// registry, not by the attributes a reader can see.
+/// **Executability is an execution result, and three readers of syntax said otherwise.** The first compared
+/// `sig.ident` alone, so an ordinary function of the same name satisfied a citation nothing runs; the second
+/// required `#[test]` and refused `#[ignore]`, and `#[cfg(any())] #[test]` — or an `ignore` reached through
+/// `cfg_attr` — satisfied it while never entering the harness; the third asked the harness to **list** the
+/// direction, and a listing carries ignored tests an ordinary run does not execute, under whichever features
+/// the listing was taken with rather than the ones CI uses.
 ///
-/// So it is asked of the harness: the target is listed, and the direction must be in what it lists. That
-/// answer is the same for every spelling of the same fact.
+/// So the direction is run. `--all-features`, because that is what the Definition of Done and CI run;
+/// `--include-ignored`, so a proof left ignored is still executed rather than silently skipped; and the run
+/// must report exactly one test passing, because a filter that matches nothing also exits zero.
 #[test]
-fn every_declared_site_names_a_direction_the_harness_lists() {
+fn every_declared_site_names_a_direction_that_runs_and_passes() {
     let Some(root) = workspace_root() else {
         return;
     };
@@ -380,26 +381,38 @@ fn every_declared_site_names_a_direction_the_harness_lists() {
         checked += 1;
         let (package, target) = declared_target(path);
         let out = std::process::Command::new(env!("CARGO"))
-            //  enumerates rather than runs, so the workspace-test marker this suite is gated by
-            // is not needed and is not spelled a second time here.
-            .args(["test", "-p", package, "--test", target, "--", "--list"])
+            .args([
+                "test",
+                "-p",
+                package,
+                "--test",
+                target,
+                "--all-features",
+                "--",
+                "--exact",
+                direction,
+                "--include-ignored",
+            ])
             .current_dir(&root)
+            .env(shengmo::workspace::MARKER, "1")
             .output()
-            .unwrap_or_else(|err| panic!("cannot list the tests of {package}/{target}: {err}"));
-        assert!(
-            out.status.success(),
-            "listing the tests of {package}/{target} failed, so whether it registers `{direction}` was \
-             never read: {}",
+            .unwrap_or_else(|err| panic!("cannot run {package}/{target}::{direction}: {err}"));
+        let reported = format!(
+            "{}{}",
+            String::from_utf8_lossy(&out.stdout),
             String::from_utf8_lossy(&out.stderr)
         );
-        let listed = String::from_utf8_lossy(&out.stdout);
-        let registers = listed
-            .lines()
-            .filter_map(|line| line.strip_suffix(": test"))
-            .any(|name| name == direction);
-        if !registers {
+        if !out.status.success() {
             missing.push(format!(
-                "  {path}: the harness does not list `{direction}`, so nothing runs it"
+                "  {path}: `{direction}` did not pass:\n{}",
+                reported.trim()
+            ));
+            continue;
+        }
+        // A filter matching nothing exits zero, so the count is what says the proof ran.
+        if !reported.contains("1 passed") {
+            missing.push(format!(
+                "  {path}: running `{direction}` executed no test, so nothing proves this site"
             ));
         }
     }
@@ -410,7 +423,7 @@ fn every_declared_site_names_a_direction_the_harness_lists() {
     );
     assert!(
         missing.is_empty(),
-        "a site names a direction that proves its isolation and the harness does not list it:\n{}",
+        "a site names a direction that proves its isolation and running it does not:\n{}",
         missing.join("\n")
     );
 }
