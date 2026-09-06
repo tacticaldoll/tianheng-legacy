@@ -2000,14 +2000,18 @@ fn unanchored_citation_offences_in(corpus_root: &Path, corpus: &[String]) -> BTr
         // `no_source_outside_the_shared_reader_pairs_backticks_by_hand` refuses, and it refused this file
         // when the first draft did exactly that.
         for (line, span) in kanhe::reading::backticked_by_paragraph(&live) {
-            // **Every token in the span, not the span itself.** Testing whether the span IS the hex missed an
-            // object cited inside a longer one — `git show <sha>` is a single span whose content carries
-            // spaces, so the whole-span predicate answered no while the object was plainly there. Three such
-            // objects stood in live governance documents until an outside review read them, and this reader
-            // had been over the same lines. Splitting on whitespace is what makes the reader's corpus the
-            // claim's corpus: the predicate below is unchanged and is what keeps the noise out.
-            for token in span.split_whitespace() {
-                if !is_abbreviated_object(token) {
+            // **Every delimiter-bounded hex run in the span, not the span and not its whitespace tokens.**
+            // Testing whether the span IS the hex missed an object cited inside a longer one; splitting on
+            // whitespace then missed one glued to punctuation, which is where a git object usually sits —
+            // `<object>..release/0.5.0`, `<object>^{commit}` and `(<object>)` are each ONE whitespace
+            // token, and none of them is bare hex. The placeholders are placeholders because this reader
+            // refuses a real one here too, which is the shape working rather than an inconvenience. Both narrowings were found by a reader after the reader here had
+            // run over the same lines, so the corpus is taken from the shape a revision expression has
+            // rather than from the shape a sentence has. A run bounded by alphanumerics is not a citation —
+            // it is the tail of a word — so the bound is non-alphanumeric on both sides, and the predicate
+            // below is unchanged and is still what keeps the noise out.
+            for token in hex_runs(&span) {
+                if !is_abbreviated_object(&token) {
                     continue;
                 }
                 offences.insert(format!(
@@ -2077,6 +2081,79 @@ fn live_prose(kind: Prose, text: &str, records: &kanhe::record::Records) -> Stri
                 .join("\n")
         }
     }
+}
+
+/// The reader reaches a citation glued to punctuation, and the two narrower readers it replaced do not.
+///
+/// **The live direction cannot pin this and never could.** It sweeps the tracked corpus, which is kept
+/// clean — so reverting the widening leaves it green, and the scenario it pins would have been satisfied by
+/// a reader that had stopped working. The guard has to supply the offending span itself.
+///
+/// Three forms, one per narrowing this reader has had:
+/// the whole-span predicate reads none of them; splitting on whitespace reads only the first; bounding on
+/// non-alphanumerics reads all three.
+///
+/// Negative runs, each with the fixture untouched: with `hex_runs` replaced by `span.split_whitespace()`
+/// this reports 1 of 3 and fails naming the two it lost; with the loop replaced by the whole span it
+/// reports 0 of 3.
+#[test]
+fn a_citation_glued_to_punctuation_is_read() {
+    let root = std::env::temp_dir().join(format!("kanhe-citation-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    xingbiao::claim_scratch(&root).expect("the fixture root is writable");
+
+    // Assembled from pieces no piece of which is itself object-shaped, because this file is inside the
+    // corpus the live direction sweeps: a literal abbreviated object written here would be an offence of
+    // the very class under test.
+    let object: String = ["f4", "1b", "3b", "9c"].concat();
+    let document = format!(
+        "# Fixture\n\nA span carrying a space: `git show {object}`.\n\n         A revision expression: `{object}..release/0.5.0`.\n\n         Punctuation around it: `({object})`.\n"
+    );
+    std::fs::write(root.join("GUIDE.md"), document).expect("the fixture document is writable");
+
+    let offences = unanchored_citation_offences_in(&root, &["GUIDE.md".to_string()]);
+    assert_eq!(
+        offences.len(),
+        3,
+        "each of the three spans carries the object and each must be reported; got {offences:#?}"
+    );
+    for offence in &offences {
+        assert!(
+            offence.contains(&object),
+            "an offence must name the object it found: {offence}"
+        );
+    }
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+/// Every maximal run of lowercase hex characters in `span` whose neighbours are not alphanumeric.
+///
+/// A citation sits next to punctuation far more often than next to a space: a revision expression glues it
+/// to `..`, `^`, `~` or `{`, and prose glues it to a bracket or a comma. Bounding on non-alphanumerics
+/// rather than on whitespace is what makes this reader's corpus the corpus its requirement claims, and the
+/// alphanumeric bound is what keeps the tail of an ordinary word from being read as an object.
+fn hex_runs(span: &str) -> Vec<String> {
+    let chars: Vec<char> = span.chars().collect();
+    let mut runs = Vec::new();
+    let mut start = 0usize;
+    while start < chars.len() {
+        if !chars[start].is_ascii_hexdigit() {
+            start += 1;
+            continue;
+        }
+        let mut end = start;
+        while end < chars.len() && chars[end].is_ascii_hexdigit() {
+            end += 1;
+        }
+        let bounded_left = start == 0 || !chars[start - 1].is_alphanumeric();
+        let bounded_right = end == chars.len() || !chars[end].is_alphanumeric();
+        if bounded_left && bounded_right {
+            runs.push(chars[start..end].iter().collect());
+        }
+        start = end;
+    }
+    runs
 }
 
 /// Whether a code span's content is an abbreviated commit object: 4 to 40 lowercase hex characters

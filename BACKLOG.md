@@ -870,7 +870,8 @@ consumer for an undemonstrated deduplication.
   (18%)` touched a published source at all; `68/540 (12%)` touched product without touching governance. Two
   independent reviewers separately observed the other side of the same fact — that across sixteen rounds the
   published `0.5.0` surface moved by two lines of a private doc comment. *Observation source:* that
-  classification, run over `e645a54..release/0.5.0` after the release was cut; the command is written out so
+  classification, run over `v0.4.0..v0.5.0` after the release was cut — two tags, so the range resolves from
+  any clone and neither end can be renamed; the command is written out so
   the next window's figure is derived rather than recalled. *Current reaction or bound:* none, and none is
   proposed — a ratio is not a property a reaction can hold without deciding what counts as product, which is
   a judgement over intent. This entry is the instrument and the record of one reading. *Risk:* the window's
