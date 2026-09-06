@@ -1978,6 +1978,15 @@ that disagrees, and SHALL assert that it inspected at least one file before reac
 corpus can collapse both by the enumeration answering nothing and by the extension filter matching nothing,
 and neither is visible in an empty offence set.
 
+**A comment-shaped line inside a string literal SHALL NOT be read as a comment.** This repository holds Rust
+fixtures as Rust strings, so a reader keyed on the trimmed line cannot tell the two apart — and the first
+spelling of this check's own fixture was such a string, which the sweep reported. Comments are what a lexer
+discards, so the classification SHALL be taken from a real lexer: a line strictly inside a literal's span is
+that literal's text. A doc comment reaches the lexer as a synthesised `#[doc = "…"]`, and SHALL still be
+read as a comment — shadowing those would stop the check reading `///` at all, which is a false negative
+over most of this repository's prose. A file that does not lex SHALL be refused as a cannot-judge, because a
+comment it cannot separate from a string is a question it did not decide.
+
 Every line of a repeated block SHALL carry content after its marker. Without that, two consecutive bare
 `//` lines — a paragraph break spelled twice, which is formatting — are a one-line block repeated, and the
 check would report text exactly as its author wrote it.
@@ -2030,6 +2039,19 @@ reach costs no report an author would argue with.
 - **THEN** the check reports it — a one-line paragraph is a paragraph, and the content requirement rather
   than a minimum length is what keeps a repeated paragraph break out
 - **PINNED-BY** `a_one_line_paragraph_written_twice_is_read`
+
+#### Scenario: A comment-shaped line inside a string literal
+
+- **WHEN** a tracked Rust file carries a duplicated comment paragraph inside a string or raw-string literal
+- **THEN** nothing reacts, because those lines are that literal's text — while a duplicated `///` paragraph
+  is still read, since a doc comment is a comment however the lexer carries it
+- **PINNED-BY** `a_comment_shaped_line_inside_a_literal_is_not_a_comment`
+
+#### Scenario: A tracked Rust file does not lex
+
+- **WHEN** a tracked `.rs` file cannot be tokenised
+- **THEN** the check refuses as a cannot-judge naming the path, because a comment it cannot separate from a
+  string literal is a question it did not decide
 
 #### Scenario: A paragraph break is spelled twice
 

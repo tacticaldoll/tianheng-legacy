@@ -16,11 +16,21 @@
 //! Contract forbids. The requirement says so in those words rather than saying *byte-identical*, which
 //! claimed a precision this reader deliberately does not have.
 //!
+//! **A comment-shaped line inside a string literal is text, not a comment.** This repository holds Rust
+//! fixtures as Rust strings, so the two cannot be told apart by reading a trimmed line — and the class is
+//! not hypothetical: the first spelling of this check's own fixture was such a string, and the sweep
+//! reported this file. Comments are what a lexer discards, so the classification is taken from
+//! `proc_macro2`: a line strictly inside a literal's span is that literal's text. A doc comment reaches the
+//! lexer as `#[doc = "…"]`, so it is told apart by the one thing that distinguishes it — a literal whose own
+//! first line is comment-shaped is a doc comment — and shadowing those would have stopped this check reading
+//! `///` at all, which is a false negative over most of this repository's prose.
+//!
 //! **The reach is adjacency, and the corpus is Rust.** Both are stops this reader makes deliberately, so
 //! both are declared rather than left to be inferred: `docs/observation-bounds.md` carries them as
 //! `repository-checks/a-paragraph-repeated-out-of-line-is-not-read-a-stated-bound` and
 //! `repository-checks/a-paragraph-repeated-in-prose-is-not-read-a-stated-bound`.
 
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use kanhe::refusal::{Kind, Refusal, cannot_judge, violation};
@@ -44,8 +54,59 @@ fn comment_body(line: &str) -> Option<&str> {
     Some(rest.trim_start_matches(['/', '!']).trim())
 }
 
-/// Every comment paragraph in `text` that is immediately followed by a byte-identical copy of itself, as
-/// `(line of the second copy, how many lines it spans)`.
+/// The lines of `text` that sit **inside** a literal, so a comment-shaped line among them is not a comment.
+///
+/// **A line beginning `//` is a comment, unless it is text.** `comment_body` reads the trimmed line, which
+/// cannot tell a comment from a line of a multi-line string literal that happens to start with the same two
+/// characters — and this repository is full of Rust fixtures that are Rust source held as strings. The class
+/// is not hypothetical: the first spelling of this check's own six-line fixture *was* such a string, and the
+/// live sweep reported this file at its own line 200. That was worked around by assembling the fixture at
+/// run time, which left the defect in place and the workaround as a tax on whoever writes the next one.
+///
+/// **Tokens, because comments are what a lexer discards.** `proc_macro2` is already a dev-dependency here,
+/// for the register that reads this repository's own Rust with a real parser instead of scanning it. A
+/// literal's span covers the lines its text occupies, so a `//`-shaped line strictly inside one is shadowed
+/// and every other stays a comment.
+///
+/// **Doc comments are literals too, and excluding them is the whole risk.** `/// text` reaches the lexer as
+/// `#[doc = " text"]`, whose literal spans the doc comment's own line — so shadowing it would silently stop
+/// this check from reading `///` paragraphs at all, which is most of this repository's prose and a false
+/// negative rather than a tax. They are told apart by the only thing that distinguishes them: a literal
+/// whose own first line is comment-shaped is a doc comment, because a real literal cannot begin on one.
+///
+/// A `text` the lexer refuses yields an empty set, which reports more rather than less; [`offences`] refuses
+/// such a file separately, so the silence is not where the decision is made.
+fn shadowed_by_a_literal(text: &str) -> BTreeSet<usize> {
+    let mut shadowed = BTreeSet::new();
+    let Ok(stream) = text.parse::<proc_macro2::TokenStream>() else {
+        return shadowed;
+    };
+    let lines: Vec<&str> = text.lines().collect();
+    let mut pending = vec![stream];
+    while let Some(stream) = pending.pop() {
+        for tree in stream {
+            match tree {
+                proc_macro2::TokenTree::Group(group) => pending.push(group.stream()),
+                proc_macro2::TokenTree::Literal(literal) => {
+                    let span = literal.span();
+                    let (first, last) = (span.start().line, span.end().line);
+                    let opens_on_a_comment = lines
+                        .get(first.saturating_sub(1))
+                        .is_some_and(|line| line.trim_start().starts_with("//"));
+                    if opens_on_a_comment {
+                        continue;
+                    }
+                    shadowed.extend((first + 1)..=last);
+                }
+                _ => {}
+            }
+        }
+    }
+    shadowed
+}
+
+/// Every comment paragraph in `text` that is immediately followed by a copy of itself with identical line
+/// content, as `(line of the second copy, how many lines it spans)`.
 ///
 /// **Longest first, and non-overlapping.** A twelve-line paragraph written twice also contains a six-line
 /// half written twice; reporting the longest run at a position and resuming past both copies names the
@@ -65,6 +126,7 @@ fn comment_body(line: &str) -> Option<&str> {
 /// a silent false negative, the one direction the Core Contract forbids.
 fn repetitions(text: &str) -> Vec<(usize, usize)> {
     let lines: Vec<&str> = text.lines().collect();
+    let shadowed = shadowed_by_a_literal(text);
     let total = lines.len();
     let mut found = Vec::new();
     let mut start = 0usize;
@@ -77,10 +139,11 @@ fn repetitions(text: &str) -> Vec<(usize, usize)> {
             if block != &lines[start + span..start + 2 * span] {
                 continue;
             }
-            if block
-                .iter()
-                .any(|line| !matches!(comment_body(line), Some(body) if !body.is_empty()))
-            {
+            if block.iter().enumerate().any(|(offset, line)| {
+                shadowed.contains(&(start + offset + 1))
+                    || shadowed.contains(&(start + span + offset + 1))
+                    || !matches!(comment_body(line), Some(body) if !body.is_empty())
+            }) {
                 continue;
             }
             matched = Some(span);
@@ -129,6 +192,17 @@ fn offences(root: &Path, listing: &[String]) -> (Vec<Refusal>, usize) {
             )));
             continue;
         };
+        // A file the lexer refuses is one whose comments this reader cannot separate from its strings. The
+        // shadow map would be empty and the sweep would report more rather than less — loud, not silent —
+        // but *more* here means reporting a file's own text back at its author, so the honest answer is that
+        // the question was not decided.
+        if text.parse::<proc_macro2::TokenStream>().is_err() {
+            offences.push(cannot_judge(format!(
+                "{path_str} is tracked Rust and does not lex, so a comment could not be told from a line of \
+                 a string literal — an undecided file is not a file that repeats nothing"
+            )));
+            continue;
+        }
         inspected += 1;
 
         for (line, span) in repetitions(&text) {
@@ -148,15 +222,21 @@ fn offences(root: &Path, listing: &[String]) -> (Vec<Refusal>, usize) {
 /// took the quoted spelling would open a file that is not there and report the tracked file it could not
 /// read. The refusal would be honest and the corpus would still have lost the file.
 ///
-/// **Through [`kanhe::hermetic_git::run`], which refuses bytes it cannot represent.** Spelled here with its
+/// **Through [`kanhe::hermetic_git::run_exact`], which refuses bytes it cannot represent.** Spelled here with its
 /// own `Command`, this took git's stdout through `from_utf8_lossy` — and that runner's own header names
 /// **this command** as the reason it does not: `ls-files -z` promises nothing about encoding, so a tracked
 /// path that is not UTF-8 arrives as a different path than the one on disk, and every read downstream is
 /// made against that. The offence would then name an identity the repository does not hold, which is the
 /// property `xingbiao::path_identity` exists to keep and `repository_path` refuses in the same words. A
 /// verdict is not owed on an input this reader cannot represent; saying so is.
+///
+/// `run_exact` rather than `run`, because that module assigns the two by what the caller does with the
+/// answer: `run` trims for a caller reading a value, `run_exact` keeps the bytes for one comparing content,
+/// and a NUL-separated path list is the second. The trim is harmless on this output — `\0` is not ASCII
+/// whitespace, so nothing was being lost — but taking the accessor whose stated criterion fits is what keeps
+/// that criterion true of its callers.
 fn tracked(root: &Path) -> Vec<String> {
-    match kanhe::hermetic_git::run(root, &[], &["ls-files", "-z"]) {
+    match kanhe::hermetic_git::run_exact(root, &[], &["ls-files", "-z"]) {
         Ok(listing) => listing
             .split('\0')
             .filter(|path| !path.is_empty())
@@ -204,33 +284,57 @@ fn no_tracked_rust_file_writes_a_comment_paragraph_twice() {
 /// guarding the moment the corpus is repaired — the defect the citation reader's own scenario carried, and
 /// the reason that one now supplies the spans it reads.
 ///
-/// **The fixture is assembled, not written out.** This file is inside the corpus the live sweep reads, so a
-/// paragraph spelled twice in these lines would be a finding against this file — measured, before it was
-/// assembled: `crates/kanhe/tests/repeated_paragraph.rs:200: a 6-line comment paragraph is written twice`.
-/// The subject is built from one paragraph repeated at run time, which leaves no two identical adjacent
-/// lines in the source and keeps the fixture exact.
+/// **Written out, deliberately, and that is a second direction.** The first spelling of this fixture was
+/// exactly this text and the live sweep reported *this file* at its own line 200, because a comment-shaped
+/// line was a comment wherever it stood. It was then assembled at run time to get out of the way — a
+/// workaround that left the defect in place and made a tax of it. The classification now separates a comment
+/// from a string, so the fixture is written out again: it is a duplicated comment paragraph inside a string
+/// literal, sitting in a file the live sweep reads, which makes this file a live instance of the class
+/// rather than a description of one. If the shadow ever stops working, the sweep says so here.
+///
+/// The block is a `mod` and not a `fn` because a sibling check states the convention: embedded Rust sits
+/// behind a call, never opening a line of its own, so a line whose trimmed text starts with `fn ` and is
+/// emptied by the refusal register's span reader is a declaration that reader lost. Written as a `fn`, this
+/// fixture tripped it — one guard catching what another had just been taught to ignore.
 #[test]
 fn a_paragraph_pasted_twice_is_read_and_its_neighbours_are_not() {
-    let paragraph = "\
+    const OPENS: &str = "    // **Presence";
+    let repeated = "\
+mod judge {
     // **Presence is asked first, by a command whose exit status answers it.** `show HEAD:` exits `128`
     // for a path that is not in HEAD *and* for a tree it cannot read, so a single `Err` arm had to choose
     // one meaning for both — and choosing *not a snapshot* classified a broken object store as a cycle.
     // Measured: `ls-tree HEAD -- <path>` exits `0` with an empty listing when the path is absent, `0` with
     // a line when it is there, and `128` only when the tree cannot be read. The question decides the
     // command, which is what the sibling tag-presence reader already does for the same shape.
+    // **Presence is asked first, by a command whose exit status answers it.** `show HEAD:` exits `128`
+    // for a path that is not in HEAD *and* for a tree it cannot read, so a single `Err` arm had to choose
+    // one meaning for both — and choosing *not a snapshot* classified a broken object store as a cycle.
+    // Measured: `ls-tree HEAD -- <path>` exits `0` with an empty listing when the path is absent, `0` with
+    // a line when it is there, and `128` only when the tree cannot be read. The question decides the
+    // command, which is what the sibling tag-presence reader already does for the same shape.
+    const LISTED: () = ();
+}
 ";
-    let around = |body: &str| format!("fn judge() {{\n{body}    let listed = run();\n}}\n");
-
-    let repeated = around(&paragraph.repeat(2));
     assert_eq!(
-        repetitions(&repeated),
+        repetitions(repeated),
         vec![(8, 6)],
         "the six-line paste must be read once, at the line its second copy begins"
     );
 
-    // The control: the same file with one copy is silent, so the reading above is about the repetition
-    // rather than about a check that reports whatever it is shown.
-    let single = around(paragraph);
+    // The control: with one copy, the same source is silent — so the reading above is about the repetition
+    // rather than about a check that reports whatever it is shown. The halves are found by the second
+    // occurrence rather than by halving the bytes, which the em dashes above would not survive.
+    let opens = repeated.find(OPENS).expect("the paragraph opens the block");
+    let closes = repeated
+        .rfind("    const LISTED")
+        .expect("and the block closes after it");
+    let doubled = &repeated[opens..closes];
+    let second = doubled[1..]
+        .find(OPENS)
+        .expect("the paragraph stands twice")
+        + 1;
+    let single = repeated.replacen(doubled, &doubled[..second], 1);
     assert_ne!(single, repeated, "the control must differ from the subject");
     assert_eq!(
         repetitions(&single),
@@ -310,6 +414,45 @@ fn a_one_line_paragraph_written_twice_is_read() {
         repetitions("fn f() {\n    // the same note\n    // the same note\n    let x = 1;\n}\n"),
         vec![(3, 1)],
         "a single comment line repeated is the shortest paste there is"
+    );
+}
+
+/// A comment-shaped line inside a string literal is text, and a doc comment is still a comment.
+///
+/// The two halves of the same classification, in one direction because getting either wrong breaks the
+/// other. Shadowing too little reports Rust fixtures held as strings — this check's own first fixture was
+/// one. Shadowing too much would take `///` paragraphs with it, since a doc comment reaches the lexer as
+/// `#[doc = "…"]` and its literal spans the comment's own line; that direction is a **false negative** over
+/// most of this repository's prose, which is the one the Core Contract forbids.
+#[test]
+fn a_comment_shaped_line_inside_a_literal_is_not_a_comment() {
+    let plain = "fn f() {\n    let fixture = \"\\\n    // a note\n    // a note\n    \";\n}\n";
+    assert_eq!(
+        repetitions(plain),
+        Vec::new(),
+        "a duplicated comment paragraph inside a string literal is that string's text"
+    );
+
+    let raw = "fn f() {\n    let fixture = r#\"\n// a note\n// a note\n\"#;\n}\n";
+    assert_eq!(
+        repetitions(raw),
+        Vec::new(),
+        "and the same inside a raw string, whose contents no escape can end early"
+    );
+
+    // The control on the other side: the same paragraph written as real comments is still read, and so is a
+    // doc comment, whose literal the lexer synthesises over the comment's own line.
+    assert_eq!(
+        repetitions("fn f() {\n    // a note\n    // a note\n}\n"),
+        vec![(3, 1)],
+        "a real comment paragraph is unaffected by the shadow"
+    );
+    assert_eq!(
+        repetitions(
+            "/// a note\n/// and its second line\n/// a note\n/// and its second line\nfn f() {}\n"
+        ),
+        vec![(3, 2)],
+        "a doc comment is a comment: shadowing its synthesised literal would stop this check reading `///`"
     );
 }
 
