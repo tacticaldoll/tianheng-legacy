@@ -117,6 +117,26 @@ them.
 
 ### Semantic and runtime
 
+- **A repair that was not made, and the measurement that stopped it.** 渾儀 answers a `cfg_attr` whose
+  applied metas do not parse two ways: `cfg_attr_path_values` drops the whole attribute's `path` candidates
+  with `.ok()`, while `scan::items::extract_derives` answers the identical failure on the identical
+  attribute with a scan error — its own doc saying *"cannot judge" is never a silent skip*. Both use the
+  same parser, so the difference is the answer and nothing else, and the Core Contract states the policy the
+  second follows.
+
+  Replacing `.ok()` with a refusal is one line. It was not made, because *a violation is a rule, and a rule
+  needs a reachable instance*: the attempt to reach the silent arm through source rustc accepts used
+  `#[cfg_attr(unix, path = "imp_unix.rs", unsafe(no_mangle))] pub mod imp;` — ordinary source, since the 2024
+  edition requires `unsafe(no_mangle)` in place of the bare spelling. Measured under rustc 1.96.0, edition
+  2021, `--crate-type lib`: it compiles, the remap applies, syn parses `unsafe(no_mangle)` as a `Meta`, and
+  渾儀 answers `1` alongside the other two.
+
+  So the asymmetry is filed in `BACKLOG.md` as a `WATCH` with that measurement and a trigger stated as a
+  property — a `cfg_attr` whose applied metas rustc accepts and `Punctuated<syn::Meta, Comma>` rejects,
+  which a syn upgrade can fire as readily as a spelling. The fixture is kept as a conformance direction,
+  pinning a shape nothing covered — a `path` remap standing beside a sibling applied attribute — and saying
+  in its own doc that it pins the contract rather than a change.
+
 - **BREAKING** — **The class has two halves that point opposite ways, and enumerating it is what showed
   that.** Three rounds each closed one instance of *an identifier compared as written where rustc compares
   the name it spells*. Rather than a fourth instance, the class was enumerated — every comparison of an
