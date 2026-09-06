@@ -530,12 +530,6 @@ fn release_spine(
     // Measured on this machine's git: `ls-tree HEAD -- <path>` exits `0` with an empty listing when the path
     // is absent, `0` with a line when it is there, and `128` only when the tree cannot be read. The question
     // decides the command, which is what the sibling tag-presence reader already does for the same shape.
-    // **Presence is asked first, by a command whose exit status answers it.** `git show HEAD:…` exits `128`
-    // for a path that is not in HEAD *and* for a tree it cannot read, so a single `Err` arm had to choose one
-    // meaning for both — and choosing *not a snapshot* classified a broken object store as the next cycle.
-    // Measured on this machine's git: `ls-tree HEAD -- <path>` exits `0` with an empty listing when the path
-    // is absent, `0` with a line when it is there, and `128` only when the tree cannot be read. The question
-    // decides the command, which is what the sibling tag-presence reader already does for the same shape.
     let listed = crate::hermetic_git::run(repo, &[], &["ls-tree", "HEAD", "--", "CHANGELOG.md"])
         .map_err(|err| {
             cannot_judge_at(

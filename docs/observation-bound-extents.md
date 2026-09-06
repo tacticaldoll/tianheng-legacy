@@ -3,7 +3,7 @@
 Where each declared **observation bound** stops the measure — not how far a scan walks (that is
 `ScanDepth`, an adopter's knob), but where this family's own reaction deliberately stops.
 
-**50 of 98 declared bounds are declared false negatives** — the reaction fires less than the truth, which is the one direction this family treats as a defect. That figure leads this document because a number in a footnote is not read, and each such bound names who must act:
+**52 of 100 declared bounds are declared false negatives** — the reaction fires less than the truth, which is the one direction this family treats as a defect. That figure leads this document because a number in a footnote is not read, and each such bound names who must act:
 
 - `external-crate-confinement/an-extern-crate-declaration-is-not-observed-a-stated-bound` — owner: engine
 - `inline-symbol-path-confinement/a-future-read-verb-outside-the-declared-set-is-a-documented-bound` — owner: adopter
@@ -40,6 +40,8 @@ Where each declared **observation bound** stops the measure — not how far a sc
 - `repository-checks/a-figure-written-in-words-at-one-hundred-or-above-is-not-matched-a-stated-bound` — owner: engine
 - `repository-checks/a-gate-reached-without-the-wrapper-a-stated-bound` — owner: engine
 - `repository-checks/a-marker-is-reached-through-some-other-primitive-a-stated-bound` — owner: engine
+- `repository-checks/a-paragraph-repeated-in-prose-is-not-read-a-stated-bound` — owner: engine
+- `repository-checks/a-paragraph-repeated-out-of-line-is-not-read-a-stated-bound` — owner: engine
 - `repository-checks/a-refusal-constructed-outside-the-register-s-corpus-is-not-triaged-a-stated-bound` — owner: engine
 - `repository-checks/a-tool-configuration-set-in-the-environment-is-not-observed-a-stated-bound` — owner: engine
 - `repository-checks/a-whitespace-preceded-shell-marker-inside-quotes-is-cut-a-stated-bound` — owner: engine
@@ -457,7 +459,7 @@ Generated from each dimension's `observation_bounds()` by `crates/kanhe/tests/ob
 - **its defence must show**: reacts on a harmless shape
 - **pinned by**: `a_pub_in_narrow_path_over_reacts_under_a_module_ceiling`
 
-## under-reacts (50)
+## under-reacts (52)
 
 ### `external-crate-confinement/an-extern-crate-declaration-is-not-observed-a-stated-bound`
 
@@ -738,6 +740,22 @@ Generated from each dimension's `observation_bounds()` by `crates/kanhe/tests/ob
 - **because**: the reaction names two primitives, `split` and `find`, which are the two shapes `reading`'s own doc records replacing. The others are in live use for reading a SINGLE delimited value, where they are correct, and none of their live uses is a pairing -- so refusing them by name would refuse the honest use, and telling the two apart needs the expression's shape rather than the primitive's name
 - **its defence must show**: does not react
 - **unpinned**, tracked by: `BACKLOG.md` — *the backtick primitives the pairing reader names*
+
+### `repository-checks/a-paragraph-repeated-in-prose-is-not-read-a-stated-bound`
+
+> a paragraph repeated in a tracked file that is not Rust, including this repository's governance prose
+
+- **because**: the corpus is Rust comments, where an identical adjacent pair has one cause. Markdown repeats identical adjacent lines for its own reasons -- a table's rule row, two list items that read the same -- so the same rule there reports text its author wrote. The prose corpora carry the weight this check exists to protect, so the stop is the one worth revisiting first if a shape with no false positive is found for them
+- **its defence must show**: does not react
+- **pinned by**: `a_repeated_paragraph_in_a_prose_file_is_outside_the_corpus`
+
+### `repository-checks/a-paragraph-repeated-out-of-line-is-not-read-a-stated-bound`
+
+> a comment paragraph repeated somewhere other than immediately after itself -- twenty lines down, in another function, or in another file
+
+- **because**: adjacency is what a paste leaves behind, and it is also what can be judged without deciding whether a repetition is deliberate. Two paragraphs that read the same in different places are as often two sites documented alike as one pasted twice, and this repository keeps both -- so widening past adjacency would buy the rarer defect with a report the author has to argue with, which is the authoring tax `PROJECT.md` refuses
+- **its defence must show**: does not react
+- **pinned by**: `identical_code_lines_are_not_read`
 
 ### `repository-checks/a-refusal-constructed-outside-the-register-s-corpus-is-not-triaged-a-stated-bound`
 

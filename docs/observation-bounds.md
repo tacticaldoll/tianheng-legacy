@@ -3,7 +3,7 @@
 Every **observation bound** this family declares: a claim that a reaction deliberately stops at a
 named shape, so that shape is governed policy rather than a defect.
 
-**27 of 98 declared bounds have no pinning test.** That figure is the register's
+**27 of 100 declared bounds have no pinning test.** That figure is the register's
 audit backlog and leads the document because a number in a footnote is not read. Each such bound names
 the tracker that owns closing it.
 
@@ -442,6 +442,18 @@ fallback used where no manifest exists, which the register spec describes.
 > the check counts it as named, a stated bound: deciding that a mention is load-bearing is a judgement over text, the instrument this repository has designed, measured and rejected, and what makes a mention bite is the compiler rather than this check. A comment-only mention still fails the reviewer reading the diff, which is the layer that owns it
 
 - **pinned by**: `a_member_named_only_in_a_comment_is_counted_as_named`
+
+### `repository-checks/a-paragraph-repeated-out-of-line-is-not-read-a-stated-bound`
+
+> nothing reads it. Adjacency is what a paste leaves behind, and it is also what can be judged without deciding whether a repetition is deliberate: two paragraphs that read the same in different places are as often two sites documented alike as one pasted twice, and this repository keeps both. Widening past adjacency would buy the rarer defect with a report the author has to argue with, which is the permanent authoring tax this repository refuses
+
+- **pinned by**: `identical_code_lines_are_not_read`
+
+### `repository-checks/a-paragraph-repeated-in-prose-is-not-read-a-stated-bound`
+
+> nothing reads it. The corpus is Rust comments, where an identical adjacent pair has one cause; Markdown repeats identical adjacent lines for its own reasons — a table's rule row, two list items that read the same — so the same rule there reports text its author wrote. The prose corpora carry the weight this check exists to protect, which makes this the stop worth revisiting first if a shape with no false positive is found for them
+
+- **pinned by**: `a_repeated_paragraph_in_a_prose_file_is_outside_the_corpus`
 
 ## runtime-origin-assertion
 

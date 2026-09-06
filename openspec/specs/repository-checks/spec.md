@@ -1953,6 +1953,79 @@ and the parse failure passed over: 389 tracked files, **zero** inspected, and th
 - **THEN** the check reports it as a violation naming the path, and the line for trailing whitespace
 - **PINNED-BY** `each_offence_shape_is_named_when_it_is_shown`
 
+### Requirement: A comment paragraph SHALL NOT be written twice in a row
+
+No tracked Rust file SHALL carry a comment paragraph immediately followed by a byte-identical copy of
+itself. Membership SHALL be produced by `git ls-files -z`, so a path git quotes is read as git holds it
+rather than as a quoted spelling that names no file.
+
+**The reason is what this repository's prose is for.** Its rules are carried by weight rather than by
+enforcement — what sits in an agent's context is what gets imitated — so a paragraph standing twice is that
+weight doubled by accident, and nothing else in the toolchain has an opinion about it: a pasted paragraph
+compiles, formats, lints and reads as deliberate. It is also invisible to the person who made it, for the
+same reason it was made. The defect this requirement was written for stood in `release_coherence_gate`,
+where six lines naming why presence is asked by `ls-tree` rather than `show` stood twice, byte-identical,
+and were found by review rather than by anything that ran.
+
+The check SHALL answer with the shared kinded refusal, so a file it could not read is separated from a file
+that disagrees, and SHALL assert that it inspected at least one file before reaching its verdict — the
+corpus can collapse both by the enumeration answering nothing and by the extension filter matching nothing,
+and neither is visible in an empty offence set.
+
+Every line of a repeated block SHALL carry content after its marker. Without that, four consecutive bare
+`//` lines — a paragraph break spelled twice, which is formatting — are a two-line block repeated, and the
+check would report text exactly as its author wrote it.
+
+#### Scenario: A comment paragraph is pasted twice
+
+- **WHEN** a tracked Rust file carries two or more comment lines immediately followed by a byte-identical
+  copy of them
+- **THEN** the check reports a violation naming the path, the line the second copy begins at, and how many
+  lines it spans; the longest run at a position is reported and the reader resumes past both copies, so the
+  paste is named once rather than once per nested half
+- **PINNED-BY** `a_paragraph_pasted_twice_is_read_and_its_neighbours_are_not`
+
+#### Scenario: A tracked Rust file cannot be read
+
+- **WHEN** a file `git ls-files` names ends in `.rs` and cannot be opened, or is not UTF-8
+- **THEN** the check refuses as a cannot-judge naming the path, because an unread file is not a file that
+  repeats nothing, and a lossy decode would compare text this repository does not hold
+- **PINNED-BY** `an_unreadable_tracked_rust_file_is_refused_rather_than_skipped`
+
+#### Scenario: No Rust file was inspected
+
+- **WHEN** the enumeration answers nothing, or no enumerated path ends in `.rs`
+- **THEN** the check fails on the vacuity, naming how many tracked paths it enumerated, rather than
+  reporting the empty offence set as cleanliness
+
+#### Scenario: A paragraph break is spelled twice
+
+- **WHEN** consecutive comment lines carrying no content after their marker repeat
+- **THEN** the check is silent, because a repeated blank comment line is formatting rather than a paste
+- **PINNED-BY** `consecutive_empty_comment_lines_are_not_a_repetition`
+
+#### Scenario: A paragraph repeated out of line is not read — a stated bound
+
+- **WHEN** a comment paragraph is repeated somewhere other than immediately after itself — twenty lines
+  down, in another function, or in another file
+- **THEN** nothing reads it. Adjacency is what a paste leaves behind, and it is also what can be judged
+  without deciding whether a repetition is deliberate: two paragraphs that read the same in different places
+  are as often two sites documented alike as one pasted twice, and this repository keeps both. Widening past
+  adjacency would buy the rarer defect with a report the author has to argue with, which is the permanent
+  authoring tax this repository refuses
+- **PINNED-BY** `identical_code_lines_are_not_read`
+
+#### Scenario: A paragraph repeated in prose is not read — a stated bound
+
+- **WHEN** a paragraph is repeated in a tracked file that is not Rust, including this repository's own
+  governance prose
+- **THEN** nothing reads it. The corpus is Rust comments, where an identical adjacent pair has one cause;
+  Markdown repeats identical adjacent lines for its own reasons — a table's rule row, two list items that
+  read the same — so the same rule there reports text its author wrote. The prose corpora carry the weight
+  this check exists to protect, which makes this the stop worth revisiting first if a shape with no false
+  positive is found for them
+- **PINNED-BY** `a_repeated_paragraph_in_a_prose_file_is_outside_the_corpus`
+
 ### Requirement: An amendment to the self-law is named before it lands
 
 The set of boundaries `shengmo::law::constitution()` declares SHALL be declared in this repository as text,

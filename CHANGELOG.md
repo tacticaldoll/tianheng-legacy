@@ -932,6 +932,43 @@ them.
 
 ### Self-governance
 
+- **A comment paragraph stood twice, byte-identical, and every tool in the chain read it as deliberate.**
+  In `release_coherence_gate`, the six lines naming why presence is asked by `ls-tree` rather than `show`
+  were pasted twice. It compiled, formatted, linted and passed every gate this repository runs, because a
+  repeated paragraph is well-formed text — and it was invisible to the person who made it for the same
+  reason it was made: the eye that skips a paragraph it has already read is the eye that pasted it. Found by
+  review.
+
+  It matters more here than a missing final newline, which this repository does refuse, because of what the
+  prose is **for**. The rules are carried by weight rather than by enforcement — what sits in an agent's
+  context is what gets imitated — so a paragraph standing twice is that weight doubled by accident, in a
+  file whose whole purpose is to be read.
+
+  **A reaction now holds the class**, `crates/kanhe/tests/repeated_paragraph.rs`: no tracked Rust file
+  carries two or more comment lines immediately followed by a byte-identical copy of them. Negative run over
+  the tree before the repair, verbatim:
+
+  ```
+  293 tracked Rust file(s) inspected; a comment paragraph is written twice, or a tracked file could not be read:
+    Violation: crates/kanhe/src/release_coherence_gate.rs:533: a 6-line comment paragraph is written twice in a row; the second copy begins here
+  ```
+
+  **Two stops are declared rather than assumed.** The rule reads *adjacent* repetition only, and only in
+  Rust. Measured over the tracked corpus at three states — `v0.5.0`, the tree carrying the defect, and the
+  repaired tree — a rule keyed on identical adjacent **lines** rather than identical adjacent **comment**
+  lines reports three more sites, and each is deliberate: a test passing `--manifest-path` twice to assert
+  the duplicate flag exits `2`, a function type spelling the same parameters twice, and a duplicated
+  assertion. That is the authoring tax `PROJECT.md` refuses, so the corpus is comments; and Markdown repeats
+  identical adjacent lines for its own reasons, so prose — the corpus this check most exists to protect — is
+  outside it until a shape with no false positive is found. Both are pinned bounds, projected into
+  `docs/observation-bounds.md`.
+
+  The check reads itself, which is where its first finding came from: written out, the fixture holding the
+  repeated paragraph *was* a repeated paragraph in a tracked file, and the live sweep reported this file at
+  its own line 200. The fixture is assembled at run time instead — one paragraph repeated by the direction,
+  leaving no two identical adjacent lines in the source.
+
+
 - **The Definition of Done said staging is enough, and it is not for a gate whose corpus is `HEAD`.**
   `AGENTS.md` told an operator to `git add` a created file and then, in the same paragraph, that *committing
   is not required*. That is true of a gate taking its path list from `git ls-files` and its content from
