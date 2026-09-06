@@ -1721,10 +1721,10 @@ landing on a destination nothing judged — and carries the one message exceptio
 The class is cannot-judge rather than violation in both cases, because the gate did not find the input wrong:
 it found it right, against something that no longer exists.
 
-The **head branch** is re-read on the same terms, and an earlier version of this requirement excused it on a
-premise that does not hold. It said GitHub offers no way to change an existing pull request's head, so a guard
-could only ever refuse against a fixture. GitHub cannot **repoint** an open pull request at a different head,
-but renaming a branch retargets the pull requests on it: `headRefName` moves while `headRefOid` does not, so
+The **head branch** is re-read on the same terms, and the premise that would excuse it does not hold.
+GitHub cannot **repoint** an open pull request at a different head — which is what makes *no guard is
+reachable* look true — but renaming a branch retargets the pull requests on it: `headRefName` moves while
+`headRefOid` does not, so
 `--match-head-commit` pins the object and observes nothing about the name. The exception names both endpoints,
 so both are judged and both are re-read.
 
@@ -2559,9 +2559,9 @@ third scenario's, one layer up.
 #### Scenario: A TOML escape is decoded, because a real parser decodes it
 
 - **WHEN** a quoted manifest value carries any escape — `\uXXXX`, `\UXXXXXXXX`, `\\`, `\n`, or an escaped quote
-- **THEN** the value reads as cargo reads it. The reader refused these rather than answering with the
-  undecoded source, on the ground that decoding them would be a second hand-rolled TOML grammar — which was
-  true of a hand-rolled reader and is the reason there is no longer one. A path written `cr\u0078tes/xuanji`
+- **THEN** the value reads as cargo reads it. Refusing an escape is the answer of a reader with no
+  decoder, and hand-rolling one would be a second TOML grammar; this reader has cargo's, so it decodes.
+  A path written `cr\u0078tes/xuanji`
   is now compared as `crxtes/xuanji`, and a `package` written `xuan\u006ai` is matched against the family as
   `xuanji`
 - **PINNED-BY** `an_escaped_path_is_decoded_and_compared_and_an_ordinary_sibling_does_not_cover_for_it`

@@ -385,10 +385,14 @@ earns it a place, and the compiler enumerates them. Sweep for *that* shape and n
 that, with the command that produced it** — one line, re-runnable, no ellipsis and no *neighbours*:
 
 ```
-git grep -nE '\b(one|two|three|four|five|six|seven)[- ](state|kind|variant|answer|form|case)s?\b' f070e6e -- '*.rs' '*.md' | wc -l
+git grep -nE '\b(one|two|three|four|five|six|seven)[- ](state|kind|variant|answer|form|case)s?\b' v0.5.0 -- '*.rs' '*.md' | wc -l
 ```
 
-**137**, and naming the commit inside the command keeps that answer checkable after the tree moves on. It is
+**137**, and naming the **tag** inside the command is what keeps that answer checkable after the tree moves
+on. It named a development commit until this sweep, which the row below refuses for the reason it gives:
+`main` carries one commit per release, so a development object resolves in no fresh clone and the command
+anchored to it could not be re-run by the reader it was written for. Re-measured at `v0.5.0`, the answer is
+the same. It is
 line-oriented, so a phrase wrapped across two lines is not counted — an under-count, which is the safe
 direction for a bound whose claim is *the shape is common and nearly all of it is legitimate*. Nearly all of
 those hits were reasoning — *two forms cannot bind a value*, *three answers, because
