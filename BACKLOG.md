@@ -2470,6 +2470,11 @@ consumer for an undemonstrated deduplication.
   records the rule that decides it: *never add a permanent authoring tax to close a bounded, visible
   failure*, on which three entries are already declined.
 
+  **Unfired at filing, 2026-09-06, and this says what that rests on**: every instance of the class known to
+  this repository was found by a person reading a requirement against its own scenarios, and none was
+  reported from a release or an adopter. That is the state the trigger below is written to change, not a
+  sweep anyone can re-run — which is why it carries no date beyond this one.
+
   *Next trigger:* an instance of this seam that reading does **not** find — a scenario pinning a property
   the reaction does not have, reaching a release or an adopter rather than a review. That is what would
   move the failure from bounded-and-visible to the class the tax is worth paying for. A second trigger, on
