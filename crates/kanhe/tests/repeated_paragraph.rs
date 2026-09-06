@@ -10,6 +10,12 @@
 //! accident. The defect this was written for stood in `release_coherence_gate`, where the paragraph naming
 //! why presence is asked by `ls-tree` rather than `show` was six lines long and stood twice, byte-identical.
 //!
+//! **What is compared is line content, not line bytes**, so a block terminated `\r\n` and a copy terminated
+//! `\n` are one repetition here. A paste an editor re-terminated is still a paste, and requiring the
+//! terminators to agree would let it through — a silent false negative, which is the one direction the Core
+//! Contract forbids. The requirement says so in those words rather than saying *byte-identical*, which
+//! claimed a precision this reader deliberately does not have.
+//!
 //! **The reach is adjacency, and the corpus is Rust.** Both are stops this reader makes deliberately, so
 //! both are declared rather than left to be inferred: `docs/observation-bounds.md` carries them as
 //! `repository-checks/a-paragraph-repeated-out-of-line-is-not-read-a-stated-bound` and
@@ -45,9 +51,18 @@ fn comment_body(line: &str) -> Option<&str> {
 /// half written twice; reporting the longest run at a position and resuming past both copies names the
 /// paste once, the way the author made it.
 ///
-/// **Every line of the block must carry content.** Without that, four consecutive bare `//` lines — a
-/// paragraph break spelled twice, which is a formatting matter and not a paste — are a two-line block
-/// repeated, and this check would report a file whose text is exactly what its author wrote.
+/// **Every line of the block must carry content.** Without that, two consecutive bare `//` lines — a
+/// paragraph break spelled twice, which is a formatting matter and not a paste — are a one-line block
+/// repeated, and this check would report a file whose text is exactly what its author wrote. That
+/// requirement, not a minimum length, is what keeps formatting out: **a one-line paragraph is a paragraph**,
+/// and the floor sat at two lines while the module above claimed every paragraph. Measured over the whole
+/// tracked Rust corpus with the floor at one and at two: zero either way, so the wider reach costs no
+/// report the author would argue with.
+///
+/// **Line content, not line bytes.** `str::lines` drops `\r\n` and `\n` alike, so a block terminated one way
+/// and its copy terminated the other compare equal here and are reported. That is the reach this check
+/// wants: a paste an editor re-terminated is still a paste, and comparing terminators would let it through —
+/// a silent false negative, the one direction the Core Contract forbids.
 fn repetitions(text: &str) -> Vec<(usize, usize)> {
     let lines: Vec<&str> = text.lines().collect();
     let total = lines.len();
@@ -57,7 +72,7 @@ fn repetitions(text: &str) -> Vec<(usize, usize)> {
     while start < total {
         let longest = (total - start) / 2;
         let mut matched = None;
-        for span in (2..=longest).rev() {
+        for span in (1..=longest).rev() {
             let block = &lines[start..start + span];
             if block != &lines[start + span..start + 2 * span] {
                 continue;
@@ -234,12 +249,12 @@ fn consecutive_empty_comment_lines_are_not_a_repetition() {
     assert_eq!(repetitions("/// a\n//\n//\n//\n//\n/// b\n"), Vec::new());
 }
 
-/// Repeated code is not this check's question, and neither is a repetition split by code.
+/// Repeated code is not this check's question.
 ///
-/// Both shapes are live in this repository and both are deliberate: `runner/tests.rs` passes
-/// `--manifest-path` twice to assert the duplicate flag exits `2`, and `hunyi`'s test helper spells the same
-/// parameter types twice in one function type. A reader keyed on identical lines rather than on identical
-/// *comment* lines reports them, which is the tax that would make this check something to work around.
+/// The shape is live in this repository and it is deliberate: `runner/tests.rs` passes `--manifest-path`
+/// twice to assert the duplicate flag exits `2`, and `hunyi`'s test helper spells the same parameter types
+/// twice in one function type. A reader keyed on identical lines rather than on identical *comment* lines
+/// reports them, which is the tax that would make this check something to work around.
 #[test]
 fn identical_code_lines_are_not_read() {
     assert_eq!(
@@ -248,12 +263,53 @@ fn identical_code_lines_are_not_read() {
         ),
         Vec::new()
     );
+}
+
+/// A repetition the reader is not adjacent to is outside its declared reach.
+///
+/// Split from `identical_code_lines_are_not_read`, which held this fact under a name that states the other
+/// one. The out-of-line bound cites a direction, and a reader following that citation has to land on a name
+/// that says what the bound says — an identifier is a carrier of a claim, which is this repository's own
+/// rule about names.
+#[test]
+fn a_repetition_split_by_code_is_not_read() {
     assert_eq!(
         repetitions(
             "    // a note\n    // and its second line\n    let x = 1;\n    // a note\n    // and its second line\n"
         ),
         Vec::new(),
         "a repetition that is not adjacent is outside this check's declared reach"
+    );
+}
+
+/// A copy terminated differently from the block it copies is still a copy.
+///
+/// The reach the requirement now states in place of *byte-identical*. `str::lines` drops `\r\n` and `\n`
+/// alike, so this comparison is over line content — deliberately, because a paste an editor re-terminated is
+/// still a paste and requiring the terminators to agree would let it through. Unreachable in this tree
+/// today: every tracked file is `i/lf` and there is no `.gitattributes`, so the direction supplies the shape
+/// itself rather than resting on a corpus that would have to acquire it.
+#[test]
+fn a_copy_terminated_differently_is_still_read() {
+    let crlf_then_lf = "// a note\r\n// and its second line\r\n// a note\n// and its second line\n";
+    assert_eq!(
+        repetitions(crlf_then_lf),
+        vec![(3, 2)],
+        "the terminators differ and the paragraph is the same, which is the paste this reads"
+    );
+}
+
+/// A one-line comment paragraph written twice is a paragraph written twice.
+///
+/// The stop that was in the reader and in none of its declarations: the span floor sat at two lines while
+/// the module doc claimed every paragraph. Lowering it to one reports zero across the whole tracked Rust
+/// corpus, so the wider reach was bought at no cost — measured both ways before it moved.
+#[test]
+fn a_one_line_paragraph_written_twice_is_read() {
+    assert_eq!(
+        repetitions("fn f() {\n    // the same note\n    // the same note\n    let x = 1;\n}\n"),
+        vec![(3, 1)],
+        "a single comment line repeated is the shortest paste there is"
     );
 }
 

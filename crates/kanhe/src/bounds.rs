@@ -920,7 +920,7 @@ pub fn observation_bounds() -> Vec<BoundDecl> {
                     .into(),
                 owner: Owner::Engine,
             }),
-            "identical_code_lines_are_not_read",
+            "a_repetition_split_by_code_is_not_read",
         ),
         BoundDecl::pinned(
             BoundId::new(

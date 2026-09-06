@@ -447,7 +447,7 @@ fallback used where no manifest exists, which the register spec describes.
 
 > nothing reads it. Adjacency is what a paste leaves behind, and it is also what can be judged without deciding whether a repetition is deliberate: two paragraphs that read the same in different places are as often two sites documented alike as one pasted twice, and this repository keeps both. Widening past adjacency would buy the rarer defect with a report the author has to argue with, which is the permanent authoring tax this repository refuses
 
-- **pinned by**: `identical_code_lines_are_not_read`
+- **pinned by**: `a_repetition_split_by_code_is_not_read`
 
 ### `repository-checks/a-paragraph-repeated-in-prose-is-not-read-a-stated-bound`
 
