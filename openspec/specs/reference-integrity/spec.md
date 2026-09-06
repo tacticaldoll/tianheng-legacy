@@ -313,10 +313,13 @@ A live governance document SHALL NOT cite a commit object. The anchor SHALL be t
 survives because `main` is made of releases, or the change's own name, which is text.
 
 **The reader's corpus SHALL be the claim's corpus.** A citation is refused wherever it stands **inside** a
-code span, not only where it is the whole of one: `git show <object>` is a single span carrying spaces, so a
-predicate asked of the span answers *no* while the object is plainly in it. The reader therefore tests every
-whitespace-separated token of a span, and the shape predicate — four to forty lowercase hex characters
-carrying both a letter and a digit — is what keeps the noise out rather than the span boundary.
+code span, not only where it is the whole of one, and not only where whitespace separates it: a citation
+sits beside punctuation more often than beside a space, because a revision expression glues it to `..`, `^`,
+`~` or `{` and prose glues it to a bracket or a comma. The reader SHALL therefore test every maximal run of
+lowercase hex characters whose neighbours are not alphanumeric. The shape predicate — four to forty
+lowercase hex characters carrying both a letter and a digit — is what keeps the noise out rather than the
+run's boundary, and the alphanumeric bound is what keeps the tail of an ordinary word from being read as an
+object.
 
 **A hosting serial is the same rule and deliberately has no reaction here.** `AGENTS.md` dispositions it as
 provenance and enforces that by review, alongside its other rows, and a reader over text cannot do better:
@@ -358,9 +361,9 @@ being one. A floor this reader invents is a floor it misses every shorter citati
 
 #### Scenario: A commit object cited inside a longer code span is read
 
-- **WHEN** a live document's prose carries the code span `git show <abbreviated object>`, where the object is the span's second whitespace-separated token
-- **THEN** the reaction fails naming that object, because a predicate asked of the whole span answers *no* for a span carrying spaces while the citation is plainly in it
-- **PINNED-BY** `no_live_document_cites_a_moment_a_fresh_clone_cannot_reach`
+- **WHEN** a live document's prose carries the object inside a longer code span in any of three shapes — separated by whitespace (`git show <object>`), glued to a revision operator (`<object>..release/X.Y.Z`), or wrapped in punctuation (`(<object>)`)
+- **THEN** the reaction fails naming the object in **each** of the three, because a predicate asked of the whole span answers *no* for every span carrying anything else, and one asked of whitespace tokens answers *no* for the two that carry no space
+- **PINNED-BY** `a_citation_glued_to_punctuation_is_read`
 
 #### Scenario: A code span shaped like an object is refused though it names none — a stated bound
 

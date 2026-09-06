@@ -132,6 +132,29 @@ them.
   Found by re-reading this window's own repairs rather than by running anything, which is where a claim about
   code sits when the code is right.
 
+- **The widened reader was still narrower than the clause written for it, and its scenario pinned a
+  direction that could not fail.** Two independent reviews arrived at the same pair, and both hold.
+
+  The clause says a citation is refused *wherever it stands inside a code span*. The reader split on
+  whitespace — and a citation sits beside **punctuation** far more often than beside a space, because a
+  revision expression glues it to `..`, `^`, `~` or `{`. Widened to every maximal hex run whose neighbours
+  are not alphanumeric, it immediately reported two live sites the previous widening could not reach: a
+  `<object>..release/X.Y.Z` range in `BACKLOG.md`, and — the reader catching its own explanation — the
+  three example spellings written into the comment that introduced the previous widening. The examples are
+  placeholders now, which is the shape working rather than an inconvenience.
+
+  **And the scenario was pinned to a direction that scans the tracked corpus**, which is kept clean — so
+  reverting the widening left it green, and a scenario was resting on a guard that had stopped guarding.
+  `a_citation_glued_to_punctuation_is_read` supplies the offending spans itself, one per narrowing this
+  reader has had: the whole-span predicate reads **0 of 3**, whitespace tokens read **1 of 3**, and the
+  delimiter-bounded runs read all three. Both negative runs are recorded against the fixture untouched.
+
+  The object is assembled from pieces none of which is object-shaped, because the file it is written in is
+  inside the corpus the live sweep reads — a literal one there would be an offence of the class under test.
+
+  `BACKLOG.md`'s citation is now `v0.4.0..v0.5.0`: two tags, so the range resolves from any clone and
+  neither end can be renamed. Verified the same range — one commit either way.
+
 - **An import sat 200 lines below its first call site, with its reason attached to a `use` that renders
   nowhere.** 漏刻's probe scanner takes `is_directory` / `is_regular_file` from the substrate; the `use`
   stood at line 502 between two functions while the file's import block is lines 1–3 and the first call is
