@@ -932,6 +932,31 @@ them.
 
 ### Self-governance
 
+- **Two readers of one position each held their own copy of how to find it.** In 圭表's declaration scanner,
+  `attr_prefix_path_kind` looks for `path` at an attribute's name position and `attr_prefix_has_bare_cfg`
+  looks for `cfg` at the same one. Written out per site, the walk to that position stood twice —
+  twenty-three byte-identical lines, diverging only at the terminal word.
+
+  **It had already been repaired twice by hand**, which is the finding rather than the duplication. The
+  raw-identifier skip (`#[r#path = "…"]` names the built-in `path`) was added to each copy separately; the
+  hand that added it to both is the hand that would have to add the next one, and the failure mode of that
+  arrangement is not a compile error — it is the `cfg` scanner learning a spelling the `path` scanner does
+  not, and the two then disagreeing about the same source.
+
+  `attr_name_start` now owns the answer, with the measurement and the `##[` resumption rule stated once
+  where the answer is computed. Behaviour-preserving: the extraction changes only *where* the walk is
+  written, and 74 suites pass unchanged. A direction holds both readers against the shared position over
+  nine spellings — whitespace on either side of the bracket, the raw spelling, `r#cfg_attr` against bare
+  `cfg`, a lone `r#`, and a `#` that opens nothing. Negative run, with the raw-identifier skip deleted from
+  the one owner:
+
+  ```
+  assertion `left == right` failed: the name position in #[r#path = "x.rs"]
+    left: Some(2)
+   right: Some(4)
+  ```
+
+
 - **One env-gated direction returned green without running and said nothing.**
   `every_example_passes_its_isolated_quality_gates` skipped when `TIANHENG_EXAMPLES` was unset and printed
   nothing, so a local run reported `ok` for a direction that had not looked at anything. The reader who most
