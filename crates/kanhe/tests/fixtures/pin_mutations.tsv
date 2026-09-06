@@ -18,8 +18,12 @@ a_doc_example_of_the_dependency_dsl_is_refused	crates/kanhe/src/restatement.rs	 
 # were added since the last release and **no** record was, so a pin was proven to resolve and almost never
 # to bite -- which is how two bounds shipped citing a test about a different stop, each found by review
 # rather than here. The window's bounds are four; proving those is affordable where proving all 300 is not.
-a_construction_through_a_program_value_is_not_read	crates/kanhe/tests/hermetic_invocations.rs	!trimmed.starts_with("//") && trimmed.contains("Command::new(\"git\")")	!trimmed.starts_with("//") && trimmed.contains("Command::new(")
-a_construction_named_in_prose_is_not_read	crates/kanhe/tests/hermetic_invocations.rs	!trimmed.starts_with("//") && trimmed.contains("Command::new(\"git\")")	trimmed.contains("Command::new(\"git\")")
 a_repeated_paragraph_in_a_prose_file_is_outside_the_corpus	crates/kanhe/tests/repeated_paragraph.rs	        if !path_str.ends_with(".rs") {	        if !path_str.ends_with(".rs") && !path_str.ends_with(".md") {
 a_repetition_split_by_code_is_not_read	crates/kanhe/tests/repeated_paragraph.rs	    let lines: Vec<&str> = text.lines().collect();\n    let shadowed = shadowed_by_a_literal(text);	    let lines: Vec<&str> = text.lines().filter(|l| l.trim_start().starts_with("//")).collect();\n    let shadowed = shadowed_by_a_literal(text);
-a_construction_inside_an_ordinary_string_literal_is_not_read	crates/kanhe/tests/hermetic_invocations.rs	!trimmed.starts_with("//") && trimmed.contains("Command::new(\"git\")")	!trimmed.starts_with("//") && trimmed.replace('\\', "").contains("Command::new(\"git\")")
+#
+# `hermetic_invocations.rs` reads Rust as tokens, and two of its three bounds have no record because of it.
+# `a-git-named-in-prose-is-not-read` and `a-git-constructed-inside-a-string-literal-is-not-read` are what a
+# token stream IS -- comments are discarded, and a literal's contents are not a stream -- so perturbing
+# either means giving that reader a text path back, which is the defect rather than a perturbation of it.
+# Stated here rather than left as two silent gaps in the table.
+a_construction_through_a_program_value_is_not_read	crates/kanhe/tests/hermetic_invocations.rs	if program.is_some_and(|program| program.to_string() == "\"git\"") {	if program.is_none_or(|program| program.to_string() == "\"git\"") {

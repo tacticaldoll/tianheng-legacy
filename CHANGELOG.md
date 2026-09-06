@@ -932,6 +932,51 @@ them.
 
 ### Self-governance
 
+- **Three rounds of findings in one file were one cause: it read Rust as lines where the question is about
+  code.** Each round repaired an instance and left the cause — a substring over a trimmed line, a span
+  sliced to a searched-for terminator, a variable name looked for anywhere in non-comment text. This round
+  the reader asks `proc_macro2` and `syn`'s own item shapes instead, and three findings close together
+  because they were never three:
+
+  - **A block comment was read as a construction.** The test was on the line's opening `//`, so
+    `/* … */` carrying the spelling passed straight through — the prose bound saying the opposite, two files
+    away. Comments are what a lexer discards, so every comment form goes at once.
+  - **A construction rustfmt split across lines was not read.** Neither the opening nor the argument carried
+    the whole spelling, so a file whose construction wrapped was absent from the constructing set and the
+    check's own requirement was wider than its reader. A line break is not a token.
+  - **An inert string satisfied the isolation check.** `line.contains(variable)` over non-comment text is
+    satisfied by `let _ = "GIT_DIR";` — it asked whether a **name occurs** where the property is whether a
+    **call happens**. The line filter it carried was itself a repair of this same shape one round earlier,
+    when the paragraph explaining the isolation named every variable it removes. Reading the `.env` and
+    `.env_remove` calls closes both. Negative run, using the review's own falsifier:
+
+    ```
+    crates/shengmo/tests/family_coverage.rs: makes no `env`/`env_remove` call naming GIT_DIR
+    ```
+
+  The first spelling of the token reader carried a `let` chain, which this crate's MSRV predates and the
+  workspace toolchain compiles without a word — the MSRV job is what said so, which is the job's whole
+  reason for standing on its own line.
+
+  **And the span slicing is gone rather than patched again.** A `const`'s value is the group after its `=`
+  and a `fn`'s body is its braces; a group carries its own end, so there is no terminator to pick and
+  nothing to get wrong. The `.min()` repair of the round before was the right answer to the instance and
+  this is the answer to the class.
+
+- **Reading tokens closed an over-report that had just been declared.** The raw-string half of the
+  string-literal stop — a fixture written `r#"…"#` reported as constructing a `git` — was measured, stated
+  as behaviour and pinned one round earlier. A literal is one token, so both literal forms now answer the
+  same way and the over-report is **closed rather than carried**. One stop remains, in both forms, and the
+  bound says so.
+
+  **Two of that file's three bounds now have no mutation record, and the table says why rather than leaving
+  two silent gaps.** *A `git` named in prose is not read* and *a `git` constructed inside a string literal is
+  not read* are what a token stream **is** — comments are discarded, and a literal's contents are not a
+  stream — so perturbing either means giving the reader a text path back, which is the defect rather than a
+  perturbation of it. Coverage reads **7 declared mutations covering 7 of 242 cited tests**: down from nine
+  because two claims that could not be proven were withdrawn rather than left standing.
+
+
 - **A span reader took the next function's closing brace for a one-line constant, and the arm written for
   that case was a branch no input could reach.** `environment_operations_of` searched `"\n}\n"` first and
   `"];\n"` only as a fallback — but a single-line `const` has a closing brace after it too, the next

@@ -2053,14 +2053,11 @@ rather than written out here, so an operation the builder starts making is one a
 
 - **WHEN** a tracked file carries a `git` construction inside an **ordinary** string literal — a file that
   emits Rust and compiles it carries one
-- **THEN** nothing reads it, and the mechanism is escaping rather than a decision: Rust source spells the
-  construction with its quotes escaped, which is not the plain text this reader looks for. Deciding it
-  properly means
-  separating a literal from the code around it, which `repeated_paragraph` carries a lexer to do and this
-  check does not
-- **AND** the same shape points the other way in a **raw** string, which carries the spelling verbatim and
-  **is** reported — an over-report, visible where this half is silent, which is why this half is the one
-  declared
+- **THEN** nothing reads it: a literal is one token, so what it carries is that token's text and not a
+  call
+- **AND** reading lines split this in two — an ordinary literal escaped its quotes and dropped out on its
+  own, while a raw string carried the spelling verbatim and **was** reported. That over-report is closed by
+  reading tokens rather than declared, and one stop remains, in both forms
 - **PINNED-BY** `a_construction_inside_an_ordinary_string_literal_is_not_read`
 
 ### Requirement: A comment paragraph SHALL NOT be written twice in a row
