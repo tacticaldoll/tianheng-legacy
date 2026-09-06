@@ -312,6 +312,12 @@ declared as a bound below rather than closed, and the reason is measured rather 
 A live governance document SHALL NOT cite a commit object. The anchor SHALL be the release window, which
 survives because `main` is made of releases, or the change's own name, which is text.
 
+**The reader's corpus SHALL be the claim's corpus.** A citation is refused wherever it stands **inside** a
+code span, not only where it is the whole of one: `git show <object>` is a single span carrying spaces, so a
+predicate asked of the span answers *no* while the object is plainly in it. The reader therefore tests every
+whitespace-separated token of a span, and the shape predicate — four to forty lowercase hex characters
+carrying both a letter and a digit — is what keeps the noise out rather than the span boundary.
+
 **A hosting serial is the same rule and deliberately has no reaction here.** `AGENTS.md` dispositions it as
 provenance and enforces that by review, alongside its other rows, and a reader over text cannot do better:
 the bare serial shape *is* the fixture for the squash-serial check, so a reader over Rust would refuse the
@@ -348,6 +354,12 @@ being one. A floor this reader invents is a floor it misses every shorter citati
   prose
 - **THEN** the reaction fails, naming the file, the line and the citation, and says to name the release
   window or move the citation into a record
+- **PINNED-BY** `no_live_document_cites_a_moment_a_fresh_clone_cannot_reach`
+
+#### Scenario: A commit object cited inside a longer code span is read
+
+- **WHEN** a live document's prose carries the code span `git show <abbreviated object>`, where the object is the span's second whitespace-separated token
+- **THEN** the reaction fails naming that object, because a predicate asked of the whole span answers *no* for a span carrying spaces while the citation is plainly in it
 - **PINNED-BY** `no_live_document_cites_a_moment_a_fresh_clone_cannot_reach`
 
 #### Scenario: A code span shaped like an object is refused though it names none — a stated bound

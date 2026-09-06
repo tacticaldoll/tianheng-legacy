@@ -132,6 +132,20 @@ them.
   Found by re-reading this window's own repairs rather than by running anything, which is where a claim about
   code sits when the code is right.
 
+- **The reader that forbids a commit object could not see one cited inside a longer span, which is why
+  three of them stood.** `is_abbreviated_object` asks whether a code span **is** the hex. `git show <object>`
+  is a single span carrying spaces, so the predicate answered *no* while the citation was plainly in it —
+  and this reader had run over those very lines on every push. The corpus was narrower than the claim, in
+  the reader whose whole subject is a claim's reachability.
+
+  It now tests every whitespace-separated token of a span; the shape predicate is unchanged and is what keeps
+  the noise out. Over the repaired tree it reports **zero**, and the negative run is the shape that escaped:
+  with the citation restored, the widened reader fails naming `f41b3b9` at its line, and the whole-span
+  reader passes on the identical tree.
+
+  `reference-integrity` states it as a clause — *the reader's corpus SHALL be the claim's corpus* — with its
+  own scenario, rather than leaving the widening to be inferred from the code.
+
 - **This window widened three rules and swept none of the corpora the widenings named.** Each rule was
   broadened here, and each broadening brought new text into scope that nobody then read. Reported by an
   outside review and verified against the tree before acting:
