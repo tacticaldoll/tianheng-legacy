@@ -117,6 +117,32 @@ them.
 
 ### Semantic and runtime
 
+- **BREAKING** — **The class has two halves that point opposite ways, and enumerating it is what showed
+  that.** Three rounds each closed one instance of *an identifier compared as written where rustc compares
+  the name it spells*. Rather than a fourth instance, the class was enumerated — every comparison of an
+  identifier against a literal name across all three dimensions — and it splits:
+
+  - **A non-keyword name**: `r#` escapes nothing and only changes the spelling, so the two are one name.
+    `path`, `cfg`, `cfg_attr`, `derive`, `cfg_if` are all this half.
+  - **A Rust keyword**: `r#` is what makes the identifier *not* the keyword. Measured under rustc 1.96.0,
+    edition 2021, `--crate-type lib`: `pub fn r#mut() -> u8` is a function named `mut` and compiles. So the
+    readers matching `static`, `mut`, `ref` and `as` compare **as written**, correctly, and applying the
+    first half's rule to them would break each one.
+
+  **The one instance the enumeration found was `cfg_if`**, the transparent-macro name, read in all three
+  dimensions. 渾儀 compares through `syn`, where a raw `Ident` is not equal to the plain string, so
+  `r#cfg_if! { … }` was an opaque macro and everything declared in its arms went unobserved — measured, it
+  answers `0` where 圭表 and 漏刻 both answer `1` on the same tree. Both byte scanners accept it and by
+  accident: each walks **backwards** over identifier bytes from the `!` and `#` is not one, so the walk
+  stops after the prefix. That property now says so at both sites, because a forward reader there would have
+  to consume the prefix explicitly and nothing would have noticed.
+
+  `semantic-signature-coupling` gains the scenario, pinned, and states the keyword half beside it so the
+  next reader does not apply the wrong one.
+
+  **Why breaking:** an adopter invoking `cfg_if!` through a raw spelling has a 渾儀 baseline that no longer
+  describes their tree.
+
 - **BREAKING** — **A third reader of attribute names, found because the sweep that closed the first two
   took one file as its corpus and the claim was about the crate.** `scan::items::extract_derives` reads
   `#[derive(…)]` and the `cfg_attr` that wraps one, and it compared both names as written. Measured

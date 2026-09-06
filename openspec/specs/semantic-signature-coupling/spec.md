@@ -569,6 +569,12 @@ The system SHALL observe the contents of a **transparent control-flow macro** ar
 - **WHEN** a forbidden exposure sits inside a `cfg_if!` invocation written inside another `cfg_if!` arm
 - **THEN** the system reports the exposure, recursing into the inner invocation
 
+#### Scenario: A raw-identifier spelling of the macro name is the same macro
+
+- **WHEN** the invocation is written `r#cfg_if! { if #[cfg(unix)] { pub fn leak() -> crate::forbidden::Thing { … } } }` and a boundary forbids `crate::forbidden::Thing`
+- **THEN** the system reports the exposure, because `r#` changes an identifier's lexical spelling and not the name it spells and `cfg_if` is not a keyword — measured under rustc 1.96.0, edition 2021, `--crate-type lib`, an item declared inside `r#cfg_if! { … }` is produced and can be referenced. This is not the rule for a keyword: `r#mut` is an identifier named `mut` and is precisely **not** the keyword, so a reader matching Rust keywords compares as written
+- **PINNED-BY** `all_three_dimensions_read_a_raw_identifier_spelling_of_the_macro_name`
+
 #### Scenario: A module declared inside a cfg_if arm is scanned
 
 - **WHEN** a crate declares `cfg_if! { if #[cfg(unix)] { pub mod unix_impl; } else { pub mod windows_impl; } }`, `src/unix_impl.rs` exists and contains a forbidden exposure, and a boundary governs `crate::unix_impl`

@@ -762,6 +762,13 @@ pub(crate) fn preceding_ident_is(b: &[u8], end: usize, target: &[u8]) -> bool {
 /// 圭表's `is_transparent_macro_name` and 渾儀's own test — the same rule in three hand-written
 /// copies, never a shared scanner (三儀 ⊥ 三儀), with `cfg_if_transparency_conformance.rs` as the
 /// drift reaction.
+///
+/// **`r#cfg_if!` is the same macro, and this reader answers so because the walk runs backwards.**
+/// `cfg_if` is not a keyword, so the prefix escapes nothing — measured against rustc 1.96.0, edition
+/// 2021, `--crate-type lib`, an item declared inside `r#cfg_if! { … }` is produced and can be referenced.
+/// [`preceding_ident_is`] steps back over identifier bytes and `#` is not one, so it stops after the
+/// prefix and reads `cfg_if`. A property of the direction of travel rather than a decision, written down
+/// because a forward reader here would have to consume the prefix with its segment explicitly.
 pub(crate) fn is_transparent_macro_name(b: &[u8], end: usize) -> bool {
     preceding_ident_is(b, end, b"cfg_if")
 }
