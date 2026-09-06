@@ -316,6 +316,42 @@ fn attribute_prefix_start(bytes: &[u8], item_index: usize) -> usize {
         .map_or(0, |i| i + 1)
 }
 
+/// Where the attribute's name begins, given the `#` at `hash` — or `None` where that `#` opens no attribute.
+///
+/// **Two readers ask this, and the position is one fact.** `attr_prefix_path_kind` looks for `path` here and
+/// `attr_prefix_has_bare_cfg` looks for `cfg`, and what each looks *at* has to be the same byte or the two
+/// disagree about the same source. Written out per site the preamble stood twice, byte-identical for
+/// twenty-three lines and diverging only at the terminal word — which is the shape where one copy gets a
+/// repair and the other keeps the defect. It got one: the raw-identifier skip below was added to both by
+/// hand, and a hand is what would have to add the next one.
+///
+/// **A raw identifier is ONE segment**, at the attribute's own name position as much as inside a
+/// `cfg_attr`'s argument list, where `cfg_attr_group_path_eqs` already consumes the prefix with the segment
+/// it belongs to. `r#` changes a lexical spelling and not the name it spells, so `#[r#path = "…"]` IS the
+/// built-in remap — measured against rustc 1.96.0, edition 2021, `--crate-type lib`, which compiles the
+/// remapped file for it even with the conventional file present. Reading the name as written left this
+/// scanner governing a file the build does not contain.
+///
+/// The `#` is not consumed on a miss: the caller advances by one and reads the next byte itself, so
+/// `##[path = "…"]` reaches the attribute its second `#` opens.
+fn attr_name_start(bytes: &[u8], hash: usize) -> Option<usize> {
+    let mut i = hash + 1;
+    while i < bytes.len() && bytes[i].is_ascii_whitespace() {
+        i += 1;
+    }
+    if bytes.get(i) != Some(&b'[') {
+        return None;
+    }
+    i += 1;
+    while i < bytes.len() && bytes[i].is_ascii_whitespace() {
+        i += 1;
+    }
+    if bytes[i..].starts_with(b"r#") && bytes.get(i + 2).is_some_and(|byte| is_ident_byte(*byte)) {
+        i += 2;
+    }
+    Some(i)
+}
+
 fn attr_prefix_path_kind(bytes: &[u8]) -> PathAttrKind {
     let mut i = 0;
     let mut excluded = false;
@@ -326,28 +362,11 @@ fn attr_prefix_path_kind(bytes: &[u8]) -> PathAttrKind {
             i += 1;
             continue;
         }
-        i += 1;
-        while i < bytes.len() && bytes[i].is_ascii_whitespace() {
+        let Some(name) = attr_name_start(bytes, i) else {
             i += 1;
-        }
-        if bytes.get(i) != Some(&b'[') {
             continue;
-        }
-        i += 1;
-        while i < bytes.len() && bytes[i].is_ascii_whitespace() {
-            i += 1;
-        }
-        // **A raw identifier is ONE segment**, at the attribute's own name position as much as inside a
-        // `cfg_attr`'s argument list, where `cfg_attr_group_path_eqs` already consumes the prefix with the
-        // segment it belongs to. `r#` changes a lexical spelling and not the name it spells, so `#[r#path =
-        // "…"]` IS the built-in remap — measured against rustc 1.96.0, edition 2021, `--crate-type lib`,
-        // which compiles the remapped file for it even with the conventional file present. Reading the name
-        // as written left this scanner governing a file the build does not contain.
-        if bytes[i..].starts_with(b"r#")
-            && bytes.get(i + 2).is_some_and(|byte| is_ident_byte(*byte))
-        {
-            i += 2;
-        }
+        };
+        i = name;
         if bytes[i..].starts_with(b"path")
             && bytes.get(i + 4).is_none_or(|byte| !is_ident_byte(*byte))
         {
@@ -531,28 +550,11 @@ fn attr_prefix_has_bare_cfg(bytes: &[u8]) -> bool {
             i += 1;
             continue;
         }
-        i += 1;
-        while i < bytes.len() && bytes[i].is_ascii_whitespace() {
+        let Some(name) = attr_name_start(bytes, i) else {
             i += 1;
-        }
-        if bytes.get(i) != Some(&b'[') {
             continue;
-        }
-        i += 1;
-        while i < bytes.len() && bytes[i].is_ascii_whitespace() {
-            i += 1;
-        }
-        // **A raw identifier is ONE segment**, at the attribute's own name position as much as inside a
-        // `cfg_attr`'s argument list, where `cfg_attr_group_path_eqs` already consumes the prefix with the
-        // segment it belongs to. `r#` changes a lexical spelling and not the name it spells, so `#[r#path =
-        // "…"]` IS the built-in remap — measured against rustc 1.96.0, edition 2021, `--crate-type lib`,
-        // which compiles the remapped file for it even with the conventional file present. Reading the name
-        // as written left this scanner governing a file the build does not contain.
-        if bytes[i..].starts_with(b"r#")
-            && bytes.get(i + 2).is_some_and(|byte| is_ident_byte(*byte))
-        {
-            i += 2;
-        }
+        };
+        i = name;
         // The byte immediately after `cfg` must not continue the identifier (excludes `cfg_attr`,
         // whose next byte is `_`).
         if bytes[i..].starts_with(b"cfg")
@@ -567,7 +569,65 @@ fn attr_prefix_has_bare_cfg(bytes: &[u8]) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::cfg_attr_prefix_collect_path_eqs;
+    use super::{
+        PathAttrKind, attr_name_start, attr_prefix_has_bare_cfg, attr_prefix_path_kind,
+        cfg_attr_prefix_collect_path_eqs,
+    };
+
+    /// The two readers of an attribute prefix agree about where the name is, because they ask once.
+    ///
+    /// The position is what the two shared before it was extracted: twenty-three byte-identical lines in
+    /// each, diverging only at `path` versus `cfg`. This direction is over the position itself and over both
+    /// verdicts that stand on it, so a change to one reader's approach shows up as a disagreement here
+    /// rather than as a `cfg` scanner that learned a spelling the `path` scanner did not.
+    #[test]
+    fn both_readers_take_the_attribute_name_from_one_position() {
+        // (prefix, where the name starts, does it remap, is it a bare cfg)
+        for (prefix, name_at, remaps, bare_cfg) in [
+            (&b"#[path = \"x.rs\"]"[..], Some(2), true, false),
+            (&b"#[cfg(unix)]"[..], Some(2), false, true),
+            // Whitespace on either side of the bracket, which the preamble skips in two separate loops.
+            (&b"# [ path = \"x.rs\"]"[..], Some(4), true, false),
+            (&b"# [ cfg(unix)]"[..], Some(4), false, true),
+            // The raw spelling names the built-in, at the attribute's own name position.
+            (&b"#[r#path = \"x.rs\"]"[..], Some(4), true, false),
+            (&b"#[r#cfg(unix)]"[..], Some(4), false, true),
+            // `cfg_attr` is not a bare `cfg`, raw-spelled or not — the byte after `cfg` continues the
+            // identifier.
+            (
+                &b"#[r#cfg_attr(unix, path = \"x.rs\")]"[..],
+                Some(4),
+                true,
+                false,
+            ),
+            // A lone `r#` is not a raw identifier, so the name starts at the `r`.
+            (&b"#[r#]"[..], Some(2), false, false),
+            // The `#` that opens nothing is stepped over, and the one after it is read.
+            (&b"##[path = \"x.rs\"]"[..], Some(3), true, false),
+        ] {
+            let spelling = String::from_utf8_lossy(prefix).into_owned();
+            let hash = prefix
+                .iter()
+                .position(|byte| *byte == b'#')
+                .expect("every row opens with a hash");
+            let start = match attr_name_start(prefix, hash) {
+                Some(start) => Some(start),
+                None => attr_name_start(prefix, hash + 1),
+            };
+            assert_eq!(start, name_at, "the name position in {spelling}");
+
+            assert_eq!(
+                matches!(attr_prefix_path_kind(prefix), PathAttrKind::Remaps { .. }),
+                remaps,
+                "the path reader's verdict on {spelling}"
+            );
+            assert_eq!(
+                attr_prefix_has_bare_cfg(prefix),
+                bare_cfg,
+                "the cfg reader's verdict on {spelling}"
+            );
+        }
+    }
 
     #[test]
     fn deeply_nested_cfg_attr_paths_use_a_bounded_native_stack() {
