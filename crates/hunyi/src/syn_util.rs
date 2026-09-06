@@ -84,13 +84,21 @@ fn is_transparent_macro(item: &syn::ItemMacro) -> bool {
     // `ident.is_none()` excludes a definition (`macro_rules! cfg_if { … }`, whose invocation path
     // is `macro_rules`) from ever being read as an invocation of it. Matched on the LAST segment,
     // so the qualified `cfg_if::cfg_if! { … }` spelling counts — the same test 圭表 applies.
+    //
+    // **Compared through `strip_raw`, because `r#cfg_if!` invokes the same macro.** `cfg_if` is not a
+    // keyword, so the prefix escapes nothing and only changes the spelling — measured against rustc
+    // 1.96.0, edition 2021, `--crate-type lib`, an item declared inside `r#cfg_if! { … }` is produced
+    // and can be referenced. `syn` carries the rawness, and a raw `Ident` is not equal to the plain
+    // string, so this read the invocation as an opaque macro and everything in its arms went
+    // unobserved. Note this is NOT the rule for a keyword: `r#mut` is an identifier named `mut` and is
+    // precisely not the keyword, so the readers that match Rust keywords compare as written and must.
     item.ident.is_none()
         && item
             .mac
             .path
             .segments
             .last()
-            .is_some_and(|seg| seg.ident == "cfg_if")
+            .is_some_and(|seg| strip_raw(&seg.ident.to_string()) == "cfg_if")
 }
 
 /// The items of every arm of a transparent macro invocation, in source order, kept **separate

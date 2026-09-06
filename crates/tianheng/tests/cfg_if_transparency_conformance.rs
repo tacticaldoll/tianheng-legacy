@@ -189,3 +189,46 @@ fn all_three_dimensions_reach_a_module_declared_only_inside_a_cfg_if_arm() {
         "漏刻: an arm-declared module's undeclared-seam probe must react"
     );
 }
+
+/// A raw-identifier spelling of the macro's own name invokes the same macro, so its arms are still code.
+///
+/// **Measured against rustc 1.96.0, edition 2021, `--crate-type lib`**: `r#cfg_if! { … }` expands the macro
+/// named `cfg_if` — an item declared inside a raw-spelled invocation is produced and can be referenced.
+/// `r#` changes an identifier's lexical spelling and not the name it spells, and `cfg_if` is not a keyword,
+/// so there is nothing for the prefix to escape.
+///
+/// The two byte scanners accept it already, and by accident rather than by design: each walks **backwards**
+/// over identifier bytes from the `!`, and `#` is not one, so the walk stops after `r#` and reads `cfg_if`.
+/// 渾儀 compares through `syn`, where a raw `Ident` is not equal to the plain string, so its arms stayed
+/// opaque and everything declared inside them went unobserved.
+///
+/// Negative run: with `is_transparent_macro`'s comparison left as `seg.ident == "cfg_if"`, 渾儀 answers `0`
+/// while 圭表 and 漏刻 both answer `1` on the same tree.
+#[test]
+fn all_three_dimensions_read_a_raw_identifier_spelling_of_the_macro_name() {
+    let package = "cfg-if-raw-macro-name";
+    let arm = "r#cfg_if! {\n\
+               if #[cfg(unix)] {\n\
+               use crate::forbidden::Thing;\n\
+               pub fn leak() -> crate::forbidden::Thing { crate::forbidden::Thing }\n\
+               pub fn typo(o: u8) { assert_boundary!(\"conformance-saem\", o); }\n\
+               }\n\
+               }\n";
+    let fixture = fixture(package, PLAIN_LIB_PROBED, arm);
+
+    assert_eq!(
+        guibiao_exit(package, fixture.manifest(), "crate::child", REASON),
+        1,
+        "圭表: a raw-spelled invocation is the same macro, so its arm's forbidden `use` must react"
+    );
+    assert_eq!(
+        hunyi_exit(package, fixture.manifest(), "crate::child", REASON),
+        1,
+        "渾儀: a raw-spelled invocation is the same macro, so its arm's forbidden exposure must react"
+    );
+    assert_eq!(
+        louke_exit(fixture.lib(), SEAM, REASON),
+        1,
+        "漏刻: a raw-spelled invocation is the same macro, so its arm's undeclared seam must react"
+    );
+}
