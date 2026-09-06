@@ -154,8 +154,31 @@ fn string_of(expression: &syn::Expr) -> Option<String> {
 #[derive(Default)]
 struct Constructions {
     found: bool,
+    /// A macro body neither grammar parsed, naming something bound to `Command`.
+    undecided: bool,
     /// Names this file binds to `Command` — `use std::process::Command as Cmd` makes `Cmd` one.
     aliases: BTreeSet<String>,
+}
+
+/// Every name a file binds to `std::process::Command`, from **any** scope.
+///
+/// Collected from the top-level items alone, a `use std::process::Command as Cmd;` inside a function or an
+/// inline module bound nothing and `Cmd::new("git")` was read as somebody else's `new`. A visitor reaches
+/// every `use` wherever it stands.
+///
+/// **The path is checked, not only the rename.** Binding on the segment `Command` alone would make
+/// `use foo::Command as Cmd` a `std::process::Command`, which widens the reaction rather than the bound: the
+/// declared stop is a name bound *elsewhere*, not a name bound here to something else.
+#[derive(Default)]
+struct Aliases {
+    names: BTreeSet<String>,
+}
+
+impl<'ast> syn::visit::Visit<'ast> for Aliases {
+    fn visit_item_use(&mut self, node: &'ast syn::ItemUse) {
+        Constructions::walk_use(&node.tree, false, &mut self.names);
+        syn::visit::visit_item_use(self, node);
+    }
 }
 
 impl Constructions {
@@ -168,22 +191,25 @@ impl Constructions {
     /// names for this repository's other reader of its own Rust, reached here by the same road.
     fn bind_aliases(&mut self, file: &syn::File) {
         self.aliases.insert("Command".to_string());
-        for item in &file.items {
-            if let syn::Item::Use(imported) = item {
-                Self::walk_use(&imported.tree, &mut self.aliases);
-            }
-        }
+        let mut binder = Aliases::default();
+        syn::visit::Visit::visit_file(&mut binder, file);
+        self.aliases.extend(binder.names);
     }
 
-    fn walk_use(tree: &syn::UseTree, aliases: &mut BTreeSet<String>) {
+    /// `under_process` carries whether a `process` segment already stands in the path being walked.
+    fn walk_use(tree: &syn::UseTree, under_process: bool, aliases: &mut BTreeSet<String>) {
         match tree {
-            syn::UseTree::Path(path) => Self::walk_use(&path.tree, aliases),
+            syn::UseTree::Path(path) => Self::walk_use(
+                &path.tree,
+                under_process || path.ident == "process",
+                aliases,
+            ),
             syn::UseTree::Group(group) => {
                 for item in &group.items {
-                    Self::walk_use(item, aliases);
+                    Self::walk_use(item, under_process, aliases);
                 }
             }
-            syn::UseTree::Rename(renamed) if renamed.ident == "Command" => {
+            syn::UseTree::Rename(renamed) if under_process && renamed.ident == "Command" => {
                 aliases.insert(renamed.rename.to_string());
             }
             _ => {}
@@ -200,12 +226,28 @@ impl<'ast> syn::visit::Visit<'ast> for Constructions {
     /// call this reader would have read anyway, and the file is not made undecidable for it.
     fn visit_macro(&mut self, node: &'ast syn::Macro) {
         use syn::punctuated::Punctuated;
-        if let Ok(arguments) =
-            node.parse_body_with(Punctuated::<syn::Expr, syn::Token![,]>::parse_terminated)
-        {
+        let as_expressions =
+            node.parse_body_with(Punctuated::<syn::Expr, syn::Token![,]>::parse_terminated);
+        if let Ok(arguments) = as_expressions {
             for argument in &arguments {
                 syn::visit::Visit::visit_expr(self, argument);
             }
+        } else if let Ok(statements) = node.parse_body_with(syn::Block::parse_within) {
+            // A statement-oriented body — `passthrough!(let _ = Command::new("git");)` — is not an
+            // expression list, and discarding the failure silently let it carry a construction past this
+            // reader.
+            for statement in &statements {
+                syn::visit::Visit::visit_stmt(self, statement);
+            }
+        } else if node
+            .tokens
+            .clone()
+            .into_iter()
+            .any(|tree| matches!(&tree, proc_macro2::TokenTree::Ident(word) if self.aliases.contains(&word.to_string())))
+        {
+            // Neither grammar, and the body names something this file binds to `Command`. Saying so is the
+            // safe direction: the alternative is reporting a file clean over tokens nothing classified.
+            self.undecided = true;
         }
         syn::visit::visit_macro(self, node);
     }
@@ -242,6 +284,8 @@ fn constructs_git(text: &str) -> Reading {
     syn::visit::Visit::visit_file(&mut constructions, &parsed);
     if constructions.found {
         Reading::Constructs
+    } else if constructions.undecided {
+        Reading::Undecidable
     } else {
         Reading::DoesNot
     }
@@ -781,11 +825,46 @@ fn a_construction_through_a_rename_or_inside_a_macro_is_read() {
         "fn f() {\n    let c = std::process::Command::new(\"git\");\n}"
     ));
 
-    // The controls: a rename this file does not bind is not `Command`, and a macro carrying another program
-    // is not read — so the assertions above are about the binding and the body rather than about a reader
-    // that reports every `new`.
+    // A `use` inside a function or an inline module binds as surely as one at the top: collected from the
+    // top-level items alone, both of these bound nothing.
+    assert!(reads(
+        "fn f() {\n    use std::process::Command as Cmd;\n    let c = Cmd::new(\"git\");\n}"
+    ));
+    assert!(reads(
+        "mod m {\n    use std::process::Command as Cmd;\n    pub fn f() {\n        let c = Cmd::new(\"git\");\n    }\n}"
+    ));
+
+    // A statement-oriented body is not an expression list, and discarding that failure let it carry a
+    // construction past this reader.
+    assert!(reads(
+        "fn f() {\n    passthrough!(let _ = Command::new(\"git\"););\n}"
+    ));
+
+    // The controls: a rename this file does not bind is not `Command`, a rename to something else is not
+    // either, and a macro carrying another program is not read — so the assertions above are about the
+    // binding and the body rather than about a reader that reports every `new`.
     assert!(!reads("fn f() {\n    let c = Cmd::new(\"git\");\n}"));
+    assert!(!reads(
+        "use foo::Command as Cmd;\nfn f() {\n    let c = Cmd::new(\"git\");\n}"
+    ));
     assert!(!reads("fn f() {\n    dbg!(Command::new(\"cargo\"));\n}"));
+}
+
+/// A macro body neither grammar parsed, naming a bound `Command`, is undecidable.
+///
+/// The safe direction where the alternative is reporting a file clean over tokens nothing classified. A body
+/// that names nothing bound to `Command` is not made undecidable for being unparseable — most macro bodies
+/// are neither grammar and carry no call this reader would have read.
+#[test]
+fn an_unclassifiable_macro_body_naming_a_command_is_undecidable() {
+    assert_eq!(
+        constructs_git("fn f() {\n    weird!(Command => \"git\");\n}"),
+        Reading::Undecidable
+    );
+    assert_eq!(
+        constructs_git("fn f() {\n    matches!(x, Some(_) if true);\n}"),
+        Reading::DoesNot
+    );
 }
 
 /// The declared set names a path this repository tracks.

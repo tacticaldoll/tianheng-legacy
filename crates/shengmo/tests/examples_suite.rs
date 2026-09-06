@@ -409,3 +409,124 @@ fn every_tracked_example_is_declared_and_every_declaration_exists() {
          nothing: {absent:?}"
     );
 }
+
+/// The probe half of [`no_ambient_selector_moves_which_repository_this_builder_reads`].
+///
+/// Reports what the local builder answers and what a bare `Command` answers, from inside an inherited
+/// environment. Returns without doing anything unless the parent asked.
+#[test]
+fn hermetic_selector_probe() {
+    let Some(judged) = std::env::var_os("SHENGMO_SELECTOR_PROBE_REPO") else {
+        return;
+    };
+    let judged = std::path::Path::new(&judged);
+    let subject = |mut command: Command| {
+        let out = command
+            .args(["log", "-1", "--format=%s"])
+            .current_dir(judged)
+            .output()
+            .expect("run git log");
+        String::from_utf8_lossy(&out.stdout).trim().to_string()
+    };
+    println!(
+        "PROBE_BEGIN\nbuilder={}\nbare={}\nPROBE_END",
+        subject(hermetic_git()),
+        subject(Command::new("git"))
+    );
+}
+
+/// No ambient selector moves which repository this builder reads — **asked of a run**.
+///
+/// This copy holds the owner's environment properties by transcription, and a reader of the transcription is
+/// what `hermetic_invocations` compares. Nine rounds of review found spellings such a reader missed — a
+/// rename, a macro, a literal compared by its rendering, a removal made on a decoy receiver — each a
+/// different way to write the same program. A run does not care how the program is written: it answers what
+/// the command reads, which is the property. Measured with the removals redirected to a decoy receiver, the
+/// reader passed and this failed.
+#[test]
+fn no_ambient_selector_moves_which_repository_this_builder_reads() {
+    let root = std::env::temp_dir().join(format!("examples-suite-selector-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    // `xingbiao::claim_scratch` owns this elsewhere and `shengmo` cannot reach it without a dependency
+    // edge, so the property it holds — a scratch root that refuses to adopt a pre-existing path — is held
+    // here instead of dropped.
+    assert!(
+        std::fs::symlink_metadata(&root).is_err(),
+        "the scratch root must not exist before it is made"
+    );
+    std::fs::create_dir_all(&root).expect("create the fixture root");
+    let build = |name: &str| {
+        let dir = root.join(name);
+        std::fs::create_dir_all(&dir).expect("create the fixture repository");
+        for args in [
+            &["init", "-q", "."][..],
+            &["config", "user.email", "fixture@example.invalid"][..],
+            &["config", "user.name", "fixture"][..],
+        ] {
+            assert!(
+                hermetic_git()
+                    .args(args)
+                    .current_dir(&dir)
+                    .status()
+                    .expect("run git")
+                    .success(),
+                "the fixture repository is built"
+            );
+        }
+        std::fs::write(dir.join("a.txt"), name).expect("write the fixture file");
+        for args in [&["add", "-A"][..], &["commit", "-qm", name][..]] {
+            assert!(
+                hermetic_git()
+                    .args(args)
+                    .current_dir(&dir)
+                    .status()
+                    .expect("run git")
+                    .success(),
+                "the fixture commit is made"
+            );
+        }
+        dir
+    };
+    let judged = build("judged");
+    let decoy = build("decoy");
+
+    let probe = Command::new(std::env::current_exe().expect("this test binary"))
+        .args([
+            "--exact",
+            "hermetic_selector_probe",
+            "--nocapture",
+            "--test-threads=1",
+        ])
+        .env("GIT_DIR", decoy.join(".git"))
+        .env("GIT_WORK_TREE", &decoy)
+        .env("GIT_INDEX_FILE", decoy.join(".git/index"))
+        .env("SHENGMO_SELECTOR_PROBE_REPO", &judged)
+        .output()
+        .expect("run the probe child");
+    let probe = String::from_utf8_lossy(&probe.stdout).into_owned();
+    let reported = probe
+        .split_once("PROBE_BEGIN\n")
+        .and_then(|(_, rest)| rest.split_once("PROBE_END"))
+        .map(|(body, _)| body.to_string())
+        .unwrap_or_else(|| panic!("the probe child produced no reading:\n{probe}"));
+    let reading = |key: &str| {
+        reported
+            .lines()
+            .find_map(|line| line.strip_prefix(key))
+            .unwrap_or_else(|| panic!("the probe reported no `{key}` line:\n{reported}"))
+            .to_string()
+    };
+
+    let _ = std::fs::remove_dir_all(&root);
+
+    assert_eq!(
+        reading("bare="),
+        "decoy",
+        "a bare `Command` did not follow the ambient selectors, so this case demonstrates no channel"
+    );
+    assert_eq!(
+        reading("builder="),
+        "judged",
+        "this builder read the repository the environment named rather than the one it was pointed at"
+    );
+}

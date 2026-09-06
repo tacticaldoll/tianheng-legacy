@@ -932,6 +932,43 @@ them.
 
 ### Self-governance
 
+- **The property is asked of a run now, because nine rounds proved the reader could not be finished.** Every
+  round a review supplied a spelling the source reader missed — a rename, a macro, a literal compared by its
+  rendering, a constant kept while its loop was deleted, and now a removal made on a **decoy receiver** — and
+  every one is a different way to write the same program. `pin_bites` already says the thing this needed:
+  *whether a test bites is a question about running a program and no reading of text answers it.* Whether a
+  `git` inherits the ambient environment is that same kind of question.
+
+  A child process inherits a decoy `GIT_DIR` / `GIT_WORK_TREE` / `GIT_INDEX_FILE`, runs the builder against a
+  known repository, and reports what it read beside what a bare `Command` read in the same environment. The
+  bare reading is the control: without it a pass proves only that the selectors never arrived. Both
+  boundary-forced copies carry the same probe, so each proves its own isolation by running rather than by
+  spelling.
+
+  **The decoy-receiver falsifier is where the two readings part, and it is measured.** With `hermetic`'s
+  removals redirected to a decoy `Command` while the returned one stays ambient:
+
+  ```
+  the syntactic check:  test result: ok
+  the run:              left: "decoy"   right: "judged"
+  ```
+
+  The reader is not retired — it is early warning, and it catches transcription drift before a run does. It
+  is no longer the only thing standing between a copy and an ambient `git`.
+
+- **Two more spellings, closed as far as syntax reaches.** A `use std::process::Command as Cmd` **inside a
+  function or an inline module** bound nothing, because aliases were collected from top-level items alone;
+  they are collected by a visitor now, which reaches every scope. And the path is checked rather than only
+  the rename — binding on the segment `Command` alone would have made `use foo::Command as Cmd` a
+  `std::process::Command`, widening the reaction rather than the bound.
+
+  A **statement-oriented** macro body — `passthrough!(let _ = Command::new("git");)` — is not an expression
+  list, and discarding that parse failure let it carry a construction past the reader. Statements are parsed
+  too; and a body neither grammar accepts that **names something bound to `Command`** is now
+  `Reading::Undecidable` rather than silence, which is the safe direction where the alternative is reporting
+  a file clean over tokens nothing classified.
+
+
 - **A constant stood in for an operation the builder no longer performed.** The two arrays `hermetic`
   iterates were expanded into `env_remove` operations because the arrays still existed — so deleting
   `for selector in REPOSITORY_SELECTORS { command.env_remove(selector) }` while keeping the array left this
