@@ -16,7 +16,6 @@
 //! `repository-checks/a-paragraph-repeated-in-prose-is-not-read-a-stated-bound`.
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 use kanhe::refusal::{Kind, Refusal, cannot_judge, violation};
 
@@ -133,24 +132,26 @@ fn offences(root: &Path, listing: &[String]) -> (Vec<Refusal>, usize) {
 /// `-z` rather than a line-oriented read: git quotes a path carrying a special character, and a reader that
 /// took the quoted spelling would open a file that is not there and report the tracked file it could not
 /// read. The refusal would be honest and the corpus would still have lost the file.
+///
+/// **Through [`kanhe::hermetic_git::run`], which refuses bytes it cannot represent.** Spelled here with its
+/// own `Command`, this took git's stdout through `from_utf8_lossy` — and that runner's own header names
+/// **this command** as the reason it does not: `ls-files -z` promises nothing about encoding, so a tracked
+/// path that is not UTF-8 arrives as a different path than the one on disk, and every read downstream is
+/// made against that. The offence would then name an identity the repository does not hold, which is the
+/// property `xingbiao::path_identity` exists to keep and `repository_path` refuses in the same words. A
+/// verdict is not owed on an input this reader cannot represent; saying so is.
 fn tracked(root: &Path) -> Vec<String> {
-    let output = Command::new("git")
-        .args(["ls-files", "-z"])
-        .current_dir(root)
-        .output()
-        .unwrap_or_else(|err| {
-            panic!("CannotJudge: could not run `git ls-files -z` ({err}), so no file was inspected")
-        });
-    assert!(
-        output.status.success(),
-        "CannotJudge: `git ls-files -z` failed, so no file was inspected: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    String::from_utf8_lossy(&output.stdout)
-        .split('\0')
-        .filter(|path| !path.is_empty())
-        .map(str::to_string)
-        .collect()
+    match kanhe::hermetic_git::run(root, &[], &["ls-files", "-z"]) {
+        Ok(listing) => listing
+            .split('\0')
+            .filter(|path| !path.is_empty())
+            .map(str::to_string)
+            .collect(),
+        Err(failure) => panic!(
+            "CannotJudge: `git ls-files -z` did not answer a path list this reader can hold ({failure:?}), \
+             so no file was inspected — an enumeration that could not be read is not an empty repository"
+        ),
+    }
 }
 
 #[test]
@@ -294,6 +295,80 @@ fn a_repeated_paragraph_in_a_prose_file_is_outside_the_corpus() {
         "a prose file is outside the corpus, so it is not counted as inspected — a stop, not a clean read"
     );
     assert!(prose.is_empty(), "and it is not reported: {prose:?}");
+}
+
+/// A tracked path that is not UTF-8 is refused, never renamed.
+///
+/// The property this file's enumeration stands on — held over [`tracked`] itself, not over the runner it
+/// calls. Written against `hermetic_git::run` the direction passed with the defect restored, because the
+/// defect was `tracked` reaching past that runner; a direction that observes a dependency cannot see its
+/// caller stop using it.
+///
+/// `ls-files -z` hands back git's raw bytes, so an undecodable one arrives intact. A lossy decode
+/// substitutes U+FFFD per byte and answers a path the repository does not hold, which is then opened,
+/// missed, and reported as *a tracked file that could not be read* — a refusal that is honest about the
+/// wrong file. The control is that measurement: git's spelling and the lossy one differ, so the file
+/// reported would not be the file tracked.
+#[cfg(unix)]
+#[test]
+fn a_tracked_path_that_is_not_utf8_is_refused_rather_than_renamed() {
+    use std::os::unix::ffi::OsStrExt;
+
+    let scratch = std::env::temp_dir().join(format!(
+        "tianheng-repeated-paragraph-not-utf8-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&scratch);
+    xingbiao::claim_scratch(&scratch).expect("the scratch root is writable");
+
+    std::fs::write(scratch.join("plain.rs"), "fn main() {}\n").expect("write the decodable probe");
+    for args in [
+        &["init", "-q", "."][..],
+        &["config", "user.email", "probe@example.invalid"][..],
+        &["config", "user.name", "probe"][..],
+        &["add", "-A"][..],
+        &["commit", "-qm", "probe"][..],
+    ] {
+        kanhe::hermetic_git::run(&scratch, &[], args).expect("the fixture repository is built");
+    }
+
+    // The control first: with every path decodable, this enumeration answers them.
+    let listed = tracked(&scratch);
+    assert_eq!(
+        listed,
+        vec!["plain.rs".to_string()],
+        "the enumeration reads a repository whose paths it can represent"
+    );
+
+    let undecodable = std::ffi::OsStr::from_bytes(b"probe-\xff.rs");
+    std::fs::write(scratch.join(undecodable), "// a note\n// a note\n")
+        .expect("write the undecodable probe");
+    for args in [&["add", "-A"][..], &["commit", "-qm", "undecodable"][..]] {
+        kanhe::hermetic_git::run(&scratch, &[], args).expect("the undecodable path is tracked");
+    }
+
+    let refused = std::panic::catch_unwind(|| tracked(&scratch));
+    let _ = std::fs::remove_dir_all(&scratch);
+
+    let payload = refused.expect_err(
+        "a path this reader cannot represent must stop the enumeration, not be decoded into another name",
+    );
+    let said = payload
+        .downcast_ref::<String>()
+        .map(String::as_str)
+        .or_else(|| payload.downcast_ref::<&str>().copied())
+        .unwrap_or("");
+    assert!(
+        said.contains("CannotJudge") && said.contains("ls-files"),
+        "the refusal names what could not be read: {said:?}"
+    );
+
+    // And the measurement the refusal exists for: decoded lossily, the path is a name nothing tracks.
+    let lossy = String::from_utf8_lossy(b"probe-\xff.rs").into_owned();
+    assert!(
+        lossy.contains('\u{fffd}') && lossy != "probe-\u{ff}.rs",
+        "a lossy decode substitutes U+FFFD, so the name reported would not be the name tracked: {lossy:?}"
+    );
 }
 
 /// An unreadable tracked file is a cannot-judge, not a file that repeats nothing.

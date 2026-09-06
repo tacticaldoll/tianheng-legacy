@@ -932,6 +932,29 @@ them.
 
 ### Self-governance
 
+- **A new reader spelled its own `git` call and renamed the paths it enumerated.** The repeated-paragraph
+  check ran `git ls-files -z` through its own `Command` and took the output through `from_utf8_lossy` — the
+  exact decode `hermetic_git::run` exists to refuse, in a header that names **this command** as its reason:
+  `-z` promises nothing about encoding, so a tracked path carrying an undecodable byte arrives as a
+  different path than the one on disk. Every read below it is then made against that name, and the resulting
+  *tracked file could not be read* is honest about the wrong file. `xingbiao::path_identity` exists for the
+  opposite property and `repository_path` refuses the same thing in the same words; this reader, written
+  after both, reached past them.
+
+  Routed through `hermetic_git::run`, which refuses. A direction builds a repository holding
+  `probe-\xff.rs`, tracks it, and requires the enumeration to stop. Negative run with the lossy decode
+  restored verbatim:
+
+  ```
+  a path this reader cannot represent must stop the enumeration, not be decoded into another name: ["plain.rs", "probe-\u{fffd}.rs"]
+  ```
+
+  **The first spelling of that direction was itself the defect it was written for.** Held over
+  `hermetic_git::run` rather than over the enumeration, it passed with the lossy decode restored — because
+  what had gone wrong was the caller reaching past that runner, which a direction observing the runner
+  cannot see. It is held over the enumeration now, and the negative run above is what that change bought.
+
+
 - **A direction made the same assertion twice, and one of them was the whole direction's second half.**
   `a_tag_with_no_signature_block_is_named_as_such` called `refusal::expect` on the same identifier and the
   same refusal twice in a row, byte-identical. It shipped in `0.5.0`. Nothing was wrong with the direction's
