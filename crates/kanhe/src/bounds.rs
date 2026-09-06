@@ -994,5 +994,25 @@ pub fn observation_bounds() -> Vec<BoundDecl> {
             }),
             "a_construction_inside_an_ordinary_string_literal_is_not_read",
         ),
+        BoundDecl::pinned(
+            BoundId::new(
+                "repository-checks/a-git-constructed-through-a-name-bound-elsewhere-is-not-read-a-stated-bound",
+            ),
+            "a `git` constructed through a name this file does not bind to `Command` -- a rename in another \
+             module, a type alias, a re-export",
+            Extent::Reached(Reached::UnderReacts {
+                because: "a rename is decidable inside one file, where `use std::process::Command as Cmd` \
+                          is written down, and this reader binds those. What a name means when it is bound \
+                          somewhere else is not written down anywhere a parse tree carries, and answering \
+                          it needs name resolution -- the same floor \
+                          `a-construction-shape-the-register-s-reader-does-not-model-a-stated-bound` \
+                          already names for this repository's other reader of its own Rust, reached here by \
+                          the same road. The direction pinning it is the control that a name this file does \
+                          not bind is not read"
+                    .into(),
+                owner: Owner::Engine,
+            }),
+            "a_construction_through_a_rename_or_inside_a_macro_is_read",
+        ),
     ]
 }

@@ -932,6 +932,33 @@ them.
 
 ### Self-governance
 
+- **A constant stood in for an operation the builder no longer performed.** The two arrays `hermetic`
+  iterates were expanded into `env_remove` operations because the arrays still existed — so deleting
+  `for selector in REPOSITORY_SELECTORS { command.env_remove(selector) }` while keeping the array left this
+  check green over a builder that had stopped clearing every repository selector. Membership is not an
+  operation; the loop is what performs one. What is read now is a `for` loop in `hermetic` whose iterable
+  **is** that constant and whose body calls `env_remove` on the element it binds. Negative run, using the
+  review's falsifier:
+
+  ```
+  `hermetic` no longer iterates both arrays into `env_remove`, so this reader would derive a set from whichever half it still performs
+    left: 1
+   right: 2
+  ```
+
+- **A rename and a macro each carried a construction past the reader.** `use std::process::Command as Cmd;
+  Cmd::new("git")` was missed, because only the segment `Command` was read; `dbg!(Command::new("git"))` was
+  missed, because a macro's tokens are not expressions until something parses them. Both are valid Rust in
+  an undeclared file that this check reported as constructing nothing. Renames the file itself binds are
+  bound now, and a macro body is parsed as an expression list where it is one.
+
+  **The floor that leaves is declared rather than walked toward again.** What a name means when it is bound
+  *somewhere else* — another module's rename, a type alias, a re-export — is not written down anywhere a
+  parse tree carries, and answering it needs name resolution. This repository's other reader of its own Rust
+  reached that same floor and declared it; this one now cites it by the same road, pinned by the control
+  that a name the file does not bind is not read, and carrying the mutation record a new bound owes.
+
+
 - **Reading tokens was not the repair; reading *syntax* is.** The round before replaced a substring over a
   trimmed line with a token walk, and the readers stayed **positional** — `trees[index - 3]` for the owner
   segment, a literal compared by `to_string`, a value read at `inner.get(2)` or dropped. Three findings came
