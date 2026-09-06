@@ -932,6 +932,24 @@ them.
 
 ### Self-governance
 
+- **One env-gated direction returned green without running and said nothing.**
+  `every_example_passes_its_isolated_quality_gates` skipped when `TIANHENG_EXAMPLES` was unset and printed
+  nothing, so a local run reported `ok` for a direction that had not looked at anything. The reader who most
+  needs to know is exactly the one who set no variable and read the `ok`. It now announces, in the words its
+  own sibling four screens above already used.
+
+  **The census, since a fix to one site is worth nothing if the class is wider.** Four directions in this
+  repository skip on an environment variable, and the other three already say so: `pin_bites` and
+  `every_example_reacts_as_declared` through `eprintln!`, the spelling differential through `println!`, and
+  `publish_source`'s pre-flight in the strongest form of all — it returns a typed `Verdict::NotAsked`
+  carrying the reason, so the skip is a value the caller must handle rather than a line someone might read.
+
+  **No reaction is proposed, and the census is why.** Announcing has three correct forms here and one of
+  them is a typed return; a detector would have to recognise all three, which is the shape
+  `gate_exit_classes`' own header records being one form short of, three rounds running. Against four sites
+  that is more machinery than subject. The honest guard is the census above, re-run by reading.
+
+
 - **A comment paragraph stood twice, byte-identical, and every tool in the chain read it as deliberate.**
   In `release_coherence_gate`, the six lines naming why presence is asked by `ls-tree` rather than `show`
   were pasted twice. It compiled, formatted, linted and passed every gate this repository runs, because a
