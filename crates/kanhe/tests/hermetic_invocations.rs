@@ -196,17 +196,25 @@ impl Constructions {
         }
     }
 
-    /// Whether the walked prefix is `std::process`, past a leading `::`, `self::` or `crate::`.
+    /// Whether the walked prefix is the **external** `std::process`.
+    ///
+    /// **A `crate::std` is not the standard library, and stripping the root said it was.** `self::` and
+    /// `crate::` are lexical roots carrying meaning: `crate::std::process::Command` names a module this
+    /// repository could define, and normalising them away merged it with the external crate — a false
+    /// positive in the direction that reports a construction where there is none. `::std::process` is the
+    /// absolute spelling of the same external path and is admitted; anything rooted at `self` or `crate` is
+    /// not.
     fn is_std_process(prefix: &[String]) -> bool {
-        let mut segments = prefix;
-        while let Some(first) = segments.first() {
-            if first == "self" || first == "crate" || first.is_empty() {
-                segments = &segments[1..];
-            } else {
-                break;
-            }
+        // A leading `::` is held on the item rather than in the tree, so `::std::process` and
+        // `std::process` reach this reader identically — both external, both admitted. Only a lexical root
+        // that names *this* crate has to be refused.
+        if matches!(
+            prefix.first().map(String::as_str),
+            Some("self") | Some("crate") | Some("super")
+        ) {
+            return false;
         }
-        segments == ["std".to_string(), "process".to_string()]
+        prefix == ["std".to_string(), "process".to_string()]
     }
 }
 
@@ -374,12 +382,35 @@ fn every_declared_site_names_the_direction_that_proves_it() {
         let parsed = syn::parse_file(&text).unwrap_or_else(|err| {
             panic!("the declared site '{path}' is not Rust this reader parses: {err}")
         });
-        let declares = parsed.items.iter().any(|item| match item {
-            syn::Item::Fn(function) => function.sig.ident == direction,
-            _ => false,
-        });
-        if !declares {
-            missing.push(format!("  {path}: declares no `{direction}`"));
+        // **A name is not a proof, and a `#[test]` that is ignored is not one either.** Comparing
+        // `sig.ident` alone, an ordinary function of the same name — or the same test with its attribute
+        // removed — satisfied a citation that nothing runs.
+        let named: Vec<&syn::ItemFn> = parsed
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                syn::Item::Fn(function) if function.sig.ident == direction => Some(function),
+                _ => None,
+            })
+            .collect();
+        let attribute = |function: &syn::ItemFn, name: &str| {
+            function
+                .attrs
+                .iter()
+                .any(|attribute| attribute.path().is_ident(name))
+        };
+        match named.as_slice() {
+            [] => missing.push(format!("  {path}: declares no `{direction}`")),
+            [function] if !attribute(function, "test") => missing.push(format!(
+                "  {path}: `{direction}` is not a `#[test]`, so nothing runs it"
+            )),
+            [function] if attribute(function, "ignore") => missing.push(format!(
+                "  {path}: `{direction}` is `#[ignore]`, so nothing runs it unless someone remembers"
+            )),
+            [_] => {}
+            _ => missing.push(format!(
+                "  {path}: `{direction}` is declared more than once, so the citation names a set"
+            )),
         }
     }
     assert!(
@@ -589,6 +620,15 @@ fn a_construction_through_a_rename_or_inside_a_macro_is_read() {
     assert!(!reads(
         "use foo::process::Command as Cmd;\nfn f() {\n    let c = Cmd::new(\"git\");\n}"
     ));
+    // A lexical root naming *this* crate is not the standard library: `crate::std::process::Command` is a
+    // module this repository could define, and normalising the root away merged it with the external crate.
+    assert!(!reads(
+        "use crate::std::process::Command as Cmd;\nfn f() {\n    let c = Cmd::new(\"git\");\n}"
+    ));
+    assert!(!reads(
+        "use self::std::process::Command as Cmd;\nfn f() {\n    let c = Cmd::new(\"git\");\n}"
+    ));
+
     // And the canonical spellings past a leading `::` are bound.
     assert!(reads(
         "use ::std::process::Command as Cmd;\nfn f() {\n    let c = Cmd::new(\"git\");\n}"

@@ -1,0 +1,47 @@
+# The ambient channels a hermetic `git` must not follow, one per line, as behavioural cases.
+#
+# Four TAB-separated fields — the channel's name, how it is injected, the observation it moves, and what an
+# isolated command reads. Blank lines and lines opening with `#` are prose.
+#
+# **One inventory, consumed by every builder.** `kanhe::hermetic_git` owns the isolation and two `shengmo`
+# test targets transcribe it, because `kanhe` depends on `shengmo` and the edge would close a cycle. A matrix
+# written out per site is a matrix that diverges per site: the first spelling of these cases covered four
+# channels in one file and the same four in the other, and the configuration channels beyond
+# `GIT_CONFIG_PARAMETERS` were in neither. The cases live here so a channel added here is a case every
+# builder starts owing.
+#
+# An isolated reading that is empty is spelled `(empty)`: a field left blank ends the line with a tab, which
+# this repository's whitespace check refuses — and a sentinel a reader decodes is clearer than a field whose
+# absence has to be inferred.
+#
+# Injection: `git-dir`, `work-tree`, `index` and `config-file` name a path in the decoy repository the
+# runner builds; `literal:<value>` is passed as written; `indexed:<key>=<value>` occupies git's indexed
+# configuration channel, which is three variables spelling one channel.
+#
+# Observation: `log` reads the subject of HEAD, `status` the worktree against the index, `ls-files` the
+# index, and `config-probe-marker` the configuration git resolves.
+#
+# Each case carries its own control: the same reading taken by a bare `Command` must differ from the
+# isolated one, or the case demonstrates no channel and its assertion would hold for the wrong reason.
+#
+# **A case names a channel, not one line of the builder.** Deleting a single guard and watching a case is
+# what says which line carries it, and two of the answers were not what the builder's own header claimed.
+# Measured, one variable at a time:
+#
+#   GIT_CONFIG_SYSTEM alone removed        still green   -- NOSYSTEM carries it
+#   GIT_CONFIG_NOSYSTEM alone removed      still green   -- SYSTEM carries it
+#   both removed                           BITES         -- they are redundant with each other
+#   GIT_CONFIG_COUNT alone removed         still green
+#   GIT_CONFIG_KEY_0 alone removed         BITES         -- occupying index 0 is what closes the channel
+#
+# So the indexed channel is closed by taking the KEY, not by pinning the COUNT, which is the opposite of
+# what `hermetic`'s header said; and the system file has two guards where one would do. Both are recorded
+# rather than tidied: redundancy that has been measured is a different fact from redundancy nobody checked.
+GIT_DIR	git-dir	log	judged
+GIT_WORK_TREE	work-tree	status	(empty)
+GIT_INDEX_FILE	index	ls-files	judged.txt
+GIT_CONFIG_PARAMETERS	literal:'probe.marker=ambient-probe'	config-probe-marker	isolated
+GIT_CONFIG	config-file	config-probe-marker	isolated
+GIT_CONFIG_GLOBAL	config-file	config-probe-marker	isolated
+GIT_CONFIG_SYSTEM	config-file	config-probe-marker	isolated
+GIT_CONFIG_COUNT	indexed:probe.marker=ambient-probe	config-probe-marker	isolated
