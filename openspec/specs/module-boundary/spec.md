@@ -440,7 +440,7 @@ A plain `mod name;` declaration SHALL resolve to exactly one conventional source
 
 - **WHEN** a crate declares `#[cfg_attr(any(), foo::path = "bogus.rs", path = "real.rs")] mod plat;` and `bogus.rs` exists on disk
 - **THEN** no dimension reads `bogus.rs` as a target of `crate::plat`, because the built-in remap is the **single-segment** `path` and a segment reached through `::` is somebody else's attribute — measured under rustc 1.96.0, edition 2021, `--crate-type lib`, the declaration compiles, since a false predicate expands no applied attribute and never resolves `foo::path`
-- **AND** the same narrowing governs the target as much as the `cfg_attr` wrapper it was first written for: reading the qualified target reports a violation against source the governed tree does not compile, and counts a probe inside it as coverage for a seam nothing probes on any real build
+- **AND** the same narrowing governs the applied target as much as the `cfg_attr` wrapper: reading a qualified target reports a violation against source the governed tree does not compile, and counts a probe inside it as coverage for a seam nothing probes on any real build
 - **PINNED-BY** `a_qualified_applied_path_is_not_a_module_target`
 
 #### Scenario: A raw-identifier attribute name is the built-in it spells

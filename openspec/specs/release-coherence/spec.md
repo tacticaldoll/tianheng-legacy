@@ -275,10 +275,10 @@ and SHALL NOT perform a version bump, commit, merge, tag, or publish action.
   dependency named `serde_json`, so `"xuanji" = "0.0.1"` is a real family requirement at a stale version and
   the check names it. Passing such an entry over lets a stale pin reach a release as clean wherever another
   family requirement in the same example satisfies the non-vacuity floor — the same false negative as a
-  renamed dependency, through a second door. The floor was once aggregate across every example and is now
-  per-example, which narrows how far one entry's silence carries without closing it
-- **AND** refusing it was the answer available to a reader that could not decode the key, and is no longer
-  the answer available to one that can. A cannot-judge says *this reader cannot decide*, so it is a claim
+  renamed dependency, through a second door. The floor is **per-example** rather than aggregate, which
+  bounds how far one entry's silence carries without closing it
+- **AND** a reader that can decode the key SHALL decide it rather than refuse. A cannot-judge says *this
+  reader cannot decide*, so it is a claim
   about the reader; where the reader decides, saying otherwise stops an operator in front of a manifest cargo
   reads without difficulty
 - **PINNED-BY** `a_quoted_dependency_key_names_its_crate_and_its_pin_is_judged`
@@ -840,9 +840,9 @@ was written in.
   answer it earns: a path that decodes to somewhere other than the member's own directory is a violation
   naming where the member actually is, and one that decodes to that directory leaves its stale pin as the
   thing left to refuse
-- **AND** refusing the value is no longer one of the answers. It was, for as long as the reader had no
-  decoder — the reason written then was *no decoder, and hand-rolling a TOML grammar is a filed backlog
-  entry*, and a parser is what ended both halves. Refusing a value the tooling reads would report a fact
+- **AND** refusing the value is not one of the answers. A refusal is available only to a reader that
+  cannot decode, and this one parses the manifest with the same grammar cargo does. Refusing a value the
+  tooling reads would report a fact
   about this reader as a fact about the manifest
 - **PINNED-BY** `an_escaped_path_is_decoded_and_compared_and_an_ordinary_sibling_does_not_cover_for_it`
 

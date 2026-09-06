@@ -383,8 +383,8 @@ segment.** A group is an applied-meta position only where its `(` follows that p
 look-alike — `foo::cfg_attr(a, path = "…")` — carries no module target, and neither does any other
 attribute taking a `path` argument of its own. **The same narrowing governs the applied `path` meta
 itself**: the built-in remap is the single-segment `path`, so `foo::path = "…"` in an applied position
-carries no module target either. The rule was first written for the wrapper alone and the target was left
-out of it, which is a requirement narrower than the shape it is about. **Trivia SHALL NOT decide what a path is**: whether a
+carries no module target either. A rule stated for the wrapper alone is narrower than the shape it is
+about: the applied meta and the attribute wrapping it are the same question. **Trivia SHALL NOT decide what a path is**: whether a
 segment is reached through `::` is a fact about the token before it, and a reader answering it by looking
 behind over whitespace alone read `foo::/**/cfg_attr` as unqualified, restoring the same over-read through
 a third spelling. A comment between the separator and the segment is trivia and changes nothing.

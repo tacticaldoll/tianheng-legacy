@@ -132,6 +132,32 @@ them.
   Found by re-reading this window's own repairs rather than by running anything, which is where a claim about
   code sits when the code is right.
 
+- **This window widened three rules and swept none of the corpora the widenings named.** Each rule was
+  broadened here, and each broadening brought new text into scope that nobody then read. Reported by an
+  outside review and verified against the tree before acting:
+
+  - **Specification prose became atemporal** — *reproducible now, or not at all* over `openspec/specs/*`.
+    **Seven clauses added this window are historical narrative**: a floor that *was once* aggregate, an
+    answer that *is no longer* available, *an earlier version of this requirement*, a rule *first written
+    for the wrapper alone*. Two of the seven were written by the sweep that widened the rule. Each is now
+    the mechanism stated as a property, which is the disposition the rule itself names.
+  - **Commit objects went from *live prose* to *anywhere in tracked content*.** Three remained, on two
+    lines, and each was resolved against `origin/main` rather than assumed: none is contained in it, so none
+    resolves in a fresh clone. `AGENTS.md`'s own census bound was one of them — and the sentence carrying it
+    claimed *naming the commit inside the command keeps that answer checkable after the tree moves on*, four
+    lines below the row that says why a development object cannot. **The claim asserted the property its own
+    file denies.** Re-anchored to `v0.5.0`, where the same command answers **137**, the figure it already
+    carried.
+  - **Carriers went from prose to every tracked live file.** Three relative anchors — `this window` — stand
+    in live `BACKLOG.md` sections, one of them in a line this window's own version sweep edited and left.
+    Named instead. The remaining hits are the rule quoting the forbidden phrase to define it, and one inside
+    a record section, which is exempt.
+
+  **What connects them is not carelessness but shape**: a rule widened in the same change that repairs its
+  old corpus leaves the new corpus unread, because the sweep was written before the widening. `AGENTS.md`
+  already schedules a pre-cut reading for `BACKLOG.md`'s triggers; nothing schedules one for a rule that
+  just grew.
+
 - **The pre-cut trigger reading cannot be verified by a reader, and four attempts to verify it are the
   evidence.** The rule landed in this window: `BACKLOG.md`'s promotion triggers are read against the window
   before the cut, and an evaluation records **what it checked**, because a bare *not fired* is

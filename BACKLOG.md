@@ -480,7 +480,7 @@ consumer for an undemonstrated deduplication.
   base, so the figure came to name a set not containing its own evidence. That is the sharp end of the
   class; the other 23 sites merely resolved to nothing.
 
-  *Current reaction or bound:* prose only, as of this window — `AGENTS.md`'s carrier taxonomy now carries the
+  *Current reaction or bound:* prose only — `AGENTS.md`'s carrier taxonomy carries the
   row, and the 24 live occurrences are repaired to name the version each window shipped as. Nothing reacts.
   *Risk:* the class is **structural rather than accidental**, which is what makes prose alone the weaker
   half: reclassifying upward is this repository's SemVer honesty working correctly, so windows will keep
@@ -1207,7 +1207,7 @@ consumer for an undemonstrated deduplication.
   any clone, rather than over a branch name, which does not:
 
   ```bash
-  # Every pull request whose squash reached this window, addressed by the RANGE. A `--base` filter names a
+  # Every pull request whose squash reached the range below, addressed by that RANGE. A `--base` filter names a
   # branch, and a branch is renameable — measured, that is how this figure was lost once.
   git log v0.5.0..release/0.6.0 --format='%H' | while read h; do
     gh api "repos/:owner/:repo/commits/$h/pulls" --jq '.[]|[.head.ref,.title]|@tsv'
@@ -3323,8 +3323,10 @@ that also holds a closed READY-PATCH record.
   no `git init` fixture, no exit-code matrix, and never uses `kanhe::refusal::Kind`; its `scratch()` helper
   builds plain temp directories for unit-testing isolated parsing subroutines, not a fixture repository
   driving the gate's own pass/violation/cannot-judge behaviour against itself. *Observation source:* direct
-  inspection of the file at `HEAD` (13 commits since the migration, none adding such a fixture) and `git
-  show f41b3b9`/`git show 64ed18c --stat` for the addition and deletion. *Current reaction or bound:* none.
+  inspection of the file at `HEAD`: no `git init` fixture, no exit-code matrix, and no use of
+  `kanhe::refusal::Kind`. Each is re-derivable by reading the file, which is what this rests on — the
+  addition and deletion were cited by development commit until this sweep, and those resolve in no fresh
+  clone. *Current reaction or bound:* none.
   *Promotion trigger:* the fix this entry previously claimed, actually done — a fixture-driven
   exit-1/exit-2/pass matrix for the current Rust gate. *Version class:* tests only; no published surface.
   *Authority:* this entry's own prior (incorrect) closure, which an adversarial contract review over
@@ -4320,7 +4322,7 @@ it before assigning a horizon here; the entries below are horizons, not a second
   `CHANGELOG.md`'s `[0.5.0]` marks every entry requiring adopter action `**BREAKING**` and its `### Migration`
   section states each step. That classification has one owner and this is not it. What belongs here is the
   version *consequence*: pre-1.0, an adopter having to act earns a minor whatever the diff size, and a recorded
-  baseline going stale is such an action — which is why this window is minor-class rather than the patch it
+  baseline going stale is such an action — which is why `0.5.0` is minor-class rather than the patch it
   opened as.
 
   This paragraph used to classify it anyway: it named the bare-principal resolver closure as the one item, and
