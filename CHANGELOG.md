@@ -932,6 +932,46 @@ them.
 
 ### Self-governance
 
+- **A span reader took the next function's closing brace for a one-line constant, and the arm written for
+  that case was a branch no input could reach.** `environment_operations_of` searched `"\n}\n"` first and
+  `"];\n"` only as a fallback — but a single-line `const` has a closing brace after it too, the next
+  function's, so the fallback never ran. Measured: `CONFIG_CHANNELS` got an **87-line** span where its
+  subject is one line and `REPOSITORY_SELECTORS` a **45-line** one, both swallowing the whole of
+  `run_exact`. The dead arm is separately the shape this repository refuses in its own words.
+
+  Latent, and only because the per-line comment filter kept the builder's own doc table — which names
+  `GIT_OBJECT_DIRECTORY` and `GIT_ALTERNATE_OBJECT_DIRECTORIES`, variables `hermetic` deliberately does not
+  clear — out of the derived set. Negative run, with an unrelated `GIT_PAGER` read inserted into
+  `run_exact`, showing the reader report the builder as disagreeing with a check about a function that had
+  not changed:
+
+  ```
+  the environment operations `hermetic` makes differ from the set this check requires of a copy
+    left:  {…, "GIT_INDEX_FILE", "GIT_PAGER", "GIT_WORK_TREE"}
+   right:  {…, "GIT_INDEX_FILE", "GIT_WORK_TREE"}
+  ```
+
+  The end is the **earlier** of the two offsets now, not the first that matches. The same insertion passes.
+
+- **The third stop was mis-stated twice, in opposite directions, and both halves are real.** It was written
+  first as *a construction inside a string literal is not read either* — false for a raw string, which
+  carries the spelling verbatim and **is** reported. Correcting that, it was then written as **not a stop at
+  all**, which threw away the half that is one: an **ordinary** literal spells the construction with its
+  quotes escaped, so the file drops out on its own, and a file that emits Rust and compiles it carries
+  exactly that.
+
+  The two halves point opposite ways, so they are dispositioned differently rather than together. The
+  ordinary-literal half is the silent one and is declared —
+  `repository-checks/a-git-constructed-inside-a-string-literal-is-not-read-a-stated-bound`, with the reason
+  the sibling requirement already carries: separating a literal from the code around it needs a lexer, which
+  `repeated_paragraph` carries and this check does not. The raw-string half is an over-report — visible and
+  arguable — so it is pinned as behaviour under its own name rather than declared as a bound.
+
+  The bound arrives with its mutation record, which is the rule the previous change installed rather than a
+  courtesy: coverage moves to **9 declared mutations covering 9 of 242 cited tests**, and the record was run
+  and seen to kill the pin it names.
+
+
 - **A pin was proven to resolve and almost never to bite, and that is where six rounds of findings came
   from.** Measured across this window: **61 `PINNED-BY` citations added, and no mutation record** — the count
   stood at four before it and four after. `bound_register` decides that a citation names a test the harness

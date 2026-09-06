@@ -2049,6 +2049,20 @@ rather than written out here, so an operation the builder starts making is one a
   `unreachable_branch` is where commented-out code is the subject
 - **PINNED-BY** `a_construction_named_in_prose_is_not_read`
 
+#### Scenario: A `git` constructed inside a string literal is not read — a stated bound
+
+- **WHEN** a tracked file carries a `git` construction inside an **ordinary** string literal — a file that
+  emits Rust and compiles it carries one
+- **THEN** nothing reads it, and the mechanism is escaping rather than a decision: Rust source spells the
+  construction with its quotes escaped, which is not the plain text this reader looks for. Deciding it
+  properly means
+  separating a literal from the code around it, which `repeated_paragraph` carries a lexer to do and this
+  check does not
+- **AND** the same shape points the other way in a **raw** string, which carries the spelling verbatim and
+  **is** reported — an over-report, visible where this half is silent, which is why this half is the one
+  declared
+- **PINNED-BY** `a_construction_inside_an_ordinary_string_literal_is_not_read`
+
 ### Requirement: A comment paragraph SHALL NOT be written twice in a row
 
 No tracked Rust file SHALL carry a comment paragraph immediately followed by a copy of itself. The
