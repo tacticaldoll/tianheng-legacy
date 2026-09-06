@@ -132,6 +132,26 @@ them.
   Found by re-reading this window's own repairs rather than by running anything, which is where a claim about
   code sits when the code is right.
 
+- **A baseline carried a measurement nobody can re-run, and a count of a set nothing enumerates.**
+  `reference-integrity`'s whole-directory-exemption clause narrated the defect that produced it — *it hid a
+  present-tense pointer at a relocated gate* — and then typed how many of that directory's path references
+  had already resolved. Both belong to a record rather than a baseline: the pointer is repaired, so the
+  first cannot be re-run, and nothing in the tree produces the second, which sits in the document everything
+  else is checked **against** while the directory it counts has since changed. `AGENTS.md` sets the sharper
+  test for exactly this carrier — over `openspec/specs/*`, *reproducible now, or not at all*.
+
+  The invariant was already in the next sentence, so the repair is the disposition the table names — keep
+  the invariant, drop the debrief — and it is now stated as holding without an example: the facts a record
+  must keep are shas, dates, versions and counts, none of which is a path, so exempting the directory buys
+  a record nothing it needs and costs every path reference in it.
+
+- **A reclassified entry was still called by its old class, against a rule this repository had already
+  written down.** `BACKLOG.md` says *retire the WATCH line in the same change*, and a previous window
+  recorded why: an index carrying a question and its answer at once is a reader trap. The entry that moved
+  from `WATCH` to `ACCEPTED DEBT` this window left a live sentence elsewhere in this section still naming it
+  a `WATCH` — the retirement sweep `AGENTS.md` requires before closing a change that moves a mechanism,
+  unrun by the change that moved it. The sentence now says what it was and where the class lives.
+
 - **The seam that has no owner is now priced, and both instruments are declined on measurements rather
   than on an impression.** `AGENTS.md` states the rule and says the direction is unowned; the repair below
   fixed the three instances; this asks whether the rule can react at all. Two readers were built and
@@ -278,9 +298,11 @@ them.
   file — coverage fabricated by a spelling, which is the Core Contract's forbidden bug. 渾儀 takes the
   same question through `get_ident`, which declines a multi-segment path, and was correct.
 
-  The `path_meta_values` `WATCH` records exactly this trigger — *a Rust-valid spelling of any of those four
-  properties that the pinned corpus does not already contain* — and it has **fired**. The entry now carries
-  what fired it and says plainly that the local repair is not the decision it waits for.
+  The `path_meta_values` entry records exactly this trigger — *a Rust-valid spelling of any of those four
+  properties that the pinned corpus does not already contain* — and it has **fired**. The entry carries what
+  fired it and says plainly that the local repair is not the decision it waits for. It was a `WATCH` when
+  this was written; a later change in this same window decided it and moved it to `ACCEPTED DEBT`, so the
+  class is named there rather than here.
 
   **Why breaking:** an adopter whose source carries a qualified applied attribute ending in `path` has 圭表
   and 漏刻 baselines that no longer describe their tree — the entries that named the wrongly-read file are
