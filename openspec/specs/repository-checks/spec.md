@@ -1957,7 +1957,9 @@ and the parse failure passed over: 389 tracked files, **zero** inspected, and th
 
 No tracked Rust file SHALL carry a comment paragraph immediately followed by a byte-identical copy of
 itself. Membership SHALL be produced by `git ls-files -z`, so a path git quotes is read as git holds it
-rather than as a quoted spelling that names no file.
+rather than as a quoted spelling that names no file, and SHALL be read through the runner that refuses
+bytes it cannot represent: `-z` promises nothing about encoding, so a lossy decode answers a path the
+repository does not hold and every read below it is made against that name.
 
 **The reason is what this repository's prose is for.** Its rules are carried by weight rather than by
 enforcement — what sits in an agent's context is what gets imitated — so a paragraph standing twice is that
@@ -1984,6 +1986,14 @@ check would report text exactly as its author wrote it.
   lines it spans; the longest run at a position is reported and the reader resumes past both copies, so the
   paste is named once rather than once per nested half
 - **PINNED-BY** `a_paragraph_pasted_twice_is_read_and_its_neighbours_are_not`
+
+#### Scenario: A tracked path is not UTF-8
+
+- **WHEN** `git ls-files -z` names a tracked path carrying a byte this reader cannot decode
+- **THEN** the enumeration refuses as a cannot-judge naming the command, rather than decoding the path
+  lossily — a replaced name is one the repository does not hold, so the file opened under it is not the file
+  tracked, and the resulting *could not be read* would be honest about the wrong file
+- **PINNED-BY** `a_tracked_path_that_is_not_utf8_is_refused_rather_than_renamed`
 
 #### Scenario: A tracked Rust file cannot be read
 
