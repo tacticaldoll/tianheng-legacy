@@ -118,9 +118,9 @@ them.
 ### Semantic and runtime
 
 - **The owner's own header stated a defect in the present tense, after the defect was gone.** The module
-  written to end three spellings of one identity opened with a table of the three and the verdict *the first
-  and third agree; the second does not* — true when it was written, false the moment it landed, and read as
-  current state by anyone arriving afterwards. The class its own repository refuses: a past defect described
+  written to end three spellings of one identity opened with a table of the three and a verdict naming
+  which of them agreed — true when it was written, false the moment it landed, and read as current state
+  by anyone arriving afterwards. The class its own repository refuses: a past defect described
   where the invariant belongs.
 
   The invariant is kept and the debrief is tensed: two of the three readers are the two **sides of one
@@ -131,6 +131,21 @@ them.
 
   Found by re-reading this window's own repairs rather than by running anything, which is where a claim about
   code sits when the code is right.
+
+- **This window quoted three prior states of its own prose that no release carried, against the row it
+  added for exactly that.** The rule is `CHANGELOG.md`'s own: `main` carries one snapshot per release, so a
+  sentence written and corrected inside one window existed in **no** artifact an adopter has, and quoting it
+  resolves from nowhere. Swept with the rule's own test at the last tag: an evidence clause quoted as what
+  it *read*, a module header's verdict quoted the same way, and a doc comment quoted as what it *said*.
+  None is at `v0.5.0`. Each is now the **defect stated** rather than the dead sentence quoted, which is the
+  repair the row itself names — *its doc claimed two where the file held four* resolves from any clone; the
+  sentence it claimed it with does not.
+
+  **And the row shipped a test that over-reports.** `git grep -F "<the quote>" <last tag>` is line-oriented
+  and a quotation is not: measured, a quote this repository *does* carry at `v0.5.0` reported absent because
+  the source wraps it across two lines. A sweep run as written would accuse a legitimate quotation. The row
+  now says to join lines — the same wrapped-instance trap the sweep rule three sections above already
+  records, met on this row's own instrument.
 
 - **A baseline carried a measurement nobody can re-run, and a count of a set nothing enumerates.**
   `reference-integrity`'s whole-directory-exemption clause narrated the defect that produced it — *it hid a
@@ -178,9 +193,9 @@ them.
   the answer: an instance reading does **not** find.
 
 - **Eleven scenarios pinned a property no requirement declared, and the seam that names this had no owner
-  in exactly that direction.** `AGENTS.md` states it: *requirement prose gaining a clause with no scenario,
-  or a scenario gaining a `PINNED-BY` with no clause declaring what it pins — had none, and both halves of
-  it landed in one commit.* This window then wrote raw-identifier scenarios into `module-boundary`,
+  in exactly that direction.** `AGENTS.md` states it: requirement prose gaining a clause with no
+  scenario, or a scenario gaining a `PINNED-BY` with no clause declaring what it pins — the seam had no
+  owner in either direction, and both halves of it once landed in a single commit. This window then wrote raw-identifier scenarios into `module-boundary`,
   `semantic-forbidden-marker` and `semantic-signature-coupling` without a clause in any of the three
   requirements saying an attribute, a derive or a macro is the name it spells. `runtime-origin-assertion`
   got its clause, which is what made the omission visible — the same corpus-narrower-than-the-claim shape,
@@ -191,10 +206,10 @@ them.
   keywords compares as written. A clause stating only the first half is the one a later reader
   over-applies.
 
-- **A load-bearing evidence clause, falsified by the window that cited it.** The lexical-scanner entry's
-  *Evidence bearing on the choice, and it is not neutral* read: *渾儀 answers this same question through
-  `syn` and has never carried one of these shapes. What failed is hand-rolled lexing specifically, in both
-  crates that do it.* Both halves are false as of this window, and the clause was still standing when a
+- **A load-bearing evidence clause, falsified by the window that cited it.** The lexical-scanner entry's evidence
+  clause — the one it marks as not neutral — claimed two things: that 渾儀 had never carried one of these
+  shapes, and that what failed was hand-rolled lexing specifically, in both crates that do it. Both are
+  false as of this window, and the clause was still standing when a
   decision citing it was recorded.
 
   渾儀 carried four shapes, and in three it was the **only** wrong reader — a raw identifier spelling `path`
@@ -700,8 +715,9 @@ them.
   genuinely differs, the `pub` and visibility-qualifier walk, is what the function keeps.
 
 - **The workspace-isolation check decided a TOML question on raw lines, and its own doc said otherwise.**
-  Its reader walked `manifest.lines()` while its doc read *a line of its own, because `[workspace]` inside a
-  string or after a `#` is not a table* — and it got both of the cases that sentence names wrong. Measured,
+  Its reader walked `manifest.lines()` while its doc claimed a line was the right unit *because of* the two
+  cases a line gets wrong — `[workspace]` inside a string, and `[workspace]` after a `#` — and the reader
+  got both of them wrong. Measured,
   each run alone against that reader: `[workspace]` on its own line inside a `"""` block read as a declared
   root, and `[workspace] # root` read as no root at all. `repository-checks` states the corpus rule as a
   SHALL over exactly this kind of reader, and the declared bound beside it explains why nothing reacted —
