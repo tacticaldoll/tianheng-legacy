@@ -91,10 +91,23 @@ fn environment_operations_of(builder: &str) -> BTreeSet<String> {
         let start = builder
             .find(opening)
             .unwrap_or_else(|| panic!("the builder no longer spells `{opening}`, so this reader's scope is not its subject"));
-        let end = builder[start..]
-            .find("\n}\n")
-            .or_else(|| builder[start..].find("];\n"))
-            .map_or(builder.len(), |offset| start + offset);
+        // **The earlier of the two, not the first that matches.** Written as `.find("\n}\n")` with `"];\n"`
+        // as a fallback, both single-line `const` openings took the *next function's* closing brace, so the
+        // arm written for them was a branch no input could reach — dead code rather than a guard, which is
+        // the shape this repository refuses in its own words. Measured: `CONFIG_CHANNELS` got an 87-line
+        // span where its subject is one line and `REPOSITORY_SELECTORS` a 45-line one, both swallowing the
+        // whole of `run_exact`. Latent only because the per-line comment filter kept the doc table naming
+        // `GIT_OBJECT_DIRECTORY` out of the derived set; a `GIT_*` in executed code inserted between them
+        // would have entered `makes` and reported the builder as disagreeing with this check, naming a
+        // function that had not changed.
+        let end = [
+            builder[start..].find("\n}\n"),
+            builder[start..].find("];\n"),
+        ]
+        .into_iter()
+        .flatten()
+        .min()
+        .map_or(builder.len(), |offset| start + offset);
         spans.push(&builder[start..end]);
     }
 
@@ -291,10 +304,19 @@ fn a_construction_through_a_program_value_is_not_read() {
     ));
 }
 
-/// A construction inside a raw string is read, and inside an ordinary one it is not — measured, not claimed.
+/// A construction inside an ordinary string literal is not read.
 ///
-/// This reader's doc said both were unread, and for a raw string the direction is the opposite. Pinned so
-/// the correction cannot drift back into the claim.
+/// The third stop, and the one that was mis-stated twice in a row: first as *a construction inside a string
+/// literal is not read either*, which is false for a raw string; then, correcting that, as **not a stop at
+/// all** — which threw away the half that is one. Both halves are real and they point opposite ways. This
+/// one is the under-reaction, so it is the one declared:
+/// `repository-checks/a-git-constructed-inside-a-string-literal-is-not-read-a-stated-bound`.
+///
+/// The mechanism is escaping. Rust source carrying a construction inside an ordinary literal spells it
+/// `Command::new(\"git\")`, which is not the unescaped text this reader looks for, so the file drops out —
+/// and a file that writes Rust and compiles it is where that matters. Deciding it properly means separating
+/// a literal from the code around it, which `repeated_paragraph` carries a lexer to do and this check does
+/// not.
 ///
 /// **Both fixtures are assembled, and the raw one has to be.** This file is inside the corpus the live sweep
 /// reads, so a raw string carrying the spelling verbatim would make this file report itself — measured, it
@@ -303,16 +325,33 @@ fn a_construction_through_a_program_value_is_not_read() {
 /// workaround `repeated_paragraph` records regretting: there it hid a defect being fixed, and here the
 /// over-report is behaviour this direction exists to state.
 #[test]
-fn a_construction_inside_a_raw_string_is_read_and_inside_an_ordinary_one_is_not() {
+fn a_construction_inside_an_ordinary_string_literal_is_not_read() {
+    // Assembled, because this file is inside the corpus the live sweep reads.
     let quote = '"';
     let ordinary =
         format!("    let fixture = {quote}let out = Command::new(\\{quote}git\\{quote}){quote};");
-    let raw =
-        format!("    let fixture = r#{quote}let out = Command::new({quote}git{quote}){quote}#;");
     assert!(
         !constructs_git(&ordinary),
         "an ordinary literal escapes the quotes, so it carries a different text and drops out on its own"
     );
+    // The control: the same line without the literal around it is read, so the assertion above is about the
+    // escaping rather than about a reader that reports nothing.
+    assert!(constructs_git(&format!(
+        "    let out = Command::new({quote}git{quote})"
+    )));
+}
+
+/// A construction inside a **raw** string is read, which is the same stop pointing the other way.
+///
+/// Not a bound, because it is an over-report: a raw string carries the spelling verbatim, so a fixture
+/// written that way is reported as constructing a `git`. Visible and arguable, where the ordinary-literal
+/// half is silent — so the ordinary half is declared and this half is pinned as behaviour. Measured when it
+/// was found: writing this fixture out made the live sweep report this file.
+#[test]
+fn a_construction_inside_a_raw_string_is_read() {
+    let quote = '"';
+    let raw =
+        format!("    let fixture = r#{quote}let out = Command::new({quote}git{quote}){quote}#;");
     assert!(
         constructs_git(&raw),
         "a raw string carries the spelling verbatim and is reported — the over-report this states"

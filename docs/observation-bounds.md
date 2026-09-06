@@ -3,7 +3,7 @@
 Every **observation bound** this family declares: a claim that a reaction deliberately stops at a
 named shape, so that shape is governed policy rather than a defect.
 
-**27 of 102 declared bounds have no pinning test.** That figure is the register's
+**27 of 103 declared bounds have no pinning test.** That figure is the register's
 audit backlog and leads the document because a number in a footnote is not read. Each such bound names
 the tracker that owns closing it.
 
@@ -454,6 +454,12 @@ fallback used where no manifest exists, which the register spec describes.
 > nothing reads it. This repository's own documentation names the shape it forbids in order to explain it, and a reader counting those sentences would refuse the rule's own statement of itself. What the stop costs is that a construction commented out rather than deleted is also unread, and `unreachable_branch` is where commented-out code is the subject
 
 - **pinned by**: `a_construction_named_in_prose_is_not_read`
+
+### `repository-checks/a-git-constructed-inside-a-string-literal-is-not-read-a-stated-bound`
+
+> nothing reads it, and the mechanism is escaping rather than a decision: Rust source spells the construction with its quotes escaped, which is not the plain text this reader looks for. Deciding it properly means separating a literal from the code around it, which `repeated_paragraph` carries a lexer to do and this check does not
+
+- **pinned by**: `a_construction_inside_an_ordinary_string_literal_is_not_read`
 
 ### `repository-checks/a-paragraph-repeated-out-of-line-is-not-read-a-stated-bound`
 

@@ -973,5 +973,24 @@ pub fn observation_bounds() -> Vec<BoundDecl> {
             }),
             "a_construction_named_in_prose_is_not_read",
         ),
+        BoundDecl::pinned(
+            BoundId::new(
+                "repository-checks/a-git-constructed-inside-a-string-literal-is-not-read-a-stated-bound",
+            ),
+            "a `git` construction written inside an ordinary string literal, where a file that emits Rust \
+             and compiles it carries one",
+            Extent::Reached(Reached::UnderReacts {
+                because: "the mechanism is escaping rather than a decision: Rust source spells such a \
+                          construction with its quotes escaped, which is not the plain text this reader \
+                          looks for, so the file drops out on its own. Deciding it properly means \
+                          separating a literal from the code around it, which `repeated_paragraph` carries \
+                          a lexer to do and this check does not. The same shape points the other way in a \
+                          RAW string, which carries the spelling verbatim and IS reported -- an over-report, \
+                          visible where this half is silent, which is why this half is the one declared"
+                    .into(),
+                owner: Owner::Engine,
+            }),
+            "a_construction_inside_an_ordinary_string_literal_is_not_read",
+        ),
     ]
 }
