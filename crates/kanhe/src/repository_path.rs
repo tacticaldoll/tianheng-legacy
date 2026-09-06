@@ -1,18 +1,16 @@
 //! How this repository's checks spell a path below a root — one rule, one implementation.
 //!
-//! **Three readers asked one question and answered it three ways.** Every gate here that compares its own
-//! paths against git's, or against another reader's, has to turn an absolute path cargo reported into the
-//! repository-relative identity git and this repository's prose both use. That derivation was written out
-//! at each site:
+//! Every gate here that compares its own paths against git's, or against another reader's, has to turn an
+//! absolute path cargo reported into the repository-relative identity git and this repository's prose both
+//! use. `release_coherence_gate::machinery_names`, `release_coherence_gate::workspace_manifests` and
+//! `member_enumeration`'s comparison all ask it, and they ask it here.
 //!
-//! | site | how it stripped the root | how it spelled the result |
-//! |---|---|---|
-//! | `release_coherence_gate::machinery_names` | `Path::strip_prefix`, component-wise | components joined with `/` |
-//! | `release_coherence_gate::workspace_manifests` | `Path::strip_prefix`, falling back to the absolute path | `Path::display`, the host's own separator |
-//! | `member_enumeration`'s comparison | `Path::strip_prefix`, component-wise | components joined with `/` |
-//!
-//! The first and third agree; the second does not, and the second is the one the third **compares
-//! against**. On a host whose separator is not `/` the two sides of that comparison share no member at all.
+//! **Two of them are the two sides of one comparison**, which is what makes a shared spelling load-bearing
+//! rather than tidy: `member_enumeration` holds cargo's member set against the gate's walk as **strings**, so
+//! a difference in how either renders a separator is a difference in every member. Written out per site, the
+//! two disagreed — one joined components with `/` and the other used `Path::display`, the host's own
+//! separator — and on a host where that separator is not `/` the two sets share no member at all. That state
+//! is closed; the property it falsifies is why the derivation has one owner.
 //!
 //! **The separator is not a character here.** Cargo reports native paths, so stripping a `"{root}/"` string
 //! rather than a prefix of components leaves every member outside the prefix wherever that separator is not
@@ -26,10 +24,12 @@ use std::path::Path;
 
 /// Where a path sits relative to a root, or why this reader cannot say.
 ///
-/// Typed apart rather than an `Option`, because the consumers of a missing value read it differently: one
-/// refuses, one used it as licence to carry the absolute path forward. A variant each leaves no reading to
-/// choose, and the third keeps *not under the root* apart from *not spellable at all* — two facts an
+/// Typed apart rather than an `Option`, so a consumer answers each fact rather than choosing a reading for
+/// a missing value, and so *not under the root* stays apart from *not spellable at all* — two facts an
 /// operator repairs in opposite directions.
+///
+/// The readings were live: one consumer refused a `None` and another took it as licence to carry the
+/// absolute path forward, into a set of repository-relative paths.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RepositoryPath {
     /// The path below the root, spelled with `/` whatever separator the host uses.
