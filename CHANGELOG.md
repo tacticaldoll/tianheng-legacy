@@ -132,6 +132,31 @@ them.
   Found by re-reading this window's own repairs rather than by running anything, which is where a claim about
   code sits when the code is right.
 
+- **The seam that has no owner is now priced, and both instruments are declined on measurements rather
+  than on an impression.** `AGENTS.md` states the rule and says the direction is unowned; the repair below
+  fixed the three instances; this asks whether the rule can react at all. Two readers were built and
+  measured, and the answer is no — for different reasons, which is why both are recorded.
+
+  **The lexical reader** — a term in two or more of a requirement's scenarios and in none of its prose —
+  produces thousands of candidate refusals over the spec corpus, every sample an ordinary word a scenario
+  used and its requirement did not repeat. Every narrowing that quietens it (hyphenated terms only, a floor
+  of three scenarios, the `THEN` clause only) reaches single digits **and stops catching the known
+  instance**. Under the noise is the reason it cannot work: the property was written *both* `raw identifier`
+  and `raw-identifier` inside one spec, so there is no canonical spelling to key on.
+
+  **The structural reader** — a requirement gaining a scenario while its own prose block is unchanged — is
+  decidable and spelling-independent, and was measured rather than dismissed. Per commit it fires on about a
+  third of all requirement-level scenario additions in this repository's history, **including every release
+  snapshot**, because a squash collapses the development commit where the prose did move. At the window
+  level, which is what a branch gate sees, it fires on **27 of 107** across every window from `0.1.0`
+  onward — a quarter of all legitimate spec work, whose repair on a false positive is a clause the author
+  did not need. `PROJECT.md`'s recorded rule decides it: *never add a permanent authoring tax to close a
+  bounded, visible failure.*
+
+  So the discipline stays a reviewer's, and the entry carries both measurements with the method, so the
+  next person prices it from this rather than rebuilding it. Its trigger is the property that would change
+  the answer: an instance reading does **not** find.
+
 - **Eleven scenarios pinned a property no requirement declared, and the seam that names this had no owner
   in exactly that direction.** `AGENTS.md` states it: *requirement prose gaining a clause with no scenario,
   or a scenario gaining a `PINNED-BY` with no clause declaring what it pins — had none, and both halves of

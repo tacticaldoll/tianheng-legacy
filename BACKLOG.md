@@ -2431,6 +2431,54 @@ consumer for an undemonstrated deduplication.
   `jq`, which reads to EOF, and in the one `head` and the one `grep` the reaction already names. No stage
   reads a value through some other program that exits early.
 
+- **ACCEPTED DEBT: a scenario can pin a property its requirement's prose never declares, and both
+  instruments that would refuse it were priced and declined.** *Observed pressure:* `AGENTS.md` names this
+  seam and says which direction is unowned — *a scenario gaining a `PINNED-BY` with no clause declaring what
+  it pins*. The `0.6.0` window then walked into it three times in one class: raw-identifier scenarios were
+  written into `module-boundary`, `semantic-forbidden-marker` and `semantic-signature-coupling` with no
+  clause in any of the three requirements saying an attribute, a derive or a macro is the name it spells.
+  A fourth spec got its clause, which is the only reason the other three were noticed.
+
+  *Observation source:* those three requirements, measured with `grep -c` over each requirement's own prose
+  block, answering zero against eleven scenario lines carrying the property. *Current reaction or bound:*
+  none; the discipline is `AGENTS.md`'s sentence and a reviewer's reading, and reading is what found all
+  three. *Risk:* bounded and **visible** — a requirement narrower than its scenarios is legible to anyone
+  reading the two together, and every instance so far was found that way rather than reported from the
+  field. What it costs is that a later reader takes the requirement as the contract and the scenarios as
+  examples, and edits toward the narrower one.
+
+  **Both instruments were built and measured in the `0.6.0` window, and both are declined.** The method is described
+  rather than shipped, because a measurement script kept in-tree is stock with no owner.
+
+  *The lexical reader* — a term appearing in two or more of a requirement's scenarios and in none of its
+  prose — is unusable, and not merely noisy. Over `openspec/specs/*/spec.md` it produces thousands of
+  candidate refusals, all of them scenarios legitimately using ordinary vocabulary their requirement does
+  not repeat. **Every narrowing that quietens it loses the instance**: restricting to hyphenated terms, or
+  to three scenarios, or to the `THEN` clause, reaches single-digit false positives and stops catching the
+  known case — the same trade this repository already measured for its other prose detectors. The reason is
+  under the noise: the property was written *both* `raw identifier` and `raw-identifier` inside one spec, so
+  there is no canonical spelling to key on, and a reader keyed on one of them asks an author to write to the
+  checker.
+
+  *The structural reader* — a requirement gaining a scenario while its own prose block is unchanged — is
+  decidable and spelling-independent, which is what made it worth measuring. Per commit it fires on roughly
+  a third of all requirement-level scenario additions in this repository's history, **including every
+  release snapshot**, because a squash collapses the development commit where the prose did move. Measured
+  at the window level instead, which is what a branch gate would see, it fires on **27 of 107** across every
+  window from `0.1.0` to this one. A quarter of all legitimate spec work, whose repair on a false positive
+  is a clause the author did not need — writing to the checker rather than writing well. `PROJECT.md`
+  records the rule that decides it: *never add a permanent authoring tax to close a bounded, visible
+  failure*, on which three entries are already declined.
+
+  *Next trigger:* an instance of this seam that reading does **not** find — a scenario pinning a property
+  the reaction does not have, reaching a release or an adopter rather than a review. That is what would
+  move the failure from bounded-and-visible to the class the tax is worth paying for. A second trigger, on
+  the other side: the structural reader's window-level rate falling to near zero, which would mean the
+  discipline holds by practice and the gate costs nothing to add.
+
+  *Version class:* patch; no crate is touched either way. *Authority:* `AGENTS.md`'s seam sentence, and
+  `PROJECT.md`'s authoring-tax rule.
+
 - **ACCEPTED DEBT: `path_meta_values` answers a lexical question with a byte scanner, and a generated
   differential is what bounds it.** *Observed pressure:*
   the reader decides which positions in a `cfg_attr` span are applied module targets, and every property
