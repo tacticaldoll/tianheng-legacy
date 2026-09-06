@@ -460,10 +460,10 @@ was deleted when it migrated to Rust.
 
 **The exemption SHALL be exactly this, and SHALL NOT extend to a document because of where it lives.**
 `docs/history/` was exempt as a whole directory, and the exemption was declared nowhere — not in this
-specification, not as a scenario, not as a bound. Measured, it hid a present-tense pointer at a relocated gate
-in the provenance verification document. Fourteen of that directory's fifteen path references already resolved.
-The facts a record must keep are shas, dates, versions and counts, and none of those is a path — so a record
-document is judged like any other, and only a dated section within one is not.
+specification, not as a scenario, not as a bound. **A whole-directory exemption is wrong for a reason that
+holds without an example**: the facts a record must keep are shas, dates, versions and counts, and none of
+those is a path, so exempting the directory buys a record nothing it needs and costs every path reference
+in it. A record document is therefore judged like any other, and only a dated section within one is not.
 
 Both directions SHALL be held by one reaction. A reaction asserting only the silence is satisfied by a check
 that reads no CHANGELOG at all.
