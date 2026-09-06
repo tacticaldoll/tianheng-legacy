@@ -957,6 +957,20 @@ pub fn observation_bounds() -> Vec<BoundDecl> {
                     .into(),
                 owner: Owner::Engine,
             }),
+            "a_construction_through_a_program_value_is_not_read",
+        ),
+        BoundDecl::pinned(
+            BoundId::new("repository-checks/a-git-named-in-prose-is-not-read-a-stated-bound"),
+            "a `git` construction written inside a comment rather than executed",
+            Extent::Reached(Reached::UnderReacts {
+                because: "this repository's own documentation names the shape it forbids in order to \
+                          explain it, and a reader counting those sentences would refuse the rule's own \
+                          statement of itself. The stop is the line's opening marker, which is decidable; \
+                          what it costs is that a construction commented out rather than deleted is also \
+                          unread, and `unreachable_branch` is where commented-out code is the subject"
+                    .into(),
+                owner: Owner::Engine,
+            }),
             "a_construction_named_in_prose_is_not_read",
         ),
     ]

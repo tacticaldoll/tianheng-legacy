@@ -76,6 +76,57 @@ const ENVIRONMENT_OPERATIONS: [&str; 11] = [
     "GIT_CONFIG",
 ];
 
+/// Every `GIT_*` variable [`kanhe::hermetic_git::hermetic`] acts on, read from the builder's own source.
+///
+/// Its span plus the two arrays it iterates, rather than the whole file: the fixture-side `commit` names
+/// `GIT_AUTHOR_DATE` and `GIT_COMMITTER_DATE`, which are no part of what a *read* inherits, so taking the
+/// file would require two operations of every copy that the copies have no reason to make.
+fn environment_operations_of(builder: &str) -> BTreeSet<String> {
+    let mut spans = Vec::new();
+    for opening in [
+        "pub fn hermetic(program: &str) -> Command {",
+        "const CONFIG_CHANNELS:",
+        "const REPOSITORY_SELECTORS:",
+    ] {
+        let start = builder
+            .find(opening)
+            .unwrap_or_else(|| panic!("the builder no longer spells `{opening}`, so this reader's scope is not its subject"));
+        let end = builder[start..]
+            .find("\n}\n")
+            .or_else(|| builder[start..].find("];\n"))
+            .map_or(builder.len(), |offset| start + offset);
+        spans.push(&builder[start..end]);
+    }
+
+    let mut found = BTreeSet::new();
+    for span in spans {
+        for line in span
+            .lines()
+            .filter(|line| !line.trim_start().starts_with("//"))
+        {
+            let bytes: Vec<char> = line.chars().collect();
+            let mut index = 0;
+            while index < bytes.len() {
+                if bytes[index..].starts_with(&['G', 'I', 'T', '_']) {
+                    let mut end = index;
+                    while end < bytes.len()
+                        && (bytes[end].is_ascii_uppercase()
+                            || bytes[end] == '_'
+                            || bytes[end].is_ascii_digit())
+                    {
+                        end += 1;
+                    }
+                    found.insert(bytes[index..end].iter().collect::<String>());
+                    index = end;
+                } else {
+                    index += 1;
+                }
+            }
+        }
+    }
+    found
+}
+
 fn workspace_root() -> Option<PathBuf> {
     shengmo::workspace::locate(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."),
@@ -86,15 +137,22 @@ fn workspace_root() -> Option<PathBuf> {
 
 /// Whether `line` constructs a `git` rather than mentioning one.
 ///
-/// A line whose trimmed text opens a comment is prose: this repository's own documentation names the shape
-/// it forbids, four times, and a reader that counted those would refuse the sentences explaining the rule.
-/// That is a stop this check makes deliberately — a construction inside a string literal is not read either,
-/// and `repeated_paragraph` records what deciding that properly costs.
+/// **A line whose trimmed text opens a comment is prose**, and that is a stop this reader makes: this
+/// repository's own documentation names the shape it forbids in several places, and a reader counting those
+/// would refuse the sentences explaining the rule. Declared as
+/// `repository-checks/a-git-named-in-prose-is-not-read-a-stated-bound`.
 ///
 /// **The literal form, and the builder is not written in it.** `hermetic` takes its program as a parameter,
 /// so `Command::new(program)` is what it spells and this reader does not see it — which is correct here,
 /// since the builder is the construction everything else is routed *through* rather than one to declare.
-/// The stop that leaves is declared: `repository-checks/a-git-constructed-through-a-program-value-is-not-read-a-stated-bound`.
+/// Declared as `repository-checks/a-git-constructed-through-a-program-value-is-not-read-a-stated-bound`.
+///
+/// **A construction inside a string literal is not a third stop, and this doc said it was.** Measured, the
+/// direction is the opposite of what was claimed: an ordinary literal carries the spelling escaped, which is
+/// not the text this reader looks for, so it drops out on its own rather than by any decision; a **raw**
+/// string carries it verbatim and **is read**. That is an over-report rather than a stop — visible and
+/// arguable where a miss would be silent — so it is stated here as behaviour rather than declared as a
+/// bound, and the alternative is the lexer `repeated_paragraph` had to carry to decide the same question.
 fn constructs_git(line: &str) -> bool {
     let trimmed = line.trim_start();
     !trimmed.starts_with("//") && trimmed.contains("Command::new(\"git\")")
@@ -142,21 +200,24 @@ fn a_site_that_cannot_reach_the_builder_holds_what_the_builder_holds() {
         return;
     };
 
-    // The requirement is taken from the builder rather than from this file's memory of it: an operation the
-    // builder starts making is one a declared copy starts owing.
+    // **Both directions, which the first spelling of this claimed and did not do.** Compared one way it
+    // caught the builder dropping a variable and never the builder gaining one: a twelfth `env_remove` in
+    // `hermetic` would be required of no copy, and both boundary-forced copies would fall silently behind —
+    // this file's own constant carrying the class the file exists to close. The scope is `hermetic`'s own
+    // span plus the two arrays it iterates, not the whole file: `commit` names `GIT_AUTHOR_DATE` and
+    // `GIT_COMMITTER_DATE` for the fixture side, and those are no part of what a read inherits.
     let builder = std::fs::read_to_string(root.join("crates/kanhe/src/hermetic_git.rs"))
         .expect("the builder is readable");
-    let builder_code: Vec<&str> = builder
-        .lines()
-        .filter(|line| !line.trim_start().starts_with("//"))
+    let makes: BTreeSet<String> = environment_operations_of(&builder);
+    let required: BTreeSet<String> = ENVIRONMENT_OPERATIONS
+        .iter()
+        .map(|v| (*v).to_string())
         .collect();
-    for variable in ENVIRONMENT_OPERATIONS {
-        assert!(
-            builder_code.iter().any(|line| line.contains(variable)),
-            "{variable} is required of every declared copy and the builder no longer names it, so this \
-             check requires something its own subject does not do"
-        );
-    }
+    assert_eq!(
+        makes, required,
+        "the environment operations `hermetic` makes differ from the set this check requires of a copy. \
+         An operation the builder gains is one a copy owes, and a name that outlives the builder must go"
+    );
 
     let mut missing = Vec::new();
     let mut checked = 0usize;
@@ -196,8 +257,10 @@ fn a_site_that_cannot_reach_the_builder_holds_what_the_builder_holds() {
 
 /// A `git` mentioned in prose is not a `git` constructed.
 ///
-/// The stop above, pinned: this repository's own documentation names `Command::new("git")` in four places to
-/// explain the rule, and a reader counting those would refuse the sentences that state it.
+/// One of the two stops [`constructs_git`] makes, each now pinned by a direction named for it. They were one
+/// test, and the bound for the **program-value** stop cited this name — a pin that resolves and exercises a
+/// different stop, which is the class repaired one round earlier for
+/// `a-paragraph-repeated-out-of-line-is-not-read`, in the round that repaired it.
 #[test]
 fn a_construction_named_in_prose_is_not_read() {
     assert!(!constructs_git(
@@ -208,6 +271,52 @@ fn a_construction_named_in_prose_is_not_read() {
     ));
     assert!(constructs_git("    let out = Command::new(\"git\")"));
     assert!(constructs_git("Command::new(\"git\")"));
+}
+
+/// A `git` constructed through a program value is not read.
+///
+/// The stop the bound of that name declares, pinned by a direction that exercises **it**. Whether a value
+/// names `git` is not decidable from the line that constructs it, and the builder itself is written that way
+/// — `Command::new(program)` — which is why the stop exists rather than being closed.
+#[test]
+fn a_construction_through_a_program_value_is_not_read() {
+    assert!(!constructs_git(
+        "    let mut command = Command::new(program);"
+    ));
+    assert!(!constructs_git("    let out = Command::new(&exe)"));
+    // The control: the literal form on the same shape of line is read, so the assertions above are about
+    // the value rather than about a reader that reports nothing.
+    assert!(constructs_git(
+        "    let mut command = Command::new(\"git\");"
+    ));
+}
+
+/// A construction inside a raw string is read, and inside an ordinary one it is not — measured, not claimed.
+///
+/// This reader's doc said both were unread, and for a raw string the direction is the opposite. Pinned so
+/// the correction cannot drift back into the claim.
+///
+/// **Both fixtures are assembled, and the raw one has to be.** This file is inside the corpus the live sweep
+/// reads, so a raw string carrying the spelling verbatim would make this file report itself — measured, it
+/// did. The alternatives were to declare this file exempt, which would blind the check to a real
+/// construction added here later, or to leave the fixture written out and lose that. Assembling is not the
+/// workaround `repeated_paragraph` records regretting: there it hid a defect being fixed, and here the
+/// over-report is behaviour this direction exists to state.
+#[test]
+fn a_construction_inside_a_raw_string_is_read_and_inside_an_ordinary_one_is_not() {
+    let quote = '"';
+    let ordinary =
+        format!("    let fixture = {quote}let out = Command::new(\\{quote}git\\{quote}){quote};");
+    let raw =
+        format!("    let fixture = r#{quote}let out = Command::new({quote}git{quote}){quote}#;");
+    assert!(
+        !constructs_git(&ordinary),
+        "an ordinary literal escapes the quotes, so it carries a different text and drops out on its own"
+    );
+    assert!(
+        constructs_git(&raw),
+        "a raw string carries the spelling verbatim and is reported — the over-report this states"
+    );
 }
 
 /// The declared set names a path this repository tracks.

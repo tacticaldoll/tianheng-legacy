@@ -932,6 +932,53 @@ them.
 
 ### Self-governance
 
+- **A pin was proven to resolve and almost never to bite, and that is where six rounds of findings came
+  from.** Measured across this window: **61 `PINNED-BY` citations added, and no mutation record** — the count
+  stood at four before it and four after. `bound_register` decides that a citation names a test the harness
+  registers; only `pin_bites` decides that the test would fail if the thing it defends changed. So a bound
+  could ship citing a test about a **different stop**, twice, and both times a review found it rather than a
+  reaction: first `a-paragraph-repeated-out-of-line-is-not-read`, then
+  `a-git-constructed-through-a-program-value-is-not-read`, whose pin exercised the prose stop instead.
+
+  **Four bounds is what this window declared, and proving four is affordable where proving 300 is not.**
+  Each now carries a record that was run and seen to kill the pin it names: coverage moves from *4 declared
+  mutations covering 4 of 241 cited tests* to **8 of 241**, and the run costs 4 seconds more. The asymmetry
+  that produced the drift is that a citation costs one line and its proof costs a build; the affordable
+  correction is to pay it where the claims are new, which is exactly the population the reviews kept finding
+  defects in.
+
+- **Three declaration defects in the check built one round earlier, and one of them was a claim that was
+  simply false.**
+
+  **A constant compared one way where its own doc said two.** `ENVIRONMENT_OPERATIONS` was written out by
+  hand and only checked *into* the builder, so it caught the builder dropping a variable and never the
+  builder gaining one — a twelfth `env_remove` in `hermetic` would have been required of no copy, and both
+  boundary-forced copies would have fallen silently behind. That is the partial-transcription class the file
+  was written to close, in the file's own constant, twelve lines below a sibling constant compared both ways
+  with the reason written out. It is derived from `hermetic`'s own span plus the two arrays it iterates —
+  not the whole file, since the fixture-side `commit` names `GIT_AUTHOR_DATE` and `GIT_COMMITTER_DATE`, which
+  are no part of what a read inherits. Negative run, with a `GIT_CEILING_DIRECTORIES` added to the builder:
+
+  ```
+  the environment operations `hermetic` makes differ from the set this check requires of a copy
+    left:  {"GIT_CEILING_DIRECTORIES", "GIT_CONFIG", …}
+   right:  {"GIT_CONFIG", …}
+  ```
+
+  **A bound pinned by a test about a different stop.** `constructs_git` makes two stops and one test held
+  both, so the program-value bound cited a name about prose. Split, each pinned by a direction named for it,
+  and the prose stop is declared as a bound of its own rather than living only in a `///` the register
+  cannot reach.
+
+  **And the third stop was not a stop.** The doc claimed a construction inside a string literal is unread;
+  measured, the direction is the opposite for a **raw** string, which carries the spelling verbatim and *is*
+  reported. An ordinary literal escapes the quotes and so drops out on its own rather than by any decision.
+  That is an over-report — visible and arguable where a miss would be silent — so it is stated as behaviour
+  and pinned, not declared as a bound that does not exist. Writing the fixture out made this file report
+  itself, which is how the correction was measured; both fixtures are assembled, because declaring this file
+  exempt to hold one would blind the check to a real construction added here later.
+
+
 - **An example directory the release gate could not stat was skipped as one holding no
   example, and the stale pin behind it reached `cargo publish` unjudged.** `is_dir()` answers `false` for
   *not a directory* and for *this reader could not stat it*, so the entry it could not reach was passed over

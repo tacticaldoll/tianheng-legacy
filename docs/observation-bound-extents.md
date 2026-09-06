@@ -3,7 +3,7 @@
 Where each declared **observation bound** stops the measure — not how far a scan walks (that is
 `ScanDepth`, an adopter's knob), but where this family's own reaction deliberately stops.
 
-**53 of 101 declared bounds are declared false negatives** — the reaction fires less than the truth, which is the one direction this family treats as a defect. That figure leads this document because a number in a footnote is not read, and each such bound names who must act:
+**54 of 102 declared bounds are declared false negatives** — the reaction fires less than the truth, which is the one direction this family treats as a defect. That figure leads this document because a number in a footnote is not read, and each such bound names who must act:
 
 - `external-crate-confinement/an-extern-crate-declaration-is-not-observed-a-stated-bound` — owner: engine
 - `inline-symbol-path-confinement/a-future-read-verb-outside-the-declared-set-is-a-documented-bound` — owner: adopter
@@ -40,6 +40,7 @@ Where each declared **observation bound** stops the measure — not how far a sc
 - `repository-checks/a-figure-written-in-words-at-one-hundred-or-above-is-not-matched-a-stated-bound` — owner: engine
 - `repository-checks/a-gate-reached-without-the-wrapper-a-stated-bound` — owner: engine
 - `repository-checks/a-git-constructed-through-a-program-value-is-not-read-a-stated-bound` — owner: engine
+- `repository-checks/a-git-named-in-prose-is-not-read-a-stated-bound` — owner: engine
 - `repository-checks/a-marker-is-reached-through-some-other-primitive-a-stated-bound` — owner: engine
 - `repository-checks/a-paragraph-repeated-in-prose-is-not-read-a-stated-bound` — owner: engine
 - `repository-checks/a-paragraph-repeated-out-of-line-is-not-read-a-stated-bound` — owner: engine
@@ -460,7 +461,7 @@ Generated from each dimension's `observation_bounds()` by `crates/kanhe/tests/ob
 - **its defence must show**: reacts on a harmless shape
 - **pinned by**: `a_pub_in_narrow_path_over_reacts_under_a_module_ceiling`
 
-## under-reacts (53)
+## under-reacts (54)
 
 ### `external-crate-confinement/an-extern-crate-declaration-is-not-observed-a-stated-bound`
 
@@ -739,6 +740,14 @@ Generated from each dimension's `observation_bounds()` by `crates/kanhe/tests/ob
 > a `git` constructed as `Command::new(<value>)` rather than with the program written out
 
 - **because**: whether a value names `git` is not decidable from the line that constructs it, and `gate_exit_classes`' own header records a detector keyed on how a spawn is written being one form short three rounds running. Measured across the tracked Rust: two sites take a program as a value, and one of them IS the builder every other read is routed through while the other names an `ssh-keygen` signature verifier. A site cannot be invisible either way -- `gate_exit_classes` requires any target spawning a process to be declared -- so what this stop leaves unclassified is which program that spawn is, not that it happens
+- **its defence must show**: does not react
+- **pinned by**: `a_construction_through_a_program_value_is_not_read`
+
+### `repository-checks/a-git-named-in-prose-is-not-read-a-stated-bound`
+
+> a `git` construction written inside a comment rather than executed
+
+- **because**: this repository's own documentation names the shape it forbids in order to explain it, and a reader counting those sentences would refuse the rule's own statement of itself. The stop is the line's opening marker, which is decidable; what it costs is that a construction commented out rather than deleted is also unread, and `unreachable_branch` is where commented-out code is the subject
 - **its defence must show**: does not react
 - **pinned by**: `a_construction_named_in_prose_is_not_read`
 
