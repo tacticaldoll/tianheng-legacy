@@ -932,6 +932,34 @@ them.
 
 ### Self-governance
 
+- **Three places where the evidence's type still admitted a state its contract calls impossible.** All three
+  are the same shape one level down from the last change: a token where a parse belongs, a list where a set
+  belongs, a path where an owner belongs.
+
+  **`contains("1 passed")` is a token, not a result.** Any output carrying those words satisfied it — a build
+  line, another target's summary — and it cannot tell one passing test from one passing test beside a
+  failing one. A libtest summary opens its line and carries both counts, so it is parsed, and there must be
+  exactly one of it: two summaries are two runs, and which carried the proof is not decidable from here.
+  Negative run, with the meta-run's filter pointed at a name no target declares:
+
+  ```
+  running `no_ambient_channel_moves_…` reported 0 passed and 0 failed, where the proof is exactly one test passing
+  ```
+
+  **The baseline was a `Vec` where the contract says a set.** *Two sets, not one* was written into the
+  inventory and into the spec, and a variable repeated in it was accepted and kept. The type refuses it now,
+  at ingestion:
+
+  ```
+  the inventory clears GIT_CONFIG_NOSYSTEM twice; a baseline is a set, and a repeated row is a row nobody can act on differently
+  ```
+
+  **And the owner did not own its own evidence.** `shengmo::hermetic_probe` held the inventory's path as
+  `crates/kanhe/tests/fixtures/…` — reaching into a crate that *depends on it* for the file it is built
+  around. `kanhe` could move or delete it, and the two consumers that cannot reach `kanhe` at all were
+  reading a path inside it. The inventory sits beside its owner.
+
+
 - **Two weaker sets had been standing in for two stronger ones, and both are now separate things.**
   *Registered tests* is not *tests that ran*, and *channels worth attacking* is not *variables that must be
   emptied first*. Each had been one list doing two jobs.

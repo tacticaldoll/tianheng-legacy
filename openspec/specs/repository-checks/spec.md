@@ -2031,7 +2031,7 @@ comment.
 covered three repository selectors and one configuration channel in each of three files while `GIT_CONFIG`,
 the two configuration-file channels and the indexed channel were in none of them: a matrix per site is a
 matrix that diverges per site, which is the transcription failure one level up from the one it was built to
-end. `crates/kanhe/tests/fixtures/hermetic_channels.tsv` holds them once and every builder consumes it, so a
+end. `crates/shengmo/tests/fixtures/hermetic_channels.tsv` holds them once and every builder consumes it, so a
 channel added there is a case every builder starts owing.
 
 **Each case SHALL run from a cleared baseline, and the inventory SHALL name each channel once.** Injected
@@ -2044,6 +2044,13 @@ the channel it displaced asked about by nobody.
 cases left `GIT_CONFIG_NOSYSTEM` inherited — a variable the builder sets and no case attacks, which
 suppresses the system-config channel and so changes what the `GIT_CONFIG_SYSTEM` case's control reads. The
 inventory carries both, and a channel attacked without being cleared is refused.
+
+**The owner SHALL hold the inventory too.** Kept under a consumer's fixtures, the module that owns the
+evidence reached into a crate that depends on it — so the owner was not one: the downstream crate could move
+or delete the file, and a consumer that cannot reach that crate at all was reading a path inside it.
+
+**The baseline SHALL be a set by type.** Held as a list, a variable repeated in the inventory was accepted
+and kept — a state *two sets, not one* calls impossible, spellable anyway.
 
 **One owner SHALL hold the evidence, and each site only its builder.** Three runners parsed the inventory,
 checked it their own way and assembled the child's environment by hand; what drifted was not the builders
@@ -2067,7 +2074,10 @@ reading — and the worktree case's isolated value *is* the empty string, so a f
 - **WHEN** a site cannot reach the builder and declares the direction that proves its isolation
 - **THEN** that direction is **run**, under the features the Definition of Done runs, with ignored tests
   included, and it passes — and the run reports exactly one test, because a filter matching nothing also
-  exits zero. Executability is an execution result: comparing the name alone admitted an ordinary function,
+  exits zero — and that count SHALL come from a **parsed** libtest summary rather than a token found in the
+  output, since `1 passed` is carried by any line that says those words and cannot tell one passing test
+  from one passing test beside a failure. Executability is an execution result: comparing the name alone
+  admitted an ordinary function,
   requiring `#[test]` and refusing `#[ignore]` admitted `#[cfg(any())] #[test]`, and asking the harness to
   *list* the direction admitted an ignored test under whichever features the listing was taken with. Each
   repair closed the spelling a review brought and left the next

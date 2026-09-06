@@ -397,23 +397,28 @@ fn every_declared_site_names_a_direction_that_runs_and_passes() {
             .env(shengmo::workspace::MARKER, "1")
             .output()
             .unwrap_or_else(|err| panic!("cannot run {package}/{target}::{direction}: {err}"));
-        let reported = format!(
-            "{}{}",
-            String::from_utf8_lossy(&out.stdout),
-            String::from_utf8_lossy(&out.stderr)
-        );
+        let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
         if !out.status.success() {
             missing.push(format!(
-                "  {path}: `{direction}` did not pass:\n{}",
-                reported.trim()
+                "  {path}: `{direction}` did not pass:\n{}{}",
+                stdout.trim(),
+                String::from_utf8_lossy(&out.stderr).trim()
             ));
             continue;
         }
-        // A filter matching nothing exits zero, so the count is what says the proof ran.
-        if !reported.contains("1 passed") {
-            missing.push(format!(
-                "  {path}: running `{direction}` executed no test, so nothing proves this site"
-            ));
+        // **One summary, parsed — not a token found somewhere in the output.** A filter matching nothing
+        // exits zero, so a count is what says the proof ran; but `contains("1 passed")` is satisfied by any
+        // process output carrying those words, including a build line or another target's summary, and it
+        // cannot tell one passing test from one passing test beside a failure.
+        match summary(&stdout) {
+            Some(Summary { passed: 1, failed: 0 }) => {}
+            Some(Summary { passed, failed }) => missing.push(format!(
+                "  {path}: running `{direction}` reported {passed} passed and {failed} failed, where the \
+                 proof is exactly one test passing"
+            )),
+            None => missing.push(format!(
+                "  {path}: running `{direction}` produced no test summary, so nothing says it ran"
+            )),
         }
     }
     assert!(
@@ -426,6 +431,43 @@ fn every_declared_site_names_a_direction_that_runs_and_passes() {
         "a site names a direction that proves its isolation and running it does not:\n{}",
         missing.join("\n")
     );
+}
+
+/// The counts one libtest summary reports.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct Summary {
+    passed: usize,
+    failed: usize,
+}
+
+/// The single libtest summary in `stdout`, or `None` where there is not exactly one.
+///
+/// **Anchored, and exactly one.** Held as `contains("1 passed")`, the evidence was a token that any output
+/// could carry — a build line, another target's summary, or a run of one passing test beside a failing one.
+/// A summary opens its line, carries both counts, and there must be one of it.
+fn summary(stdout: &str) -> Option<Summary> {
+    let mut found = None;
+    for line in stdout.lines() {
+        let Some(rest) = line.trim_start().strip_prefix("test result: ") else {
+            continue;
+        };
+        let counts = |name: &str| -> Option<usize> {
+            rest.split(';')
+                .find_map(|field| field.trim().strip_suffix(&format!(" {name}")))
+                .and_then(|count| count.rsplit(' ').next())
+                .and_then(|count| count.parse().ok())
+        };
+        let (Some(passed), Some(failed)) = (counts("passed"), counts("failed")) else {
+            continue;
+        };
+        if found.is_some() {
+            // Two summaries is two runs; the proof is one test in one of them, and which is not decidable
+            // from here.
+            return None;
+        }
+        found = Some(Summary { passed, failed });
+    }
+    found
 }
 
 /// The `(package, test target)` a declared path names — `crates/<package>/tests/<target>.rs`.
@@ -680,6 +722,51 @@ fn an_unclassifiable_macro_body_naming_a_command_is_undecidable() {
     assert_eq!(
         constructs_git("fn f() {\n    weird!([Command::new(\"git\")] => ());\n}"),
         Reading::Undecidable
+    );
+}
+
+/// The summary reader accepts one passing test and nothing that merely reads like one.
+///
+/// The evidence was `contains("1 passed")` over combined stdout and stderr — satisfied by any output
+/// carrying those words, and unable to tell one passing test from one passing test beside a failure.
+#[test]
+fn a_summary_is_parsed_rather_than_matched() {
+    let one = "running 1 test\ntest a ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.01s\n";
+    assert_eq!(
+        summary(one),
+        Some(Summary {
+            passed: 1,
+            failed: 0
+        })
+    );
+
+    // A filter that matched nothing exits zero and says so.
+    let none = "running 0 tests\n\ntest result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s\n";
+    assert_eq!(
+        summary(none),
+        Some(Summary {
+            passed: 0,
+            failed: 0
+        })
+    );
+
+    // The token without a summary: what the old reading accepted.
+    assert_eq!(
+        summary("Compiling something that says 1 passed somewhere\n"),
+        None
+    );
+
+    // Two summaries are two runs, and which carried the proof is not decidable from here.
+    assert_eq!(summary(&format!("{one}{one}")), None);
+
+    // One passing beside one failing is not one passing.
+    let mixed = "test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s\n";
+    assert_eq!(
+        summary(mixed),
+        Some(Summary {
+            passed: 1,
+            failed: 1
+        })
     );
 }
 
