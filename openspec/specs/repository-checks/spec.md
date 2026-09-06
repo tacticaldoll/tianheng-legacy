@@ -1953,6 +1953,50 @@ and the parse failure passed over: 389 tracked files, **zero** inspected, and th
 - **THEN** the check reports it as a violation naming the path, and the line for trailing whitespace
 - **PINNED-BY** `each_offence_shape_is_named_when_it_is_shown`
 
+### Requirement: Which paths git tracks SHALL have one reader
+
+A repository check enumerating the tracked paths of the repository under judgement SHALL obtain them from
+one owner, which decides three things once:
+
+- **`-z`.** `core.quotePath` defaults on, so a line-oriented listing answers a non-ASCII path as
+  `"\344\270\255.md"` — a spelling that names no file. Measured on a scratch repository: a tracked
+  `圭表.md` reads back quoted and the quoted spelling opens nothing. This repository's whole vocabulary is
+  those characters and its crates are named for them, so the shape is one edit away rather than hypothetical.
+- **No lossy decode.** `ls-files -z` promises nothing about encoding, so a path that is not UTF-8 decoded
+  lossily is a different path than the one on disk, and every read below is made against that name.
+- **The hermetic builder**, so a verdict does not move with configuration outside the repository being
+  judged.
+
+**The rule exists because the question had no owner and was answered nineteen times.** Each site decided all
+three for itself, and the property was independently discovered and written down three separate times —
+`release_coherence_gate`'s walk, `projection_register`'s reader and `repeated_paragraph`'s enumeration each
+carried their own sentence about `core.quotePath` — while eight sites were line-oriented, eleven decoded
+lossily and nine bypassed the builder. Nothing was red: every one of them is correct on a tree whose paths
+are all ASCII, which is what a latent class looks like from inside a green run.
+
+A check that cannot reach the owner SHALL hold the property in place and say why it is spelled again. Two
+do: `shengmo`'s test targets cannot depend on `kanhe`, because `kanhe` depends on `shengmo` and the edge
+would close a cycle. That is a fact about the dependency graph rather than a site anyone declined to
+converge, which is the disposition this repository already gives the same shape elsewhere.
+
+**No reaction holds this**, and that is stated rather than left to be inferred. The question *is this
+invocation an enumeration* is not decidable from the argument list: the same command answers membership
+(`--error-unmatch`) and is the subject of directions about the runner itself, so a reader keyed on the
+spelling would refuse those. The rule is carried by review, like the rows `AGENTS.md` disposes the same way.
+
+#### Scenario: A tracked path git would quote
+
+- **WHEN** the repository under judgement tracks a path carrying a non-ASCII byte
+- **THEN** the owner answers the path the repository holds, rather than the quoted spelling a line-oriented
+  listing produces, which names no file
+- **PINNED-BY** `a_tracked_path_git_would_quote_reads_back_as_its_own_name`
+
+#### Scenario: A tracked path the reader cannot represent
+
+- **WHEN** `git ls-files -z` answers bytes no `String` holds
+- **THEN** the owner refuses, rather than decoding lossily into a name the repository does not hold
+- **PINNED-BY** `both_accessors_report_an_undecodable_answer_in_the_same_words`
+
 ### Requirement: A comment paragraph SHALL NOT be written twice in a row
 
 No tracked Rust file SHALL carry a comment paragraph immediately followed by a copy of itself. The

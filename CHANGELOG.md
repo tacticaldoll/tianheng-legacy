@@ -932,6 +932,41 @@ them.
 
 ### Self-governance
 
+- **Nineteen readers answered *which paths does git track*, and each decided three things for itself.**
+  Every one is correct on a tree whose paths are all ASCII, which is what a latent class looks like from
+  inside a green run — and the property was independently discovered and written down **three separate
+  times** before it had an owner: `release_coherence_gate`'s walk, `projection_register`'s reader and
+  `repeated_paragraph`'s enumeration each carry their own sentence about `core.quotePath`. Measured across
+  the invocations rather than the files: **8 were line-oriented, 11 decoded lossily, 9 bypassed the hermetic
+  builder.**
+
+  **The shape is one edit away, not hypothetical.** Measured on a scratch repository holding `圭表.md`:
+
+  ```
+  git ls-files      →  "\345\234\255\350\241\250.md"   (opens nothing)
+  git ls-files -z   →  圭表.md
+  ```
+
+  This repository's whole vocabulary is those characters and its crates are named for them, so a tracked
+  file named that way is one commit, not a thought experiment.
+
+  `kanhe::hermetic_git::tracked_paths` owns the question now, and every enumeration in the workspace asks
+  it — nineteen call sites converged, and the `ls-files` spellings that remain are the ones that are not
+  enumerations: membership probes (`--error-unmatch`), and directions whose subject **is** the runner. The
+  owner's own direction holds the property against the alternative rather than asserting it alone: it builds
+  a repository with a non-ASCII path and requires the line-oriented read to disagree.
+
+  Two sites hold the property in place instead of sharing it, and say why: `shengmo`'s test targets cannot
+  depend on `kanhe`, because `kanhe` depends on `shengmo` and the edge would close a cycle. A fact about the
+  dependency graph rather than a site anyone declined to converge, which is the disposition this repository
+  already gives `MARKER` and `DO_NOT_EDIT`.
+
+  **No reaction holds this, and the requirement says so.** *Is this invocation an enumeration* is not
+  decidable from the argument list — the same command answers membership and is the subject of directions
+  about the runner itself — so a reader keyed on the spelling would refuse those. It is carried by review,
+  like the rows `AGENTS.md` disposes the same way.
+
+
 - **A comment-shaped line inside a string literal was read as a comment, and the workaround was the
   evidence.** The repeated-paragraph check decided *is this a comment* by reading the trimmed line, which
   cannot tell a comment from a line of a multi-line string — and this repository holds Rust fixtures as Rust

@@ -15,7 +15,6 @@ use kanhe::region::DO_NOT_EDIT;
 use shengmo::workspace::MARKER;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 use tianheng::prelude::*;
 use tianheng::testing::assert_projection_matches;
@@ -240,28 +239,10 @@ fn the_published_shell_defines_no_repository_bound_catalog() {
     let Some(root) = workspace_root() else {
         return;
     };
-    let listed = Command::new("git")
-        .args([
-            "-C",
-            root.to_str().expect("UTF-8 root"),
-            "ls-files",
-            "-z",
-            "--",
-            "crates/tianheng/src",
-        ])
-        .output()
+    let listed = kanhe::hermetic_git::tracked_paths(&root, &["crates/tianheng/src"])
         .expect("git must enumerate Tianheng's tracked source");
-    assert!(
-        listed.status.success(),
-        "git could not enumerate Tianheng's tracked source: {}",
-        String::from_utf8_lossy(&listed.stderr)
-    );
-
     let offenders: Vec<String> = listed
-        .stdout
-        .split(|byte| *byte == 0)
-        .filter(|raw| !raw.is_empty())
-        .map(|raw| String::from_utf8(raw.to_vec()).expect("tracked source path must be UTF-8"))
+        .into_iter()
         .filter(|file| file.ends_with(".rs"))
         .filter(|file| {
             std::fs::read_to_string(root.join(file))

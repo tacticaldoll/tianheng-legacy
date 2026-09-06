@@ -56,8 +56,15 @@ fn workspace_root() -> Option<PathBuf> {
 
 /// Every tracked path, so the corpora below come from the repository rather than from a walk of the worktree.
 fn tracked(root: &Path) -> Vec<String> {
+    // **`-z`, and no lossy decode — spelled here rather than shared.** `kanhe::hermetic_git::tracked_paths`
+    // owns this question, and `shengmo` cannot reach `kanhe`: `kanhe` depends on `shengmo`, so the edge
+    // would close a cycle. That is a fact about the dependency graph rather than a site anyone declined to
+    // converge, which is the disposition `one_spelling`'s own header gives the same shape for `MARKER`.
+    // What must not differ is the property: git quotes a path it cannot write plainly, so a line-oriented
+    // read answers `"\344\270\255.md"` — a spelling that names no file — and a lossy decode answers a name
+    // the repository does not hold.
     let out = Command::new("git")
-        .args(["ls-files"])
+        .args(["ls-files", "-z"])
         .current_dir(root)
         .output()
         .expect("run git ls-files");
@@ -65,8 +72,11 @@ fn tracked(root: &Path) -> Vec<String> {
         out.status.success(),
         "`git ls-files` failed, and a failed enumeration is not a repository with no files"
     );
-    let files: Vec<String> = String::from_utf8_lossy(&out.stdout)
-        .lines()
+    let listing = String::from_utf8(out.stdout)
+        .expect("a tracked path this reader cannot represent is refused, not renamed");
+    let files: Vec<String> = listing
+        .split('\0')
+        .filter(|path| !path.is_empty())
         .map(str::to_string)
         .collect();
     assert!(

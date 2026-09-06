@@ -286,23 +286,15 @@ fn no_tracked_file_is_claimed_by_two_declared_formats() {
 }
 
 fn tracked(root: &Path) -> Vec<String> {
-    // Through the builder for the reason the whole capability's Purpose states: every read behind a verdict
+    // Through the owner for the reason the whole capability's Purpose states: every read behind a verdict
     // here is isolated from config outside the repository being judged, not only the one an ignore file can
-    // flip.
-    let out = kanhe::hermetic_git::hermetic("git")
-        .args(["ls-files"])
-        .current_dir(root)
-        .output()
-        .expect("run git ls-files");
-    assert!(
-        out.status.success(),
-        "`git ls-files` failed enumerating tracked paths — a failed enumeration is not a repository holding \
-         no files, and every reference verdict would rest on it"
-    );
-    String::from_utf8_lossy(&out.stdout)
-        .lines()
-        .map(str::to_string)
-        .collect()
+    // flip — and a path git quotes or cannot decode is refused rather than renamed.
+    kanhe::hermetic_git::tracked_paths(root, &[]).unwrap_or_else(|failure| {
+        panic!(
+            "`git ls-files` did not enumerate tracked paths ({failure:?}) — a failed enumeration is not a \
+             repository holding no files, and every reference verdict would rest on it"
+        )
+    })
 }
 
 #[test]

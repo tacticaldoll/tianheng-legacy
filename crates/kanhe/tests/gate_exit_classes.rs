@@ -237,19 +237,15 @@ fn opens(line: &str, marker: &str) -> bool {
 }
 
 fn tracked_rust(root: &Path) -> Vec<String> {
-    let listing = std::process::Command::new("git")
-        .args(["ls-files", "-z", "crates"])
-        .current_dir(root)
-        .output()
-        .expect("git ls-files is runnable");
-    assert!(
-        listing.status.success(),
-        "could not enumerate the tracked Rust, so the directions over it would report clean over nothing"
-    );
-    let paths: Vec<String> = String::from_utf8_lossy(&listing.stdout)
-        .split('\0')
+    let listing = kanhe::hermetic_git::tracked_paths(root, &["crates"]).unwrap_or_else(|failure| {
+        panic!(
+            "could not enumerate the tracked Rust ({failure:?}), so the directions over it would report \
+             clean over nothing"
+        )
+    });
+    let paths: Vec<String> = listing
+        .into_iter()
         .filter(|path| path.ends_with(".rs"))
-        .map(str::to_string)
         .collect();
     assert!(
         !paths.is_empty(),
@@ -750,19 +746,12 @@ fn every_gate_running_wrapper_is_named() {
     let Some(root) = workspace_root() else {
         return;
     };
-    let out = std::process::Command::new("git")
-        .args(["ls-files", "scripts"])
-        .current_dir(&root)
-        .output()
-        .expect("run git ls-files");
-    assert!(
-        out.status.success(),
-        "`git ls-files scripts` failed, and a failed enumeration is not a repository with no wrappers"
-    );
-    let tracked: Vec<String> = String::from_utf8_lossy(&out.stdout)
-        .lines()
-        .map(str::to_string)
-        .collect();
+    let tracked = kanhe::hermetic_git::tracked_paths(&root, &["scripts"]).unwrap_or_else(|failure| {
+        panic!(
+            "`git ls-files scripts` did not answer ({failure:?}), and a failed enumeration is not a \
+             repository with no wrappers"
+        )
+    });
     assert!(
         !tracked.is_empty(),
         "no tracked script was enumerated, so this direction would hold over nothing"

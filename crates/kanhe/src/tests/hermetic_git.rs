@@ -516,6 +516,62 @@ fn both_accessors_report_an_undecodable_answer_in_the_same_words() {
     );
 }
 
+/// A tracked path git would quote reads back as its own name, and a line-oriented read does not.
+///
+/// The property [`crate::hermetic_git::tracked_paths`] exists to own, held against the alternative rather
+/// than asserted alone. `core.quotePath` defaults on, so `git ls-files` answers a non-ASCII path as
+/// `"\344\270\255.md"` — a spelling that opens nothing. Nineteen invocations across this repository's checks
+/// asked *which paths does git track* and decided this for themselves; the ones that decided it wrong were
+/// correct only because no tracked path here needs quoting today, and this repository's whole vocabulary is
+/// those characters.
+#[test]
+fn a_tracked_path_git_would_quote_reads_back_as_its_own_name() {
+    let root = std::env::temp_dir().join(format!("kanhe-git-quoted-path-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    xingbiao::claim_scratch(&root).expect("create the fixture root");
+    for args in [
+        &["init", "-q", "."][..],
+        &["config", "user.email", "fixture@example.invalid"][..],
+        &["config", "user.name", "fixture"][..],
+    ] {
+        crate::hermetic_git::run(&root, &[], args).expect("the fixture repository is built");
+    }
+    std::fs::write(root.join("圭表.md"), b"x").expect("the probe is writable");
+    std::fs::write(root.join("plain.md"), b"x").expect("the control is writable");
+    crate::hermetic_git::run(&root, &[], &["add", "-A"]).expect("git stages what is there");
+
+    let owned =
+        crate::hermetic_git::tracked_paths(&root, &[]).expect("the tracked set is enumerable");
+    let line_oriented = crate::hermetic_git::run(&root, &[], &["ls-files"])
+        .expect("the line-oriented listing is readable");
+    let _ = std::fs::remove_dir_all(&root);
+
+    assert!(
+        owned.contains(&"圭表.md".to_string()),
+        "the owner answers the path the repository holds; got {owned:?}"
+    );
+    assert!(
+        owned.contains(&"plain.md".to_string()),
+        "and the control beside it, so the assertion above is not about an empty set: {owned:?}"
+    );
+
+    // The alternative, measured rather than described: the quoted spelling is not the name, and it opens
+    // nothing. This is what every line-oriented enumeration in this repository was reading.
+    let quoted: Vec<&str> = line_oriented
+        .lines()
+        .filter(|path| path.starts_with('"'))
+        .collect();
+    assert_eq!(
+        quoted.len(),
+        1,
+        "git quotes exactly the non-ASCII path in a line-oriented listing; got {line_oriented:?}"
+    );
+    assert_ne!(
+        quoted[0], "圭表.md",
+        "the quoted spelling is not the name the repository holds"
+    );
+}
+
 /// git answering in bytes no `String` holds is refused, never replaced.
 ///
 /// **Measured rather than reasoned about.** A tracked path that is not UTF-8 is legal on Unix, and

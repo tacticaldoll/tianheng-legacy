@@ -46,35 +46,8 @@ fn workspace_root() -> Option<PathBuf> {
 
 /// Tracked paths under `pathspec`, read with `-z` because `git ls-files` quotes a non-ASCII path by default.
 fn tracked(root: &Path, pathspec: &str) -> Vec<String> {
-    // **Not the shared reader, and the reason is a clause it does not carry.** `hermetic_git::read` converts
-    // with `from_utf8_lossy`, which turns a path this enumeration cannot represent into replacement
-    // characters and reports a name no file has. This one refuses instead, because the paths it returns are
-    // compared against a register: a mangled name would read as a document that is not there. Converging it
-    // was tried and reverted for exactly that clause.
-    let output = kanhe::hermetic_git::hermetic("git")
-        .arg("-C")
-        .arg(root)
-        .args(["ls-files", "-z", pathspec])
-        .output()
-        .unwrap_or_else(|err| panic!("cannot run `git ls-files` in {root:?}: {err}"));
-    assert!(
-        output.status.success(),
-        "{}",
-        kanhe::hermetic_git::failed(
-            "`git ls-files`",
-            &output.status.to_string(),
-            &String::from_utf8_lossy(&output.stderr)
-        )
-    );
-    output
-        .stdout
-        .split(|byte| *byte == 0)
-        .filter(|entry| !entry.is_empty())
-        .map(|entry| {
-            String::from_utf8(entry.to_vec())
-                .unwrap_or_else(|err| panic!("a tracked path under {root:?} is not UTF-8: {err}"))
-        })
-        .collect()
+    kanhe::hermetic_git::tracked_paths(root, &[pathspec])
+        .unwrap_or_else(|failure| panic!("cannot enumerate {pathspec} in {root:?}: {failure:?}"))
 }
 
 /// A tracked text, as a [`Source`] rather than a `String`: the region a property is about is then decided in the
