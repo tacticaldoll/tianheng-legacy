@@ -117,6 +117,21 @@ them.
 
 ### Semantic and runtime
 
+- **The owner's own header stated a defect in the present tense, after the defect was gone.** The module
+  written to end three spellings of one identity opened with a table of the three and the verdict *the first
+  and third agree; the second does not* — true when it was written, false the moment it landed, and read as
+  current state by anyone arriving afterwards. The class its own repository refuses: a past defect described
+  where the invariant belongs.
+
+  The invariant is kept and the debrief is tensed: two of the three readers are the two **sides of one
+  comparison** held as strings, which is what makes a shared spelling load-bearing rather than tidy, and the
+  disagreement that falsified it is recorded as closed. The enum's doc is split the same way — the reason it
+  is not an `Option` first, the two live readings that made it one second, in separate sentences, so
+  trimming the provenance cannot take the falsifier with it.
+
+  Found by re-reading this window's own repairs rather than by running anything, which is where a claim about
+  code sits when the code is right.
+
 - **A repair that was not made, and the measurement that stopped it.** 渾儀 answers a `cfg_attr` whose
   applied metas do not parse two ways: `cfg_attr_path_values` drops the whole attribute's `path` candidates
   with `.ok()`, while `scan::items::extract_derives` answers the identical failure on the identical
