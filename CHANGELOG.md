@@ -132,6 +132,28 @@ them.
   Found by re-reading this window's own repairs rather than by running anything, which is where a claim about
   code sits when the code is right.
 
+- **The pre-cut trigger reading cannot be verified by a reader, and four attempts to verify it are the
+  evidence.** The rule landed in this window: `BACKLOG.md`'s promotion triggers are read against the window
+  before the cut, and an evaluation records **what it checked**, because a bare *not fired* is
+  indistinguishable from nobody having looked. Asking *has that been done?* looked mechanical. It is not.
+
+  Four readers over the live sections, each correcting the last: looking for a capitalised *Not fired*
+  inside a nine-day date window answered 47 entries unevaluated; widened to the window's real start,
+  26; widened to verdicts spelled *fired*, *swept*, *witness-only*, 11; widened again to read the **whole**
+  entry rather than only the text after the trigger sentence — because one entry's reading sits *above* its
+  trigger, phrased *re-derived the same day* — 8. **Each number is a property of the reader, not of the
+  tree.** A verdict in this file has no canonical spelling, which is the same conclusion the scenario-clause
+  entry reached one round earlier about a different subject, reached again here by a different route.
+
+  So the rule's own framing is the correct one and needs no repair: *this is a step someone performs, listed
+  here because a discipline nobody is asked for is one nobody does*. It never claimed to be checkable, and
+  the attempt to check it is what failed.
+
+  What the attempt did produce: one entry filed this window carried no verdict and now does — the
+  scenario-clause seam is **unfired at filing**, and says what that rests on. And a reading was performed
+  in full for the one-spelling corpus reader, which had one already; both agree, which is the only
+  cross-check available here.
+
 - **This window quoted three prior states of its own prose that no release carried, against the row it
   added for exactly that.** The rule is `CHANGELOG.md`'s own: `main` carries one snapshot per release, so a
   sentence written and corrected inside one window existed in **no** artifact an adopter has, and quoting it
