@@ -932,6 +932,47 @@ them.
 
 ### Self-governance
 
+- **The responsibility is split: a reader of syntax answers ownership, and a run answers isolation.** Ten
+  rounds walked one source model through a rename, a macro, a literal compared by its rendering, a constant
+  kept while its loop was deleted, a removal made on a decoy receiver, a nested macro token, and a
+  `foo::process::Command`. Each was real, each was closed, each was followed by the next — because the
+  question being asked of syntax was *whether the command this program builds is isolated*, and that is a
+  question about running it.
+
+  **The environment modelling is deleted, not extended.** `Operation`, `Environment`, `IteratedRemoval`,
+  `expected_operations` and `environment_operations_of` are gone. What remains of the reader is the
+  ownership question it can answer: which tracked files construct their own `git`, held two-directionally
+  against a declared set, and — for a site that cannot reach the builder — that it **names** the direction
+  proving its isolation and that the direction exists. An item's name is what a parser reports.
+
+  **Every channel is injected alone, with a reading it moves.** The first probe set all three repository
+  selectors and read `git log`, which is sensitive to `GIT_DIR` alone — measured:
+
+  ```
+  kept selector      git log -1 --format=%s   git ls-files   git status --porcelain
+  GIT_DIR            decoy                    decoy.txt      D decoy.txt
+  GIT_WORK_TREE      judged                   judged.txt     D judged.txt
+  GIT_INDEX_FILE     judged                   decoy.txt      RD judged.txt -> decoy.txt
+  ```
+
+  So a builder clearing one of three passed. Each channel now arrives alone with a reading it moves —
+  `log` for `GIT_DIR`, `status` for `GIT_WORK_TREE`, `ls-files` for `GIT_INDEX_FILE`, `config --get` for
+  `GIT_CONFIG_PARAMETERS` — each carrying the bare-command control, without which a pass proves only that
+  the channel never arrived. Both boundary-forced copies carry the whole matrix, configuration included,
+  which the source comparison could never have covered. Negative runs, one per channel:
+
+  ```
+  a command this builder made followed GIT_WORK_TREE   left: "D judged.txt"   right: ""
+  a command this builder made followed GIT_INDEX_FILE  left: "decoy.txt"      right: "judged.txt"
+  this builder followed GIT_CONFIG_PARAMETERS          left: "ambient-probe"  right: "judged"
+  ```
+
+  The two syntactic gaps this round found are closed at the size the narrowed responsibility makes right: a
+  macro body's tokens are walked to **any depth**, so a construction nested inside a delimiter is not read
+  as nothing; and an alias binds on the **whole path** being `std::process`, not on a segment named
+  `process` occurring somewhere, which had made somebody else's `Command` this one.
+
+
 - **The property is asked of a run now, because nine rounds proved the reader could not be finished.** Every
   round a review supplied a spelling the source reader missed — a rename, a macro, a literal compared by its
   rendering, a constant kept while its loop was deleted, and now a removal made on a **decoy receiver** — and

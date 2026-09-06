@@ -64,23 +64,31 @@ fn hermetic_configuration_probe() {
     );
 }
 
-/// The probe half of [`no_ambient_selector_moves_which_repository_a_hermetic_command_reads`].
+/// The probe half of [`no_ambient_selector_moves_what_a_hermetic_command_reads`].
 ///
-/// It reports two readings from inside an inherited environment: what the builder answers, and what a bare
-/// `Command` answers. The second is the control — without it, the first holding proves nothing, because a
-/// selector that never reached the child would produce the same pass.
+/// Reports one reading twice — what the builder answers and what a bare `Command` answers — from inside an
+/// inherited environment. The second is the control: without it the first holding proves only that the
+/// selector never reached the child.
 #[test]
 fn hermetic_selector_probe() {
     let Some(judged) = std::env::var_os("KANHE_HERMETIC_SELECTOR_REPO") else {
         return;
     };
+    let read =
+        std::env::var("KANHE_HERMETIC_SELECTOR_READ").expect("the parent names the observation");
     let judged = std::path::Path::new(&judged);
+    let arguments: Vec<&str> = match read.as_str() {
+        "log" => vec!["log", "-1", "--format=%s"],
+        "ls-files" => vec!["ls-files"],
+        "status" => vec!["status", "--porcelain"],
+        other => panic!("the parent named an observation this probe does not make: {other}"),
+    };
     let subject = |mut command: Command| {
         let out = command
-            .args(["log", "-1", "--format=%s"])
+            .args(&arguments)
             .current_dir(judged)
             .output()
-            .expect("run git log");
+            .expect("run git");
         String::from_utf8_lossy(&out.stdout).trim().to_string()
     };
     println!(
@@ -90,25 +98,30 @@ fn hermetic_selector_probe() {
     );
 }
 
-/// No ambient selector moves which repository a hermetic command reads — **asked of a run**.
+/// No ambient selector moves what a hermetic command reads — **asked of a run, one selector at a time**.
 ///
-/// **This is the question the syntactic reader was modelling, and modelling is where nine rounds of findings
+/// **This is the question the syntactic reader was modelling, and modelling is where ten rounds of findings
 /// came from.** `hermetic_invocations` decides whether a command is isolated by reading the source that
 /// builds it: which methods are called, with which literals, on which array. Every round a review supplied a
 /// spelling that reading missed — a rename, a macro, a literal compared by its rendering, a constant kept
-/// while its loop was deleted, a removal made on a decoy receiver — and every one of them is a *different
-/// way to write the same program*. A run does not care how the program is written. It answers what the
-/// command reads, which **is** the property.
+/// while its loop was deleted, a removal made on a decoy receiver — and every one is a *different way to
+/// write the same program*. A run does not care how the program is written.
 ///
-/// The sibling case reads the removal off the builder's own `get_envs()`, which is an inspection of the
-/// object rather than of what it does; that catches a removal not requested and cannot catch one requested
-/// on something else. Here the selectors arrive by inheritance, the builder runs inside them, and the
-/// subject it reports is the answer.
+/// **One observation per selector, because one observation does not see three.** The first spelling set all
+/// three and read `git log`, which is sensitive to `GIT_DIR` alone — measured: with `GIT_WORK_TREE` or
+/// `GIT_INDEX_FILE` pointed at the decoy and `GIT_DIR` cleared, `log` still answers the judged subject, so a
+/// builder clearing one of three passed. Each selector now arrives alone, with a reading it does move:
 ///
-/// Two repositories whose HEAD subjects differ, so a redirected read is legible as the wrong subject rather
-/// than as an error — the shape the configuration case already uses.
+/// | selector | observation | pointed at the decoy |
+/// |---|---|---|
+/// | `GIT_DIR` | `log -1 --format=%s` | the decoy's subject |
+/// | `GIT_WORK_TREE` | `status --porcelain` | the judged file reported deleted |
+/// | `GIT_INDEX_FILE` | `ls-files` | the decoy's tracked path |
+///
+/// The two repositories carry differently named files so each reading is legible as the wrong repository
+/// rather than as an error.
 #[test]
-fn no_ambient_selector_moves_which_repository_a_hermetic_command_reads() {
+fn no_ambient_selector_moves_what_a_hermetic_command_reads() {
     let root = std::env::temp_dir().join(format!(
         "kanhe-hermetic-selector-run-{}",
         std::process::id()
@@ -125,7 +138,7 @@ fn no_ambient_selector_moves_which_repository_a_hermetic_command_reads() {
         ] {
             crate::hermetic_git::fixture(&dir, "git", args);
         }
-        std::fs::write(dir.join("a.txt"), name).expect("write the fixture file");
+        std::fs::write(dir.join(format!("{name}.txt")), name).expect("write the fixture file");
         crate::hermetic_git::fixture(&dir, "git", &["add", "-A"]);
         crate::hermetic_git::fixture(&dir, "git", &["commit", "-qm", name]);
         dir
@@ -133,49 +146,67 @@ fn no_ambient_selector_moves_which_repository_a_hermetic_command_reads() {
     let judged = build("judged");
     let decoy = build("decoy");
 
-    let probe = Command::new(std::env::current_exe().expect("this test binary"))
-        .args([
-            "--exact",
-            "tests::hermetic_git::hermetic_selector_probe",
-            "--nocapture",
-            "--test-threads=1",
-        ])
-        .env("GIT_DIR", decoy.join(".git"))
-        .env("GIT_WORK_TREE", &decoy)
-        .env("GIT_INDEX_FILE", decoy.join(".git/index"))
-        .env("KANHE_HERMETIC_SELECTOR_REPO", &judged)
-        .output()
-        .expect("run the probe child");
-    let probe = String::from_utf8_lossy(&probe.stdout).into_owned();
-    let reported = probe
-        .split_once("PROBE_BEGIN\n")
-        .and_then(|(_, rest)| rest.split_once("PROBE_END"))
-        .map(|(body, _)| body.to_string())
-        .unwrap_or_else(|| panic!("the probe child produced no reading:\n{probe}"));
-    let reading = |key: &str| {
-        reported
-            .lines()
-            .find_map(|line| line.strip_prefix(key))
-            .unwrap_or_else(|| panic!("the probe reported no `{key}` line:\n{reported}"))
-            .to_string()
+    let reading = |selector: &str, value: &std::path::Path, read: &str| {
+        let probe = Command::new(std::env::current_exe().expect("this test binary"))
+            .args([
+                "--exact",
+                "tests::hermetic_git::hermetic_selector_probe",
+                "--nocapture",
+                "--test-threads=1",
+            ])
+            .env(selector, value)
+            .env("KANHE_HERMETIC_SELECTOR_REPO", &judged)
+            .env("KANHE_HERMETIC_SELECTOR_READ", read)
+            .output()
+            .expect("run the probe child");
+        let probe = String::from_utf8_lossy(&probe.stdout).into_owned();
+        let reported = probe
+            .split_once("PROBE_BEGIN\n")
+            .and_then(|(_, rest)| rest.split_once("PROBE_END"))
+            .map(|(body, _)| body.to_string())
+            .unwrap_or_else(|| {
+                panic!("the probe child produced no reading for {selector}:\n{probe}")
+            });
+        let line = |key: &str| {
+            reported
+                .lines()
+                .find_map(|line| line.strip_prefix(key))
+                .unwrap_or_else(|| panic!("the probe reported no `{key}` line:\n{reported}"))
+                .to_string()
+        };
+        (line("builder="), line("bare="))
     };
+
+    let index = decoy.join(".git/index");
+    let cases: [(&str, &std::path::Path, &str, &str); 3] = [
+        ("GIT_DIR", &decoy.join(".git"), "log", "judged"),
+        ("GIT_WORK_TREE", &decoy, "status", ""),
+        ("GIT_INDEX_FILE", &index, "ls-files", "judged.txt"),
+    ];
+    let readings: Vec<(&str, String, String, &str)> = cases
+        .iter()
+        .map(|(selector, value, read, isolated)| {
+            let (builder, bare) = reading(selector, value, read);
+            (*selector, builder, bare, *isolated)
+        })
+        .collect();
 
     let _ = std::fs::remove_dir_all(&root);
 
-    // The control first: the selectors did reach the child, so the assertion below is a difference rather
-    // than an environment that never arrived.
-    assert_eq!(
-        reading("bare="),
-        "decoy",
-        "a bare `Command` did not follow the ambient selectors, so this case demonstrates no channel and \
-         the assertion below would hold for the wrong reason"
-    );
-    assert_eq!(
-        reading("builder="),
-        "judged",
-        "a command this builder made read the repository the environment named rather than the one it was \
-         pointed at, so a verdict behind it is about a tree nobody asked for"
-    );
+    for (selector, builder, bare, isolated) in readings {
+        // The control first: this selector does move this reading, so the assertion after it is a
+        // difference rather than an environment that never arrived.
+        assert_ne!(
+            bare, isolated,
+            "a bare `Command` read the same under {selector} as without it, so this case demonstrates no \
+             channel and the assertion below would hold for the wrong reason"
+        );
+        assert_eq!(
+            builder, isolated,
+            "a command this builder made followed {selector}, so a verdict behind it is about a tree \
+             nobody asked for"
+        );
+    }
 }
 
 /// No configuration reaches a hermetic command but this builder's own — asked of the run, not of a list.

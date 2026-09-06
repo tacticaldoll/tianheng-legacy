@@ -27,4 +27,4 @@ a_repetition_split_by_code_is_not_read	crates/kanhe/tests/repeated_paragraph.rs	
 # either means giving that reader a text path back, which is the defect rather than a perturbation of it.
 # Stated here rather than left as two silent gaps in the table.
 a_construction_through_a_program_value_is_not_read	crates/kanhe/tests/hermetic_invocations.rs	&& string_of(&node.args[0]).as_deref() == Some("git")	&& string_of(&node.args[0]).as_deref() != Some("cargo")
-a_construction_through_a_rename_or_inside_a_macro_is_read	crates/kanhe/tests/hermetic_invocations.rs	syn::UseTree::Rename(renamed) if under_process && renamed.ident == "Command" => {	syn::UseTree::Rename(renamed) if under_process && renamed.ident == "NotCommand" => {
+a_construction_through_a_rename_or_inside_a_macro_is_read	crates/kanhe/tests/hermetic_invocations.rs	                if renamed.ident == "Command" && Self::is_std_process(prefix) =>	                if renamed.ident == "NotCommand" && Self::is_std_process(prefix) =>
