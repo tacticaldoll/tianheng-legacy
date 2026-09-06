@@ -2021,13 +2021,21 @@ proves only that the channel never arrived.
 the `GIT_CONFIG_*` channels, and `GIT_DIR` / `GIT_WORK_TREE` / `GIT_INDEX_FILE`, which move **which
 repository** the command acts on and so reach past `current_dir` entirely.
 
-**The class is not a bare invocation; it is a copy that inherits nothing.** The enumeration owner states
-three properties a caller must not decide for itself. Two sites cannot reach it — `shengmo`'s test targets,
-because `kanhe` depends on `shengmo` and the edge would close a cycle — so they hold those properties by
-transcription, and transcription is partial by nature: the first pass carried `-z` and the strict decode
-across and left the isolation behind, **in both copies**, unmentioned in either comment. Nothing said what a
-copy owed, so nothing noticed two of three. The required set SHALL be read from the builder's own text
-rather than written out here, so an operation the builder starts making is one a copy starts owing.
+**The class is not a bare invocation; it is a copy that inherits nothing.** Two sites cannot reach the
+builder — `shengmo`'s test targets, because `kanhe` depends on `shengmo` and the edge would close a cycle —
+so they hold its isolation by transcription, and transcription is partial by nature: the first pass carried
+the framing and the decode across and left the isolation behind, **in both copies**, unmentioned in either
+comment.
+
+**The cases SHALL come from one tracked inventory, not from each site.** Written out per site, the matrix
+covered three repository selectors and one configuration channel in each of three files while `GIT_CONFIG`,
+the two configuration-file channels and the indexed channel were in none of them: a matrix per site is a
+matrix that diverges per site, which is the transcription failure one level up from the one it was built to
+end. `crates/kanhe/tests/fixtures/hermetic_channels.tsv` holds them once and every builder consumes it, so a
+channel added there is a case every builder starts owing.
+
+**Each reading SHALL carry its exit status.** Folded into stdout, a `git` that failed produced an empty
+reading — and the worktree case's isolated value *is* the empty string, so a failure passed as isolation.
 
 #### Scenario: A file constructs a `git` without the builder
 
@@ -2050,7 +2058,7 @@ rather than written out here, so an operation the builder starts making is one a
 - **THEN** the builder answers about that repository, while a bare `Command` in the same environment answers
   about the decoy; the second is the control, without which the first proves only that the channel never
   arrived
-- **PINNED-BY** `no_ambient_selector_moves_what_a_hermetic_command_reads`
+- **PINNED-BY** `no_ambient_channel_moves_what_a_hermetic_command_reads`
 - **PINNED-BY** `no_ambient_channel_moves_what_the_family_coverage_builder_reads`
 - **PINNED-BY** `no_ambient_channel_moves_what_the_examples_suite_builder_reads`
 

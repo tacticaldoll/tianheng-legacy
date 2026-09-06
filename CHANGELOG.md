@@ -932,6 +932,61 @@ them.
 
 ### Self-governance
 
+- **The behavioural matrix was written out per site, and a matrix per site is a matrix that diverges per
+  site.** Four cases stood in each of three files — the three repository selectors and
+  `GIT_CONFIG_PARAMETERS` — while `GIT_CONFIG`, the two configuration-file channels and the indexed channel
+  were in none of them. The previous change called that *the whole matrix*; it was half of one, and the
+  claim is corrected here rather than left standing. It is the transcription failure one level above the one
+  the probes were built to end.
+
+  `crates/kanhe/tests/fixtures/hermetic_channels.tsv` holds the cases once — channel, injection, the
+  observation it moves, the isolated reading — and the owner and both boundary-forced copies consume it, so
+  a channel added there is a case every builder starts owing. Eight cases now, each with its own
+  bare-command control. Negative run, on a copy whose old matrix never had the channel:
+
+  ```
+  this builder followed GIT_CONFIG   left: "ambient-probe"   right: "isolated"
+  ```
+
+  **The first observation was the wrong one, and the control said so.** Reading `user.name` let the fixture's
+  own repository config outrank the file channels, so `GIT_CONFIG_GLOBAL` moved nothing and the case would
+  have passed for the wrong reason. It reads a key no repository sets, with `--default`, so an isolated
+  command answers and exits zero.
+
+- **A `git` that failed was read as an isolated answer.** The probe folded the child's exit into stdout, and
+  the worktree case's isolated value **is** the empty string — so a `git` that could not run passed as
+  isolation. Each reading now carries its status and its stderr:
+
+  ```
+  the builder `git` under GIT_WORK_TREE exited 129, so its reading is a failure rather than an answer: error: unknown option `no-such-flag'
+  ```
+
+- **A name is not a proof, and neither is a `#[test]` that is ignored.** `ProvenBy` compared `sig.ident`
+  alone, so an ordinary function of the same name — or the same test with its attribute removed — satisfied
+  a citation nothing runs. The attribute is required now, `#[ignore]` refused, and a name declared twice
+  refused as a citation naming a set.
+
+- **A `crate::std` is not the standard library, and stripping the root said it was.** The alias reader
+  normalised `self::` and `crate::` away before comparing the path, merging a module this repository could
+  define with the external crate — a false positive in the direction that reports a construction where there
+  is none. Those roots are refused; `std::process` and its absolute spelling are admitted.
+
+- **Deleting one guard at a time said which line carries which channel, and twice it was not the one the
+  builder claimed.** Measured:
+
+  ```
+  GIT_CONFIG_SYSTEM alone removed    still green   — NOSYSTEM carries it
+  GIT_CONFIG_NOSYSTEM alone removed  still green   — SYSTEM carries it
+  both removed                       BITES         — they are redundant with each other
+  GIT_CONFIG_COUNT alone removed     still green
+  GIT_CONFIG_KEY_0 alone removed     BITES         — occupying index 0 is what closes the channel
+  ```
+
+  `hermetic`'s header said its defence against the indexed channel is **occupying the count**; it is
+  occupying the **key**. Both are corrected in place and recorded in the inventory, redundancy included:
+  redundancy that has been measured is a different fact from redundancy nobody checked.
+
+
 - **The responsibility is split: a reader of syntax answers ownership, and a run answers isolation.** Ten
   rounds walked one source model through a rename, a macro, a literal compared by its rendering, a constant
   kept while its loop was deleted, a removal made on a decoy receiver, a nested macro token, and a

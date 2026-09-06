@@ -63,7 +63,14 @@ pub const EXCLUDES_SETTING: &str = "core.excludesFile";
 /// **The `GIT_CONFIG_*` row is closed, and it read open until someone measured it.** The claim was that any
 /// ambient key reaches `git`, `commit.gpgsign=true` included. It does not: [`Command::env`] overrides
 /// `GIT_CONFIG_COUNT` to `1`, `git` then reads index `0` only, and this builder owns index `0` — so an
-/// ambient key at any index is unreachable and an ambient key at index `0` is overwritten. Measured, with
+/// ambient key at any index is unreachable and an ambient key at index `0` is overwritten.
+///
+/// **Which of the two closes it was measured afterwards, and it is the key rather than the count.** Deleting
+/// `GIT_CONFIG_COUNT` alone leaves the behavioural case green; deleting `GIT_CONFIG_KEY_0` alone fails it.
+/// Occupying index `0` is the guard; pinning the count is defence beside it. The same measurement says
+/// `GIT_CONFIG_SYSTEM` and `GIT_CONFIG_NOSYSTEM` are redundant with each other — either alone carries the
+/// system file, and only removing both fails a case. Recorded rather than tidied: redundancy that has been
+/// measured is a different fact from redundancy nobody checked. Measured, with
 /// `GIT_CONFIG_COUNT=2` and `GIT_CONFIG_KEY_1=user.name` in the environment: under this builder
 /// `git config --get user.name` exits `1` with no output, and the same pair without it answers the ambient
 /// value. A row saying **no** where the answer is **yes** is not a conservative error — it reads as governed

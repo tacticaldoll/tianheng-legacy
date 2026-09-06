@@ -267,14 +267,24 @@ fn every_published_family_has_an_adopter_shaped_owner() {
     );
 }
 
-/// The probe half of the behavioural cases below, reached as a child process.
+/// One reading of one observation, under this builder and under a bare `Command`, with each exit status.
+struct ChannelReading {
+    builder_status: i32,
+    builder: String,
+    builder_stderr: String,
+    bare_status: i32,
+    bare: String,
+    bare_stderr: String,
+}
+
+/// The probe half of the behavioural case below, reached as a child process.
 ///
-/// Reports one reading twice — what this file's builder answers and what a bare `Command` answers — from
-/// inside an inherited environment. The second is the control: without it the first holding proves only that
-/// the channel never reached the child.
+/// Reports one observation twice — under this builder and under a bare `Command` — with **each reading's
+/// exit status beside it**. Folded into stdout, a `git` that failed produced an empty reading, and the
+/// worktree case's isolated value *is* the empty string: a failure passed as isolation.
 #[test]
 fn hermetic_channel_probe() {
-    let Some(judged) = std::env::var_os("SHENGMO_PROBE_REPO") else {
+    let Some(judged) = std::env::var_os("SHENGMO_PROBE_JUDGED") else {
         return;
     };
     let read = std::env::var("SHENGMO_PROBE_READ").expect("the parent names the observation");
@@ -283,7 +293,7 @@ fn hermetic_channel_probe() {
         "log" => vec!["log", "-1", "--format=%s"],
         "ls-files" => vec!["ls-files"],
         "status" => vec!["status", "--porcelain"],
-        "config" => vec!["config", "--get", "user.name"],
+        "config-probe-marker" => vec!["config", "--default", "isolated", "--get", "probe.marker"],
         other => panic!("the parent named an observation this probe does not make: {other}"),
     };
     let subject = |mut command: Command| {
@@ -292,31 +302,36 @@ fn hermetic_channel_probe() {
             .current_dir(judged)
             .output()
             .expect("run git");
-        String::from_utf8_lossy(&out.stdout).trim().to_string()
+        (
+            out.status.code().unwrap_or(-1),
+            String::from_utf8_lossy(&out.stdout).trim().to_string(),
+            String::from_utf8_lossy(&out.stderr).trim().to_string(),
+        )
     };
+    let (builder_code, builder, builder_stderr) = subject(hermetic_git());
+    let (bare_code, bare, bare_stderr) = subject(Command::new("git"));
     println!(
-        "PROBE_BEGIN\nbuilder={}\nbare={}\nPROBE_END",
-        subject(hermetic_git()),
-        subject(Command::new("git"))
+        "PROBE_BEGIN\nbuilder-status={builder_code}\nbuilder={builder}\nbuilder-stderr={builder_stderr}\nbare-status={bare_code}\nbare={bare}\nbare-stderr={bare_stderr}\nPROBE_END"
     );
 }
 
 /// No ambient channel moves what this builder reads — **asked of a run, one channel at a time**.
 ///
-/// This copy holds the owner's environment properties by transcription, and a reader of that transcription
-/// is what `hermetic_invocations` used to compare. Ten rounds of review found spellings such a reader
-/// missed — a rename, a macro, a literal compared by its rendering, a constant kept while its loop was
-/// deleted, a removal made on a **decoy receiver** — each a different way to write the same program. A run
-/// does not care how the program is written: it answers what the command reads, which is the property. The
-/// source reader now answers only *which files may build their own `git`*; this answers whether this one is
-/// isolated.
-///
-/// **One observation per channel, because one observation does not see four.** A single case setting all
-/// three selectors and reading `git log` demonstrates `GIT_DIR` alone — measured: with `GIT_WORK_TREE` or
-/// `GIT_INDEX_FILE` pointed at the decoy and `GIT_DIR` cleared, `log` still answers the judged subject, so a
-/// builder clearing one of three passed. Each channel arrives alone, with a reading it does move.
+/// This copy holds the owner's isolation by transcription, because `shengmo` cannot reach `kanhe` without
+/// closing a dependency cycle. **The cases are not transcribed with it.** Written out per site, the matrix
+/// covered three selectors and one configuration channel here and the same four in the sibling, while
+/// `GIT_CONFIG`, the two file channels and the indexed channel were in none of them — a matrix per site is a
+/// matrix that diverges per site. `crates/kanhe/tests/fixtures/hermetic_channels.tsv` holds them once and
+/// every builder consumes it, so a channel added there is a case this copy starts owing.
 #[test]
 fn no_ambient_channel_moves_what_the_family_coverage_builder_reads() {
+    let Some(root_of) = workspace_root() else {
+        return;
+    };
+    let inventory =
+        std::fs::read_to_string(root_of.join("crates/kanhe/tests/fixtures/hermetic_channels.tsv"))
+            .expect("the channel inventory is readable");
+
     let root =
         std::env::temp_dir().join(format!("family-coverage-channels-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
@@ -362,68 +377,131 @@ fn no_ambient_channel_moves_what_the_family_coverage_builder_reads() {
     };
     let judged = build("judged");
     let decoy = build("decoy");
+    let config = root.join("ambient.gitconfig");
+    std::fs::write(&config, "[probe]\n\tmarker = ambient-probe\n")
+        .expect("write the ambient config");
 
-    let reading = |channel: &str, value: &std::ffi::OsStr, read: &str| {
-        let probe = Command::new(std::env::current_exe().expect("this test binary"))
-            .args([
-                "--exact",
-                "hermetic_channel_probe",
-                "--nocapture",
-                "--test-threads=1",
-            ])
-            .env(channel, value)
-            .env("SHENGMO_PROBE_REPO", &judged)
+    let cases: Vec<Vec<String>> = inventory
+        .lines()
+        .filter(|line| !line.trim_start().starts_with('#') && !line.trim().is_empty())
+        .map(|line| line.split('\t').map(str::to_string).collect())
+        .collect();
+    assert!(
+        cases.len() >= 8,
+        "the channel inventory collapsed to {} case(s); a matrix that shrinks is one this check stops \
+         asking about",
+        cases.len()
+    );
+
+    let mut readings = Vec::new();
+    for case in &cases {
+        let channel = &case[0];
+        let injection = &case[1];
+        let read = &case[2];
+        // `(empty)` rather than a blank field: a trailing tab is whitespace this repository refuses.
+        let isolated = match case.get(3).map(String::as_str) {
+            Some("(empty)") | None => String::new(),
+            Some(value) => value.to_string(),
+        };
+        let mut probe = Command::new(std::env::current_exe().expect("this test binary"));
+        probe.args([
+            "--exact",
+            "hermetic_channel_probe",
+            "--nocapture",
+            "--test-threads=1",
+        ]);
+        match injection.as_str() {
+            "git-dir" => {
+                probe.env(channel, decoy.join(".git"));
+            }
+            "work-tree" => {
+                probe.env(channel, &decoy);
+            }
+            "index" => {
+                probe.env(channel, decoy.join(".git/index"));
+            }
+            "config-file" => {
+                probe.env(channel, &config);
+            }
+            other => {
+                if let Some(value) = other.strip_prefix("literal:") {
+                    probe.env(channel, value);
+                } else if let Some(pair) = other.strip_prefix("indexed:") {
+                    let (key, value) = pair.split_once('=').unwrap_or_else(|| {
+                        panic!("an indexed injection is `key=value`, got {pair:?}")
+                    });
+                    probe
+                        .env(channel, "1")
+                        .env("GIT_CONFIG_KEY_0", key)
+                        .env("GIT_CONFIG_VALUE_0", value);
+                } else {
+                    panic!("the inventory names an injection this runner does not make: {other}");
+                }
+            }
+        }
+        let out = probe
+            .env("SHENGMO_PROBE_JUDGED", &judged)
             .env("SHENGMO_PROBE_READ", read)
             .output()
             .expect("run the probe child");
-        let probe = String::from_utf8_lossy(&probe.stdout).into_owned();
-        let reported = probe
+        let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
+        let reported = stdout
             .split_once("PROBE_BEGIN\n")
             .and_then(|(_, rest)| rest.split_once("PROBE_END"))
             .map(|(body, _)| body.to_string())
             .unwrap_or_else(|| {
-                panic!("the probe child produced no reading for {channel}:\n{probe}")
+                panic!("the probe child produced no reading for {channel}:\n{stdout}")
             });
         let line = |key: &str| {
             reported
                 .lines()
                 .find_map(|line| line.strip_prefix(key))
-                .unwrap_or_else(|| panic!("the probe reported no `{key}` line:\n{reported}"))
+                .unwrap_or_else(|| {
+                    panic!("the probe reported no `{key}` line for {channel}:\n{reported}")
+                })
                 .to_string()
         };
-        (line("builder="), line("bare="))
-    };
-
-    let git_dir = decoy.join(".git").into_os_string();
-    let work_tree = decoy.clone().into_os_string();
-    let index = decoy.join(".git/index").into_os_string();
-    let parameters = std::ffi::OsString::from("'user.name=ambient-probe'");
-    let cases: [(&str, &std::ffi::OsStr, &str, &str); 4] = [
-        ("GIT_DIR", &git_dir, "log", "judged"),
-        ("GIT_WORK_TREE", &work_tree, "status", ""),
-        ("GIT_INDEX_FILE", &index, "ls-files", "judged.txt"),
-        ("GIT_CONFIG_PARAMETERS", &parameters, "config", "judged"),
-    ];
-    let readings: Vec<(&str, String, String, &str)> = cases
-        .iter()
-        .map(|(channel, value, read, isolated)| {
-            let (builder, bare) = reading(channel, value, read);
-            (*channel, builder, bare, *isolated)
-        })
-        .collect();
+        let code = |key: &str| {
+            line(key)
+                .parse::<i32>()
+                .expect("the probe reports a status")
+        };
+        readings.push((
+            channel.clone(),
+            ChannelReading {
+                builder_status: code("builder-status="),
+                builder: line("builder="),
+                builder_stderr: line("builder-stderr="),
+                bare_status: code("bare-status="),
+                bare: line("bare="),
+                bare_stderr: line("bare-stderr="),
+            },
+            isolated,
+        ));
+    }
 
     let _ = std::fs::remove_dir_all(&root);
 
-    for (channel, builder, bare, isolated) in readings {
+    for (channel, reading, isolated) in readings {
+        for (who, code, stderr) in [
+            ("builder", reading.builder_status, &reading.builder_stderr),
+            ("bare", reading.bare_status, &reading.bare_stderr),
+        ] {
+            assert_eq!(
+                code, 0,
+                "the {who} `git` under {channel} exited {code}, so its reading is a failure rather than an \
+                 answer: {stderr}"
+            );
+        }
         // The control first: this channel does move this reading, so the assertion after it is a difference
         // rather than an environment that never arrived.
         assert_ne!(
-            bare, isolated,
+            reading.bare, isolated,
             "a bare `Command` read the same under {channel} as without it, so this case demonstrates no \
              channel and the assertion below would hold for the wrong reason"
         );
         assert_eq!(
-            builder, isolated,
+            reading.builder, isolated,
             "this builder followed {channel}, so a verdict behind it is about a tree or a configuration \
              nobody asked for"
         );
