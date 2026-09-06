@@ -85,6 +85,7 @@ jobs:
       - name: whitespace hygiene across every tracked text file
         run: |
           TIANHENG_WORKSPACE_TESTS=1 cargo test -p kanhe --test whitespace_hygiene
+          TIANHENG_WORKSPACE_TESTS=1 cargo test -p kanhe --test repeated_paragraph
       - name: in-repository references resolve
         run: |
           TIANHENG_WORKSPACE_TESTS=1 cargo test -p kanhe --test reference_integrity

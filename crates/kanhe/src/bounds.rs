@@ -904,5 +904,41 @@ pub fn observation_bounds() -> Vec<BoundDecl> {
             }),
             "a_name_reached_only_through_a_url_is_a_stated_bound",
         ),
+        BoundDecl::pinned(
+            BoundId::new(
+                "repository-checks/a-paragraph-repeated-out-of-line-is-not-read-a-stated-bound",
+            ),
+            "a comment paragraph repeated somewhere other than immediately after itself -- twenty lines \
+             down, in another function, or in another file",
+            Extent::Reached(Reached::UnderReacts {
+                because: "adjacency is what a paste leaves behind, and it is also what can be judged \
+                          without deciding whether a repetition is deliberate. Two paragraphs that read the \
+                          same in different places are as often two sites documented alike as one pasted \
+                          twice, and this repository keeps both -- so widening past adjacency would buy the \
+                          rarer defect with a report the author has to argue with, which is the authoring \
+                          tax `PROJECT.md` refuses"
+                    .into(),
+                owner: Owner::Engine,
+            }),
+            "identical_code_lines_are_not_read",
+        ),
+        BoundDecl::pinned(
+            BoundId::new(
+                "repository-checks/a-paragraph-repeated-in-prose-is-not-read-a-stated-bound",
+            ),
+            "a paragraph repeated in a tracked file that is not Rust, including this repository's governance \
+             prose",
+            Extent::Reached(Reached::UnderReacts {
+                because: "the corpus is Rust comments, where an identical adjacent pair has one cause. \
+                          Markdown repeats identical adjacent lines for its own reasons -- a table's rule \
+                          row, two list items that read the same -- so the same rule there reports text its \
+                          author wrote. The prose corpora carry the weight this check exists to protect, so \
+                          the stop is the one worth revisiting first if a shape with no false positive is \
+                          found for them"
+                    .into(),
+                owner: Owner::Engine,
+            }),
+            "a_repeated_paragraph_in_a_prose_file_is_outside_the_corpus",
+        ),
     ]
 }
