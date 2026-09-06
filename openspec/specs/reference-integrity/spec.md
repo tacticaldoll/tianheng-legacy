@@ -331,6 +331,20 @@ Resolution is the criterion a person applies; the shape is what a reader can. Th
 `<owner>/<name>[/<path>]@<forty lowercase hex>`, and the forty is required: a pin shortened is not the
 practice the rule sanctions, and this rule's default is to refuse.
 
+**A third party's, and the sanction SHALL read whose.** The exception is for *somebody else's* object, so
+the reader SHALL exclude this repository's own `<owner>/<name>` — taken from the `repository` field the
+workspace manifest already declares, not from a list. Read by shape alone the sanction covered
+`<this owner>/<this name>@<sha>`, which is GitHub's canonical cross-reference for a commit of this tree and
+so is exactly what this requirement exists to refuse. An unread manifest leaves the exclusion empty, which
+is indistinguishable in a green run from the exclusion working, so it SHALL be refused rather than passed
+over.
+
+**Every segment SHALL be non-empty, and the object SHALL close the reference.** `owner//action@<sha>`
+resolves for nobody, and `owner/action@<sha>^{commit}` or `owner/action@<sha>..HEAD` name a commit *reached
+from* the pin — a citation of a moment, which is the prohibited form wearing the sanctioned one's prefix.
+What may follow the object is therefore an allowlist of sentence-closing punctuation, in which a single `.`
+counts only where a second does not follow it.
+
 **A hosting serial is the same rule and deliberately has no reaction here.** `AGENTS.md` dispositions it as
 provenance and enforces that by review, alongside its other rows, and a reader over text cannot do better:
 the bare serial shape *is* the fixture for the squash-serial check, so a reader over Rust would refuse the
@@ -404,10 +418,19 @@ being one. A floor this reader invents is a floor it misses every shorter citati
 
 - **WHEN** a live document carries a code span naming an action pinned as `owner/action@<forty lowercase
   hex>`, including under a path such as `owner/name/sub@<sha>`
-- **THEN** nothing reacts to that sha, because governance sanctions the form by name — while a bare object
-  in the same document is still reported, and a **shortened** pin is reported too, since a pin shortened is
-  not the practice the rule sanctions
+- **THEN** nothing reacts to that sha, because governance sanctions the form by name — while each of these
+  is still reported: a bare object in the same document, a **shortened** pin, `<this repository's
+  owner>/<its name>@<sha>`, a pin carrying a revision suffix such as `^{commit}` or `..HEAD`, and a pin with
+  an empty path segment
 - **PINNED-BY** `a_third_partys_action_pin_is_not_read_as_this_repositorys_object`
+
+#### Scenario: The workspace declares the repository the sanction excludes
+
+- **WHEN** the sweep reads a corpus root
+- **THEN** the `<owner>/<name>` the exclusion is taken from resolves from that root's manifest, rather than
+  evaluating to nothing — an exclusion that excludes nothing is indistinguishable in a green run from one
+  that works
+- **PINNED-BY** `the_workspace_declares_the_repository_the_sanction_excludes`
 
 #### Scenario: An abbreviation carrying no letter, or no digit, is not observed — a stated bound
 
