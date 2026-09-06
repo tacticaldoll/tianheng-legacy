@@ -940,5 +940,24 @@ pub fn observation_bounds() -> Vec<BoundDecl> {
             }),
             "a_repeated_paragraph_in_a_prose_file_is_outside_the_corpus",
         ),
+        BoundDecl::pinned(
+            BoundId::new(
+                "repository-checks/a-git-constructed-through-a-program-value-is-not-read-a-stated-bound",
+            ),
+            "a `git` constructed as `Command::new(<value>)` rather than with the program written out",
+            Extent::Reached(Reached::UnderReacts {
+                because: "whether a value names `git` is not decidable from the line that constructs it, \
+                          and `gate_exit_classes`' own header records a detector keyed on how a spawn is \
+                          written being one form short three rounds running. Measured across the tracked \
+                          Rust: two sites take a program as a value, and one of them IS the builder every \
+                          other read is routed through while the other names an `ssh-keygen` signature \
+                          verifier. A site cannot be invisible either way -- `gate_exit_classes` requires \
+                          any target spawning a process to be declared -- so what this stop leaves \
+                          unclassified is which program that spawn is, not that it happens"
+                    .into(),
+                owner: Owner::Engine,
+            }),
+            "a_construction_named_in_prose_is_not_read",
+        ),
     ]
 }

@@ -932,6 +932,56 @@ them.
 
 ### Self-governance
 
+- **A copy inherits nothing, so it holds whatever was carried across by hand — and two of three were.** The
+  enumeration owner states three properties a caller of `ls-files` must not decide for itself: `-z`, a strict
+  decode, and the hermetic builder, *because a verdict must not move with configuration outside the
+  repository being judged*. Two sites cannot reach that owner — `shengmo`'s test targets, since `kanhe`
+  depends on `shengmo` and the edge would close a cycle — and when they were converged the first two
+  properties were transcribed and **the third was not**, in both copies, unmentioned in either comment.
+  `GIT_DIR`, `GIT_WORK_TREE` and `GIT_INDEX_FILE` take precedence over discovery from `current_dir`, so a set
+  variable has those two checks enumerate a different repository and answer.
+
+  **And the sweep that gave `ls-files` one owner converged the callers past a helper rather than converging
+  the helper.** `capability_subjects`' private `git()` still ran a bare `Command::new("git")` with a lossy
+  decode, serving five reads that decide a verdict — `rev-parse --abbrev-ref @{upstream}`, `for-each-ref`,
+  `merge-base`, `rev-list --count`, and the `diff --name-only` that selects which capability subjects a
+  change touches. There is no boundary reason for that one: it is `kanhe`, and the owner is one call away.
+  `merge_workflow`'s fixture `git init` is the same shape on the other side, where `hermetic_git::fixture`
+  exists for exactly it.
+
+  Both are repaired, and the two boundary-forced copies now make every environment operation the builder
+  makes, with each comment naming the property as **three** parts rather than two.
+
+  **The class is closed rather than its instances.** `crates/kanhe/tests/hermetic_invocations.rs` holds every
+  tracked file constructing its own `git` against a declared set — the two-directional comparison
+  `gate_exit_classes` uses — and adds the column that shape was missing: whether the site *claims* the
+  builder's environment properties. A site that claims them must make every operation the builder makes, and
+  the required set is read from the builder's own text, so an operation it starts making is one a copy starts
+  owing. Nothing had said what a copy owed, which is why nothing noticed two of three. Negative runs:
+
+  ```
+  a site declared to hold the builder's environment properties does not hold all of them:
+    crates/shengmo/tests/family_coverage.rs: does not handle GIT_DIR
+    crates/shengmo/tests/family_coverage.rs: does not handle GIT_WORK_TREE
+    crates/shengmo/tests/family_coverage.rs: does not handle GIT_INDEX_FILE
+
+  the files constructing a `git` differ from the set named here. 294 tracked Rust file(s) were read
+    left:  {…hermetic_git.rs, …examples_suite.rs, …family_coverage.rs}
+   right:  {…hermetic_git.rs, …census.rs, …examples_suite.rs, …family_coverage.rs}
+  ```
+
+  **The first spelling of that guard counted its own explanation.** Written against the whole file text, it
+  passed with the three `env_remove` calls deleted, because the paragraph saying why they are there names
+  every variable it removes. It reads code lines only now — the class `repeated_paragraph` met from the other
+  side, in the round after that one closed it.
+
+  The stop is declared: a `git` constructed as `Command::new(<value>)` is not read, because whether a value
+  names `git` is not decidable from the line that constructs it. Measured, the two such sites in this tree
+  are the builder itself and an `ssh-keygen` signature verifier — and `gate_exit_classes` already requires
+  any target that spawns a process to be declared, so what this stop leaves unclassified is *which program*
+  a spawn is, not that it happens.
+
+
 - **Nineteen readers answered *which paths does git track*, and each decided three things for itself.**
   Every one is correct on a tree whose paths are all ASCII, which is what a latent class looks like from
   inside a green run — and the property was independently discovered and written down **three separate

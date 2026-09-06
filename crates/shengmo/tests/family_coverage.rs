@@ -54,16 +54,47 @@ fn workspace_root() -> Option<PathBuf> {
     )
 }
 
+/// A `git` that answers about **this** repository, and about no configuration outside it.
+///
+/// The third of the three properties `kanhe::hermetic_git::tracked_records` owns, transcribed here with the
+/// other two because `shengmo` cannot reach that owner: `kanhe` depends on `shengmo`, so the edge would
+/// close a cycle. The first two — `-z`, and a strict decode — were transcribed when this enumeration was
+/// converged and **this one was not**, which is what a boundary-forced copy fails at: it inherits nothing,
+/// so it holds whatever was carried across by hand.
+///
+/// `GIT_DIR`, `GIT_WORK_TREE` and `GIT_INDEX_FILE` take precedence over discovery from `current_dir`, so a
+/// set variable moves which repository is enumerated and the corpus below is a different tree's. The
+/// `GIT_CONFIG_*` set closes the configuration channels in the same order the owner does; `GIT_CONFIG_COUNT`
+/// is pinned to `1` with index `0` taken, so an ambient key at any index is unreachable.
+fn hermetic_git() -> Command {
+    let mut command = Command::new("git");
+    command
+        .env("GIT_CONFIG_GLOBAL", "/dev/null")
+        .env("GIT_CONFIG_SYSTEM", "/dev/null")
+        .env("GIT_CONFIG_NOSYSTEM", "1")
+        .env("GIT_CONFIG_COUNT", "1")
+        .env("GIT_CONFIG_KEY_0", "core.excludesFile")
+        .env("GIT_CONFIG_VALUE_0", "/dev/null")
+        .env_remove("GIT_DIR")
+        .env_remove("GIT_WORK_TREE")
+        .env_remove("GIT_INDEX_FILE")
+        .env_remove("GIT_CONFIG_PARAMETERS")
+        .env_remove("GIT_CONFIG");
+    command
+}
+
 /// Every tracked path, so the corpora below come from the repository rather than from a walk of the worktree.
 fn tracked(root: &Path) -> Vec<String> {
     // **`-z`, and no lossy decode — spelled here rather than shared.** `kanhe::hermetic_git::tracked_paths`
     // owns this question, and `shengmo` cannot reach `kanhe`: `kanhe` depends on `shengmo`, so the edge
     // would close a cycle. That is a fact about the dependency graph rather than a site anyone declined to
     // converge, which is the disposition `one_spelling`'s own header gives the same shape for `MARKER`.
-    // What must not differ is the property: git quotes a path it cannot write plainly, so a line-oriented
-    // read answers `"\344\270\255.md"` — a spelling that names no file — and a lossy decode answers a name
-    // the repository does not hold.
-    let out = Command::new("git")
+    // What must not differ is the property, and it has **three** parts, not the two carried across first:
+    // git quotes a path it cannot write plainly, so a line-oriented read answers `"\344\270\255.md"` — a
+    // spelling that names no file; a lossy decode answers a name the repository does not hold; and a bare
+    // `git` inherits `GIT_DIR` and its siblings, so it enumerates whichever repository the environment
+    // names. `hermetic_git` above is that third part.
+    let out = hermetic_git()
         .args(["ls-files", "-z"])
         .current_dir(root)
         .output()

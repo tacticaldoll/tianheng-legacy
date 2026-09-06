@@ -55,7 +55,7 @@ const WRAPPERS: [&str; 2] = ["scripts/merge-pr.sh", "scripts/publish.sh"];
 ///
 /// The purpose beside each path is prose with no producer: a reader's aid for whoever adds the next one,
 /// not a fact this direction holds. What it holds is membership.
-const TARGETS_SPAWNING_A_PROCESS: [(&str, &str); 27] = [
+const TARGETS_SPAWNING_A_PROCESS: [(&str, &str); 28] = [
     (
         "crates/kanhe/tests/bound_register.rs",
         "git: enumerates, and builds a scratch repository's tree",
@@ -74,6 +74,10 @@ const TARGETS_SPAWNING_A_PROCESS: [(&str, &str); 27] = [
         "crates/kanhe/tests/gate_exit_classes.rs",
         "git: two enumerations — the test targets this direction reads, and the tracked scripts the \
          wrapper direction beside it reads",
+    ),
+    (
+        "crates/kanhe/tests/hermetic_invocations.rs",
+        "git: enumerates the tracked Rust it reads, through the builder it holds every other site to",
     ),
     (
         "crates/kanhe/tests/gate_identity.rs",
