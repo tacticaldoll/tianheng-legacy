@@ -132,6 +132,34 @@ them.
   Found by re-reading this window's own repairs rather than by running anything, which is where a claim about
   code sits when the code is right.
 
+- **The lexical-scanner question is decided, and the option chosen was not one of the three recorded.**
+  The entry's *what would decide it* rested on a premise: that separating lexing from interpretation is
+  *how* enumeration becomes possible. It is not. The enumeration was built over the readers **as they
+  stand** — what makes a differential possible is exactly the property the boundary option defends, that
+  the three implementations are independent and can be asked the same question separately. A shared
+  substrate is the one thing that would have made it harder.
+
+  **Two parties are not enough, which is what the instrument adds over a reading.** A differential over the
+  three dimensions alone answers *do they agree*, and agreement is not correctness: the raw bare-`cfg`
+  spelling was missed by all three at once, and a reader comparing only the three would have called that
+  clean. So rustc is the third party. `attribute_spelling_differential` generates the corpus over wrapper ×
+  predicate × meta axes plus the look-alikes, compiles every shape, refuses one rustc will not take as the
+  **generator's** defect rather than a dimension's, resolves an item defined only in the remap target
+  wherever the predicate is live, and holds all three dimensions to the declared answer.
+
+  Forty-three spellings on the first run: every one legal Rust, every one answered identically. **The null
+  result was checked for bite before it was believed** — reverting 圭表's qualification narrowing reports
+  two rows, 漏刻's reports two, 渾儀's raw-identifier comparison reports eighteen, and a deliberately
+  malformed shape is reported against the generator. It is env-gated behind
+  `TIANHENG_SPELLING_DIFFERENTIAL` and named on its own line in the Definition of Done and in CI, the trade
+  `pin_bites` already makes for a direction that compiles things.
+
+  What it does not buy is stated with it: the corpus is the generator's axes, not every lexical form Rust
+  admits. That is strictly better than what someone thought to *read*, it can be grown cheaply, and its
+  coverage is inspectable in one file — so **growing an axis is now the repair a new spelling earns**,
+  rather than a patch to two scanners and a hope about the third. The backlog entry moves from `WATCH` to
+  `ACCEPTED DEBT` on that bound.
+
 - **A requirement narrower than the reaction it governs, in the capability that owns the reader.**
   `runtime-origin-assertion` states the single-segment rule for the `cfg_attr` **wrapper** — a qualified
   look-alike carries no module target — and said nothing about the applied `path` meta itself. The repair

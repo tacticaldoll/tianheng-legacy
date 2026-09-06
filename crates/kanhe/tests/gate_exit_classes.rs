@@ -55,7 +55,7 @@ const WRAPPERS: [&str; 2] = ["scripts/merge-pr.sh", "scripts/publish.sh"];
 ///
 /// The purpose beside each path is prose with no producer: a reader's aid for whoever adds the next one,
 /// not a fact this direction holds. What it holds is membership.
-const TARGETS_SPAWNING_A_PROCESS: [(&str, &str); 25] = [
+const TARGETS_SPAWNING_A_PROCESS: [(&str, &str); 26] = [
     (
         "crates/kanhe/tests/bound_register.rs",
         "git: enumerates, and builds a scratch repository's tree",
@@ -144,6 +144,10 @@ const TARGETS_SPAWNING_A_PROCESS: [(&str, &str); 25] = [
     (
         "crates/shengmo/tests/self_governance.rs",
         "cargo, as a program-as-value, to read this workspace's metadata",
+    ),
+    (
+        "crates/tianheng/tests/attribute_spelling_differential.rs",
+        "rustc, as the third party a differential over three readers cannot be: it decides whether a          generated spelling is legal Rust at all, and which file a live predicate makes the build contain",
     ),
     (
         "crates/tianheng/tests/baseline_cli.rs",

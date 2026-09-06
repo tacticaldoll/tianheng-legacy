@@ -935,6 +935,8 @@ TIANHENG_PIN_BITES=1 TIANHENG_WORKSPACE_TESTS=1 cargo test -p kanhe --test pin_b
                                            # worktree and builds it, so the ordinary suite must not pay
                                            # for it — and leaving it to run only when someone remembers
                                            # would be the worse half of that trade
+TIANHENG_SPELLING_DIFFERENTIAL=1 cargo test -p tianheng --test attribute_spelling_differential   # the same trade, for
+                                           # the same reason: it compiles one crate per generated spelling
 ```
 
 The self-governance dogfood gate (`crates/shengmo/tests/self_governance.rs`, which runs the product reaction under `cargo test`) and its projection
