@@ -566,10 +566,6 @@ fn a_tag_with_no_signature_block_is_named_as_such() {
         "publish-source-integrity#release-tag-carries-no-signature",
         &refusal,
     );
-    refusal::expect(
-        "publish-source-integrity#release-tag-carries-no-signature",
-        &refusal,
-    );
     assert_eq!(refusal.kind, Kind::Violation, "{}", refusal.message);
     assert!(
         refusal.message.contains("carries no signature"),

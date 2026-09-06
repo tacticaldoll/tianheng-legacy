@@ -932,6 +932,18 @@ them.
 
 ### Self-governance
 
+- **A direction made the same assertion twice, and one of them was the whole direction's second half.**
+  `a_tag_with_no_signature_block_is_named_as_such` called `refusal::expect` on the same identifier and the
+  same refusal twice in a row, byte-identical. It shipped in `0.5.0`. Nothing was wrong with the direction's
+  verdict — the second call asks exactly what the first asked — but a reader counting what a direction holds
+  counts two facts where there is one, which is the same currency as a paragraph written twice.
+
+  Found by the measurement taken while bounding the repeated-paragraph reader above: a rule over identical
+  adjacent **lines** rather than identical adjacent **comment** lines reports three sites, two of them
+  deliberate and this one not. Reported here rather than reacted to, because the reaction that would hold it
+  is the one that measurement ruled out.
+
+
 - **Two readers of one position each held their own copy of how to find it.** In 圭表's declaration scanner,
   `attr_prefix_path_kind` looks for `path` at an attribute's name position and `attr_prefix_has_bare_cfg`
   looks for `cfg` at the same one. Written out per site, the walk to that position stood twice —
