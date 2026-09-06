@@ -275,6 +275,14 @@ fn every_example_passes_its_isolated_quality_gates() {
         return;
     };
     if std::env::var_os("TIANHENG_EXAMPLES").is_none() {
+        // Said out loud, like its sibling above. A direction that returns green without running is
+        // indistinguishable from one that ran, and the reader who most needs to know is the one who set no
+        // variable and read `ok` — a local run, where the skip is the intended cost.
+        eprintln!(
+            "examples (isolated quality gates): skipped — set TIANHENG_EXAMPLES=1 to run it. It is named \
+             on its own line in the Definition of Done and in CI, so skipping here is a cost decision \
+             rather than a hole."
+        );
         return;
     }
     for example in &EXAMPLES {
