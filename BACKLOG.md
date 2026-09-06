@@ -737,6 +737,38 @@ consumer for an undemonstrated deduplication.
 
 ### WATCH / ACCEPTED / DECLINED / BUILT
 
+- **渾儀 answers an unparseable `cfg_attr` two ways, and no source rustc accepts reaches the silent one.**
+  *Class:* WATCH. *Observed pressure:* two readers of one question in one crate.
+  `syn_util::cfg_attr_path_values` and its nested arm answer a failed `parse_args_with(cfg_attr_metas)` with
+  `.ok()` — the whole attribute's `path` candidates dropped, the remap invisible — while
+  `scan::items::extract_derives` answers the identical failure on the identical attribute with a scan
+  error, its own doc saying *a `derive` whose arguments fail to parse is a scan error (exit 2) — "cannot
+  judge" is never a silent skip*. The Core Contract states the policy the second follows: where an
+  observation genuinely cannot decide, the reaction is exit 2 rather than a pass. *Observation source:* the
+  two call sites, and that both use the same parser — `Punctuated<syn::Meta, Comma>::parse_terminated`,
+  spelled `cfg_attr_metas` in one and `meta_list_parser` in the other — so the difference is the answer to
+  the failure and nothing else. *Current reaction or bound:* none; the silent arm is reachable only from a
+  `cfg_attr` whose applied metas syn rejects. *Risk:* if such a shape exists, a module's remap is silently
+  invisible to 渾儀 alone while both byte scanners read it — a false negative of the class the Core
+  Contract forbids, and a cross-dimension divergence. Bounded by the reach measurement below.
+  *What was measured, and what it refutes:* the attempt to reach the silent arm through source rustc accepts
+  used `#[cfg_attr(unix, path = "imp_unix.rs", unsafe(no_mangle))] pub mod imp;` — ordinary source since the
+  2024 edition requires `unsafe(no_mangle)` in place of the bare spelling. rustc 1.96.0, edition 2021,
+  `--crate-type lib` compiles it and applies the remap; syn parses `unsafe(no_mangle)` as a `Meta`; 渾儀
+  answers `1` alongside the other two. The fixture is kept as
+  `a_remap_sharing_its_cfg_attr_with_another_applied_attribute_is_still_read`, which is the direction the
+  trigger below would reuse. *Promotion trigger:* a `cfg_attr` whose applied metas rustc accepts and
+  `Punctuated<syn::Meta, Comma>::parse_terminated` rejects — stated as the property rather than as a
+  spelling, because the parser's own coverage is what moves. A syn upgrade narrowing that parser fires it
+  too. *Why not simply repaired:* replacing `.ok()` with a refusal is one line, and it would be a reaction
+  built on an argument. *A violation is a rule, and a rule needs a reachable instance* — this one has a
+  measurement that failed to find one, which is the entry rather than the fix. *Version class:* closing it
+  would be a minor, by the false-negative rule. *Authority:* `PROJECT.md`'s Core Contract, and the doc
+  comment on `extract_derives` that already states the policy.
+
+  **Not fired, and the sweep that would decide it is the reach measurement above rather than a corpus
+  read.** Recorded 2026-09-06 with the attempt that refuted the obvious candidate.
+
 - **The OpenSpec capability lifecycle is retained and has never been exercised.** *Class:* WATCH. *Observed
   pressure:* the steward's decision on 2026-08-31 to keep it — a new capability must go through OpenSpec —
   taken together with the measurement that produced the question: zero `docs(openspec): propose`/`sync`

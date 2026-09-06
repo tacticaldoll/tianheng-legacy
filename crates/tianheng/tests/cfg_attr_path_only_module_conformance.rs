@@ -551,3 +551,48 @@ fn all_three_dimensions_tolerate_an_absent_file_behind_a_raw_identifier_cfg() {
         "漏刻: `#[r#cfg]` removes the item, so its absent backing file is not a constitution error"
     );
 }
+
+/// A remap sharing its `cfg_attr` with another applied attribute is still read, in all three.
+///
+/// **This pins the contract, not a change**, and says so because nothing here moved to make it pass. It
+/// covers a shape none of the other directions do: a `path` remap standing beside a *sibling* applied
+/// attribute inside one `cfg_attr`, rather than alone or nested. Since the 2024 edition requires
+/// `unsafe(no_mangle)` in place of the bare spelling, a per-platform `cfg_attr` carrying one beside a
+/// `path` is ordinary source.
+///
+/// **Measured against rustc 1.96.0, edition 2021, `--crate-type lib`**:
+/// `#[cfg_attr(unix, path = "x.rs", unsafe(no_mangle))] pub mod m;` compiles and the remap applies — a
+/// function defined only in `x.rs` resolves.
+///
+/// It was written to demonstrate a different claim and refuted it, which is why it is kept. 渾儀 answers a
+/// `cfg_attr` whose applied metas do not parse with `.ok()` — the whole attribute's candidates dropped —
+/// while the same crate's `extract_derives` answers the identical failure with a scan error, its doc saying
+/// *"cannot judge" is never a silent skip*. One question, two answers. This fixture was the attempt to
+/// reach the silent arm through source rustc accepts, and it does not: both readers use
+/// `Punctuated<Meta, Comma>::parse_terminated`, and syn parses `unsafe(no_mangle)` as a `Meta`. The
+/// asymmetry is filed in `BACKLOG.md` with that measurement rather than repaired on an argument.
+#[test]
+fn a_remap_sharing_its_cfg_attr_with_another_applied_attribute_is_still_read() {
+    let package = "cfg-attr-sibling-applied-meta";
+    let lib = format!(
+        "{FORBIDDEN_MOD}{TOP_LEVEL_PROBED}\
+         #[cfg_attr(unix, path = \"imp_unix.rs\", unsafe(no_mangle))]\npub mod imp;\n"
+    );
+    let fixture = fixture(package, &lib, &[("imp_unix.rs", IMP_VIOLATIONS)]);
+
+    assert_eq!(
+        guibiao_exit(package, fixture.manifest(), "crate::imp", REASON),
+        1,
+        "圭表: a sibling applied attribute does not hide the remap"
+    );
+    assert_eq!(
+        hunyi_exit(package, fixture.manifest(), "crate::imp", REASON),
+        1,
+        "渾儀: a sibling applied attribute does not hide the remap"
+    );
+    assert_eq!(
+        louke_exit(fixture.lib(), SEAM, REASON),
+        1,
+        "漏刻: a sibling applied attribute does not hide the remap"
+    );
+}
