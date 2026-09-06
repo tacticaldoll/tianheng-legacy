@@ -2038,6 +2038,15 @@ rather than written out here, so an operation the builder starts making is one a
   `ssh-keygen` signature verifier. A site cannot be invisible either way — any target spawning a process is
   already declared — so what this stop leaves unclassified is *which program* that spawn is, not that it
   happens
+- **PINNED-BY** `a_construction_through_a_program_value_is_not_read`
+
+#### Scenario: A `git` named in prose is not read — a stated bound
+
+- **WHEN** a `git` construction is written inside a comment rather than executed
+- **THEN** nothing reads it. This repository's own documentation names the shape it forbids in order to
+  explain it, and a reader counting those sentences would refuse the rule's own statement of itself. What
+  the stop costs is that a construction commented out rather than deleted is also unread, and
+  `unreachable_branch` is where commented-out code is the subject
 - **PINNED-BY** `a_construction_named_in_prose_is_not_read`
 
 ### Requirement: A comment paragraph SHALL NOT be written twice in a row
