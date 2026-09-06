@@ -20,7 +20,12 @@ use std::path::Path;
 use std::process::Command;
 
 /// The tracked inventory, relative to the workspace root.
-pub const INVENTORY: &str = "crates/kanhe/tests/fixtures/hermetic_channels.tsv";
+///
+/// **Beside its owner.** Held under `crates/kanhe/tests/fixtures/`, this module reached into a crate that
+/// depends on it for the evidence it is the owner of — so the owner was not one: `kanhe` could move or
+/// delete the file this module is built around, and a consumer that cannot reach `kanhe` at all was reading
+/// a path inside it.
+pub const INVENTORY: &str = "crates/shengmo/tests/fixtures/hermetic_channels.tsv";
 
 /// One channel to attack: how it is injected, the observation it moves, and what an isolated command reads.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -39,7 +44,10 @@ pub struct Case {
 #[derive(Debug, Clone)]
 pub struct Inventory {
     cases: Vec<Case>,
-    baseline: Vec<String>,
+    /// **A set, because the contract says one.** Held as a `Vec`, a name repeated in the inventory was
+    /// accepted and kept — a state *two sets, not one* calls impossible, spellable anyway. The type is what
+    /// refuses it now, and ingestion says so rather than deduplicating in silence.
+    baseline: BTreeSet<String>,
 }
 
 impl Inventory {
@@ -59,7 +67,7 @@ pub fn read(root: &Path) -> Inventory {
     let text = std::fs::read_to_string(root.join(INVENTORY))
         .unwrap_or_else(|err| panic!("the channel inventory is readable: {err}"));
     let mut cases = Vec::new();
-    let mut baseline = Vec::new();
+    let mut baseline = BTreeSet::new();
     for line in text.lines() {
         if line.trim_start().starts_with('#') || line.trim().is_empty() {
             continue;
@@ -91,7 +99,12 @@ pub fn read(root: &Path) -> Inventory {
                     2,
                     "a baseline row carries the kind and one variable: {line:?}"
                 );
-                baseline.push(fields[1].to_string());
+                assert!(
+                    baseline.insert(fields[1].to_string()),
+                    "the inventory clears {} twice; a baseline is a set, and a repeated row is a row \
+                     nobody can act on differently",
+                    fields[1]
+                );
             }
             other => panic!("the inventory carries a row of an unknown kind: {other:?}"),
         }
@@ -106,10 +119,9 @@ pub fn read(root: &Path) -> Inventory {
             case.channel
         );
     }
-    let cleared: BTreeSet<&str> = baseline.iter().map(String::as_str).collect();
     for case in &cases {
         assert!(
-            cleared.contains(case.channel.as_str()),
+            baseline.contains(case.channel.as_str()),
             "the inventory attacks {} and does not clear it first, so what a case demonstrates could be \
              an inherited channel rather than the injected one",
             case.channel
