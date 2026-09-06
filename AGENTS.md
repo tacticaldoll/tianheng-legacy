@@ -934,6 +934,7 @@ npm ci --ignore-scripts                    # the pinned validator, reproduced fr
 npx --no-install openspec validate --specs --strict
 TIANHENG_WORKSPACE_TESTS=1 cargo test -p kanhe --test whitespace_hygiene
 TIANHENG_WORKSPACE_TESTS=1 cargo test -p kanhe --test repeated_paragraph
+TIANHENG_WORKSPACE_TESTS=1 cargo test -p kanhe --test hermetic_invocations
 TIANHENG_WORKSPACE_TESTS=1 cargo test -p kanhe --test reference_integrity
 TIANHENG_EXAMPLES=1 TIANHENG_WORKSPACE_TESTS=1 cargo test -p shengmo --test examples_suite
 TIANHENG_PIN_BITES=1 TIANHENG_WORKSPACE_TESTS=1 cargo test -p kanhe --test pin_bites   # a line of its own because it is env-gated: it checks out a

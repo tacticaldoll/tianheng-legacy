@@ -3,7 +3,7 @@
 Every **observation bound** this family declares: a claim that a reaction deliberately stops at a
 named shape, so that shape is governed policy rather than a defect.
 
-**27 of 100 declared bounds have no pinning test.** That figure is the register's
+**27 of 101 declared bounds have no pinning test.** That figure is the register's
 audit backlog and leads the document because a number in a footnote is not read. Each such bound names
 the tracker that owns closing it.
 
@@ -442,6 +442,12 @@ fallback used where no manifest exists, which the register spec describes.
 > the check counts it as named, a stated bound: deciding that a mention is load-bearing is a judgement over text, the instrument this repository has designed, measured and rejected, and what makes a mention bite is the compiler rather than this check. A comment-only mention still fails the reviewer reading the diff, which is the layer that owns it
 
 - **pinned by**: `a_member_named_only_in_a_comment_is_counted_as_named`
+
+### `repository-checks/a-git-constructed-through-a-program-value-is-not-read-a-stated-bound`
+
+> nothing reads it. Whether a value names `git` is not decidable from the line that constructs it, and a detector keyed on how a spawn is written is the shape `gate_exit_classes`' own header records being one form short three rounds running. Measured across the tracked Rust: two sites take a program as a value, and one of them **is** the builder every other read is routed through while the other names an `ssh-keygen` signature verifier. A site cannot be invisible either way — any target spawning a process is already declared — so what this stop leaves unclassified is *which program* that spawn is, not that it happens
+
+- **pinned by**: `a_construction_named_in_prose_is_not_read`
 
 ### `repository-checks/a-paragraph-repeated-out-of-line-is-not-read-a-stated-bound`
 

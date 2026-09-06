@@ -11,7 +11,6 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 use kanhe::capability_subjects::{
     Declared, Named, declaration_offences, join_offences, proposal_capabilities, subject_globs,
@@ -26,16 +25,22 @@ fn workspace_root() -> Option<PathBuf> {
     )
 }
 
+/// One git read for this check, through the runner that owns what a read behind a verdict may inherit.
+///
+/// **The sweep that gave `ls-files` one owner routed this file's callers past this helper and left the
+/// helper.** Converging the callers is not converging the question: five reads still came through here —
+/// `rev-parse --abbrev-ref @{upstream}`, `for-each-ref`, `merge-base`, `rev-list --count`, and the
+/// `diff --name-only` that selects which capability subjects a change touches — each on a bare
+/// `Command::new("git")` and each decoded lossily.
+///
+/// `GIT_DIR`, `GIT_WORK_TREE` and `GIT_INDEX_FILE` take precedence over discovery from `current_dir`, which
+/// is why [`kanhe::hermetic_git::hermetic`] clears them: set in the environment, these five reads describe
+/// another repository and answer, and this check reports a subject set for a tree nobody asked about.
 fn git(root: &Path, args: &[&str]) -> Result<String, String> {
-    let out = Command::new("git")
-        .args(args)
-        .current_dir(root)
-        .output()
-        .map_err(|err| format!("cannot run git {args:?}: {err}"))?;
-    if !out.status.success() {
-        return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
-    }
-    Ok(String::from_utf8_lossy(&out.stdout).to_string())
+    kanhe::hermetic_git::run(root, &[], args).map_err(|failure| match failure {
+        kanhe::hermetic_git::Failure::Exit { stderr, .. } => stderr.trim().to_string(),
+        other => format!("cannot run git {args:?}: {other:?}"),
+    })
 }
 
 fn lines(text: &str) -> Vec<String> {

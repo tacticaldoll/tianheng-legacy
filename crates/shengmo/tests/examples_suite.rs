@@ -138,6 +138,35 @@ const GATES: [Gate; 3] = [
     },
 ];
 
+/// A `git` that answers about **this** repository, and about no configuration outside it.
+///
+/// The third of the three properties `kanhe::hermetic_git::tracked_records` owns, transcribed here with the
+/// other two because `shengmo` cannot reach that owner: `kanhe` depends on `shengmo`, so the edge would
+/// close a cycle. The first two — `-z`, and a strict decode — were transcribed when this enumeration was
+/// converged and **this one was not**, which is what a boundary-forced copy fails at: it inherits nothing,
+/// so it holds whatever was carried across by hand.
+///
+/// `GIT_DIR`, `GIT_WORK_TREE` and `GIT_INDEX_FILE` take precedence over discovery from `current_dir`, so a
+/// set variable moves which repository is enumerated and the corpus below is a different tree's. The
+/// `GIT_CONFIG_*` set closes the configuration channels in the same order the owner does; `GIT_CONFIG_COUNT`
+/// is pinned to `1` with index `0` taken, so an ambient key at any index is unreachable.
+fn hermetic_git() -> Command {
+    let mut command = Command::new("git");
+    command
+        .env("GIT_CONFIG_GLOBAL", "/dev/null")
+        .env("GIT_CONFIG_SYSTEM", "/dev/null")
+        .env("GIT_CONFIG_NOSYSTEM", "1")
+        .env("GIT_CONFIG_COUNT", "1")
+        .env("GIT_CONFIG_KEY_0", "core.excludesFile")
+        .env("GIT_CONFIG_VALUE_0", "/dev/null")
+        .env_remove("GIT_DIR")
+        .env_remove("GIT_WORK_TREE")
+        .env_remove("GIT_INDEX_FILE")
+        .env_remove("GIT_CONFIG_PARAMETERS")
+        .env_remove("GIT_CONFIG");
+    command
+}
+
 fn workspace_root() -> Option<PathBuf> {
     shengmo::workspace::locate(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."),
@@ -334,11 +363,13 @@ fn every_tracked_example_is_declared_and_every_declaration_exists() {
     let Some(root) = workspace_root() else {
         return;
     };
-    // `-z` and no lossy decode, spelled here for the reason `family_coverage`'s enumeration states: the
-    // owner is `kanhe::hermetic_git::tracked_paths` and `shengmo` cannot reach `kanhe` without closing a
-    // dependency cycle. The property is what must not differ — git quotes a path it cannot write plainly,
-    // and a replaced byte names a path the repository does not hold.
-    let out = Command::new("git")
+    // `-z`, a strict decode, and a `git` that answers about this repository only — the three properties
+    // `kanhe::hermetic_git::tracked_records` owns, spelled here because `shengmo` cannot reach `kanhe`
+    // without closing a dependency cycle. The third was missing when the first two were transcribed, which
+    // is the failure mode of a copy that inherits nothing: git quotes a path it cannot write plainly, a
+    // replaced byte names a path the repository does not hold, and a bare `git` enumerates whichever
+    // repository `GIT_DIR` names.
+    let out = hermetic_git()
         .args(["ls-files", "-z", "examples"])
         .current_dir(&root)
         .output()

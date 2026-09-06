@@ -1997,6 +1997,49 @@ spelling would refuse those. The rule is carried by review, like the rows `AGENT
 - **THEN** the owner refuses, rather than decoding lossily into a name the repository does not hold
 - **PINNED-BY** `both_accessors_report_an_undecodable_answer_in_the_same_words`
 
+### Requirement: A `git` this repository constructs SHALL be the builder's, or SHALL be declared
+
+A tracked file constructing its own `git` SHALL be named in a declared set with why, and SHALL say whether
+it holds the builder's environment properties by hand; a site declaring that it does SHALL make every
+environment operation the builder makes.
+
+`kanhe::hermetic_git::hermetic` decides what a `git` behind a verdict may inherit — the configuration files,
+the `GIT_CONFIG_*` channels, and `GIT_DIR` / `GIT_WORK_TREE` / `GIT_INDEX_FILE`, which move **which
+repository** the command acts on and so reach past `current_dir` entirely.
+
+**The class is not a bare invocation; it is a copy that inherits nothing.** The enumeration owner states
+three properties a caller must not decide for itself. Two sites cannot reach it — `shengmo`'s test targets,
+because `kanhe` depends on `shengmo` and the edge would close a cycle — so they hold those properties by
+transcription, and transcription is partial by nature: the first pass carried `-z` and the strict decode
+across and left the isolation behind, **in both copies**, unmentioned in either comment. Nothing said what a
+copy owed, so nothing noticed two of three. The required set SHALL be read from the builder's own text
+rather than written out here, so an operation the builder starts making is one a copy starts owing.
+
+#### Scenario: A file constructs a `git` without the builder
+
+- **WHEN** a tracked Rust file constructs `Command::new("git")`
+- **THEN** it is named in the declared set with why, and the comparison is two-directional — a site that
+  gains one must be named, and a name that outlives its site must go
+- **PINNED-BY** `every_git_this_repository_constructs_is_the_builders_or_is_declared`
+
+#### Scenario: A declared copy holds fewer properties than it claims
+
+- **WHEN** a site declares that it holds the builder's environment properties by hand
+- **THEN** every environment operation the builder makes is required of it, and a missing one is named
+- **PINNED-BY** `a_site_that_cannot_reach_the_builder_holds_what_the_builder_holds`
+
+#### Scenario: A `git` constructed through a program value is not read — a stated bound
+
+- **WHEN** a `git` is constructed as `Command::new(<value>)` rather than with the program written out
+- **THEN** nothing reads it. Whether a value names `git` is not decidable from the line that constructs it,
+  and a detector keyed on how a spawn is written is the shape `gate_exit_classes`' own header records being
+  one form short three rounds running. Measured across the tracked Rust: two sites take a program as a
+  value, and one of them **is** the builder every other read is routed through while the other names an
+  `ssh-keygen` signature verifier. A site cannot be invisible either way — any target spawning a process is
+  already declared — so what this stop leaves unclassified is *which program* that spawn is, not that it
+  happens
+- **PINNED-BY** `a_construction_named_in_prose_is_not_read`
+
 ### Requirement: A comment paragraph SHALL NOT be written twice in a row
 
 No tracked Rust file SHALL carry a comment paragraph immediately followed by a copy of itself. The

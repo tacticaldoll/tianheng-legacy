@@ -404,15 +404,9 @@ fn a_pull_request_from_another_worktree_is_refused_before_any_evidence_is_read()
     ));
     let _ = std::fs::remove_dir_all(&elsewhere);
     xingbiao::claim_scratch(&elsewhere).expect("create an unrelated worktree");
-    let init = Command::new("git")
-        .args(["init", "-q", "-b", "main"])
-        .current_dir(&elsewhere)
-        .output()
-        .expect("run git init");
-    assert!(
-        init.status.success(),
-        "the unrelated worktree is a git repository"
-    );
+    // Through the builder, like every other fixture here: `hermetic_git::fixture` exists for exactly this,
+    // and a fixture built under an ambient `GIT_DIR` is not the worktree this direction believes it made.
+    kanhe::hermetic_git::fixture(&elsewhere, "git", &["init", "-q", "-b", "main"]);
 
     let run = run_wrapper_in(&root, "subjects", &[], Some(&elsewhere));
     let _ = std::fs::remove_dir_all(&elsewhere);
