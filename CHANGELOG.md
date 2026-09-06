@@ -932,6 +932,44 @@ them.
 
 ### Self-governance
 
+- **Reading tokens was not the repair; reading *syntax* is.** The round before replaced a substring over a
+  trimmed line with a token walk, and the readers stayed **positional** — `trees[index - 3]` for the owner
+  segment, a literal compared by `to_string`, a value read at `inner.get(2)` or dropped. Three findings came
+  straight back, all in that arithmetic:
+
+  - **A literal was compared by its rendering.** `r"git"` and `"\x67it"` both decode to `git` and both
+    rendered unequal to `"git"`, so a construction written either way was not read. A parser decodes.
+  - **An operation was modelled as a variable name.** The set could not tell `.env_remove("GIT_DIR")` from
+    `.env("GIT_DIR", "/tmp/other")` — a copy that *points* the selector somewhere satisfying a requirement
+    that it *clear* it — nor `GIT_CONFIG_COUNT` pinned to `"1"` from the same variable set to `"0"`, which
+    reopens the ambient-key channel the builder's own header spends a paragraph closing. Both are the
+    review's own falsifiers, and both now fail:
+
+    ```
+    crates/shengmo/tests/family_coverage.rs: makes no `.env_remove("GIT_DIR")` call
+    crates/shengmo/tests/family_coverage.rs: makes no `.env("GIT_CONFIG_COUNT", "1")` call
+    ```
+  - **A file it could not parse was reported clean.** The tokeniser's failure arm fell back to an exact
+    substring, which answers *no construction* for one split across lines — silently, which is the one
+    direction the Core Contract forbids. The reading is three-state now and the corpus direction names the
+    path it could not decide.
+
+  **`refusal_register`'s own header records this repository learning this once already**: a reader that is
+  *text over Rust* is not exhaustive over the language, and reading its own Rust with a real parser is what
+  closed that floor. This check re-derived the same mistake in two stages. It asks `syn` now — a call's
+  callee, its argument count and each argument's decoded value are what a parse gives, and none of them is
+  an offset from something else. The `item_body` token scanner is gone with it: an item is named by the
+  parser, so there is no terminator to pick.
+
+  **Measured, for the sibling question this raises.** Twenty-five checks read this repository's own Rust;
+  four ask a parser. Most of the rest judge Markdown or TOML rather than Rust syntax, but one is the same
+  shape: `gate_exit_classes`' spawn detector reads lines and excludes only a preceding quote, so a
+  `Command::new(` inside a comment would count as a spawn — and its own header already records being *one
+  form short, three rounds running*. Measured across every test target: **zero** files reach it by prose
+  alone today, so it is latent rather than live, and it is left as a separate subject rather than folded in
+  here.
+
+
 - **Three rounds of findings in one file were one cause: it read Rust as lines where the question is about
   code.** Each round repaired an instance and left the cause — a substring over a trimmed line, a span
   sliced to a searched-for terminator, a variable name looked for anywhere in non-comment text. This round
