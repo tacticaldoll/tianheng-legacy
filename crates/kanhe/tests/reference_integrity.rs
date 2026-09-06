@@ -2010,8 +2010,15 @@ fn unanchored_citation_offences_in(corpus_root: &Path, corpus: &[String]) -> BTr
             // rather than from the shape a sentence has. A run bounded by alphanumerics is not a citation —
             // it is the tail of a word — so the bound is non-alphanumeric on both sides, and the predicate
             // below is unchanged and is still what keeps the noise out.
+            // **A third party's object is not this rule**, and `AGENTS.md` says so: an action pinned as
+            // `owner/action@<sha>` is correct supply-chain practice. The containing syntax is classified
+            // before the run inside it, because the criterion that governance states — *that sha does not
+            // resolve here* — is one a person applies and a reaction cannot: a development commit of this
+            // tree does not resolve in a fresh clone either, so a reader keyed on resolution would report
+            // clean in CI over exactly what it exists to find.
+            let sanctioned = action_pin_objects(&span);
             for token in hex_runs(&span) {
-                if !is_abbreviated_object(&token) {
+                if !is_abbreviated_object(&token) || sanctioned.contains(&token) {
                     continue;
                 }
                 offences.insert(format!(
@@ -2127,6 +2134,53 @@ fn a_citation_glued_to_punctuation_is_read() {
     let _ = std::fs::remove_dir_all(&root);
 }
 
+/// A third party's pin is not this repository's object, and a bare object beside it still is.
+///
+/// The control beside the three positive spans above. `AGENTS.md` sanctions `owner/action@<sha>` by name as
+/// correct supply-chain practice, and this reader refused it: every delimiter-bounded hex run was classified
+/// without first classifying the syntax containing it, so the sha after an `@` was read as a citation of a
+/// commit of this tree. The workflow that carries the real pins is not prose and never reached this sweep,
+/// which is why nothing had gone red — the rule and its reaction disagreed with no instance between them.
+///
+/// Three shapes, so the exception is bounded rather than open: the pin passes, a bare object in the same
+/// document is still reported, and a **shortened** pin is reported too, because a pin shortened is not the
+/// practice the rule sanctions.
+#[test]
+fn a_third_partys_action_pin_is_not_read_as_this_repositorys_object() {
+    let root = std::env::temp_dir().join(format!("kanhe-action-pin-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    xingbiao::claim_scratch(&root).expect("the fixture root is writable");
+
+    // Assembled, for the reason the sibling above assembles its object: this file is swept by the live
+    // direction, so no piece written here is object-shaped on its own.
+    let object: String = ["f4", "1b", "3b", "9c"].concat();
+    let full: String = ["fbc6f399", "2d24b796", "d5a048ff", "273f7fcc", "4a7b6c09"].concat();
+    let document = format!(
+        "# Fixture\n\nA pinned action: `actions/checkout@{full}`.\n\n         A pin under a path: `owner/name/sub@{full}`.\n\n         A bare object: `git show {object}`.\n\n         A shortened pin: `actions/checkout@{object}`.\n"
+    );
+    std::fs::write(root.join("GUIDE.md"), document).expect("the fixture document is writable");
+
+    let offences = unanchored_citation_offences_in(&root, &["GUIDE.md".to_string()]);
+    let _ = std::fs::remove_dir_all(&root);
+
+    assert!(
+        offences.iter().all(|offence| !offence.contains(&full)),
+        "a third party's pinned sha is sanctioned by name and must not be reported: {offences:#?}"
+    );
+    assert_eq!(
+        offences.len(),
+        2,
+        "the bare object and the shortened pin are both reported, and the two full pins are not; got \
+         {offences:#?}"
+    );
+    for offence in &offences {
+        assert!(
+            offence.contains(&object),
+            "each remaining offence names the object it found: {offence}"
+        );
+    }
+}
+
 /// Every maximal run of lowercase hex characters in `span` whose neighbours are not alphanumeric.
 ///
 /// A citation sits next to punctuation far more often than next to a space: a revision expression glues it
@@ -2154,6 +2208,56 @@ fn hex_runs(span: &str) -> Vec<String> {
         start = end;
     }
     runs
+}
+
+/// Every object a span cites as a third-party action pin, which this rule sanctions by name.
+///
+/// **`AGENTS.md` states the exception and states its criterion**: *an action pinned as `owner/action@<sha>`
+/// is correct supply-chain practice, and the same criterion excludes it without a list — that sha does not
+/// resolve here.* That criterion is not the one a reaction can run. A development commit of this tree does
+/// not resolve in a fresh clone either — that is the whole reason the rule exists — so a reader keyed on
+/// resolution would report clean in CI over exactly the citations it is there to find, and loud on the
+/// author's own machine. Resolution is the criterion a person applies; the shape is what a reader can.
+///
+/// So the containing syntax is classified before the run inside it is: `<owner>/<name>[/<path>]@<40 lowercase
+/// hex>`, the form a pinned action has and a prose citation of a commit does not. The sha is required to be
+/// the full forty, because a pin shortened is not correct practice and this rule's default is to refuse.
+///
+/// This is an escape hatch, and it is worth saying which: a citation of this repository's own object spelled
+/// `foo/bar@<sha>` would pass. Every sanctioned form is an escape hatch that way, and the alternative is a
+/// list of third parties that has to be kept.
+fn action_pin_objects(span: &str) -> BTreeSet<String> {
+    let chars: Vec<char> = span.chars().collect();
+    let mut pinned = BTreeSet::new();
+    for (at, _) in chars.iter().enumerate().filter(|(_, c)| **c == '@') {
+        let mut end = at + 1;
+        while end < chars.len()
+            && chars[end].is_ascii_hexdigit()
+            && !chars[end].is_ascii_uppercase()
+        {
+            end += 1;
+        }
+        if end - (at + 1) != 40 || (end < chars.len() && chars[end].is_alphanumeric()) {
+            continue;
+        }
+        // The owner path immediately before the `@`: path characters carrying at least one `/`, which is
+        // what separates `owner/action` from a bare word that happens to precede one.
+        let mut start = at;
+        let mut slashes = 0usize;
+        while start > 0 {
+            let previous = chars[start - 1];
+            if previous == '/' {
+                slashes += 1;
+            } else if !(previous.is_ascii_alphanumeric() || matches!(previous, '_' | '.' | '-')) {
+                break;
+            }
+            start -= 1;
+        }
+        if slashes >= 1 && start < at && chars[start] != '/' && chars[at - 1] != '/' {
+            pinned.insert(chars[at + 1..end].iter().collect());
+        }
+    }
+    pinned
 }
 
 /// Whether a code span's content is an abbreviated commit object: 4 to 40 lowercase hex characters

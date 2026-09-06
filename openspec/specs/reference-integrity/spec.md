@@ -321,6 +321,16 @@ lowercase hex characters carrying both a letter and a digit — is what keeps th
 run's boundary, and the alphanumeric bound is what keeps the tail of an ordinary word from being read as an
 object.
 
+**A third party's object is not this requirement**, and the reader SHALL classify the syntax containing a
+run before classifying the run. `AGENTS.md` sanctions an action pinned as `owner/action@<sha>` by name as
+correct supply-chain practice — and states the criterion that excludes it: *that sha does not resolve here*.
+That criterion is not one a reaction can run. A development commit of this tree does not resolve in a fresh
+clone either, which is the whole reason this requirement exists, so a reader keyed on resolution would
+report clean in CI over exactly the citations it is there to find and loud on the author's machine.
+Resolution is the criterion a person applies; the shape is what a reader can. The sanctioned shape is
+`<owner>/<name>[/<path>]@<forty lowercase hex>`, and the forty is required: a pin shortened is not the
+practice the rule sanctions, and this rule's default is to refuse.
+
 **A hosting serial is the same rule and deliberately has no reaction here.** `AGENTS.md` dispositions it as
 provenance and enforces that by review, alongside its other rows, and a reader over text cannot do better:
 the bare serial shape *is* the fixture for the squash-serial check, so a reader over Rust would refuse the
@@ -389,6 +399,15 @@ being one. A floor this reader invents is a floor it misses every shorter citati
   and it made `## [Unreleased]` — which is live text by construction — exempt for standing in the same file as
   the releases below it
 - **PINNED-BY** `no_live_document_cites_a_moment_a_fresh_clone_cannot_reach`
+
+#### Scenario: A third party's action pin is not this repository's object
+
+- **WHEN** a live document carries a code span naming an action pinned as `owner/action@<forty lowercase
+  hex>`, including under a path such as `owner/name/sub@<sha>`
+- **THEN** nothing reacts to that sha, because governance sanctions the form by name — while a bare object
+  in the same document is still reported, and a **shortened** pin is reported too, since a pin shortened is
+  not the practice the rule sanctions
+- **PINNED-BY** `a_third_partys_action_pin_is_not_read_as_this_repositorys_object`
 
 #### Scenario: An abbreviation carrying no letter, or no digit, is not observed — a stated bound
 
