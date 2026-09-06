@@ -2040,6 +2040,18 @@ its control demonstrated was *a* channel rather than *the* channel. And a row co
 minimum, a row could be replaced by a second row for a channel already listed, leaving the count intact and
 the channel it displaced asked about by nobody.
 
+**What may be attacked and what must be emptied SHALL be two sets.** Deriving the baseline from the attack
+cases left `GIT_CONFIG_NOSYSTEM` inherited — a variable the builder sets and no case attacks, which
+suppresses the system-config channel and so changes what the `GIT_CONFIG_SYSTEM` case's control reads. The
+inventory carries both, and a channel attacked without being cleared is refused.
+
+**One owner SHALL hold the evidence, and each site only its builder.** Three runners parsed the inventory,
+checked it their own way and assembled the child's environment by hand; what drifted was not the builders
+but the evidence — one baseline missed a variable another's had. `shengmo::hermetic_probe` owns the parse,
+the validation, the injection, the report's shape and the judgement. It lives there because `shengmo` ships
+in no package and is the one member both consumers reach: `kanhe` depends on it, and the copies are its own
+test targets.
+
 **Each reading SHALL carry its exit status.** Folded into stdout, a `git` that failed produced an empty
 reading — and the worktree case's isolated value *is* the empty string, so a failure passed as isolation.
 
@@ -2050,15 +2062,16 @@ reading — and the worktree case's isolated value *is* the empty string, so a f
   gains one must be named, and a name that outlives its site must go
 - **PINNED-BY** `every_git_this_repository_constructs_is_the_builders_or_is_declared`
 
-#### Scenario: A declared copy names a direction the harness lists
+#### Scenario: A declared copy names a direction that runs and passes
 
 - **WHEN** a site cannot reach the builder and declares the direction that proves its isolation
-- **THEN** the harness for that target **lists** that direction. Executability is an execution result rather
-  than an attribute read: comparing the name alone admitted an ordinary function, requiring `#[test]` and
-  refusing `#[ignore]` admitted `#[cfg(any())] #[test]` and an `ignore` reached through `cfg_attr`, and each
-  repair closed the spelling a review brought and left the next — because whether a test runs is decided by
-  cfg evaluation and the harness registry, not by the attributes a reader can see
-- **PINNED-BY** `every_declared_site_names_a_direction_the_harness_lists`
+- **THEN** that direction is **run**, under the features the Definition of Done runs, with ignored tests
+  included, and it passes — and the run reports exactly one test, because a filter matching nothing also
+  exits zero. Executability is an execution result: comparing the name alone admitted an ordinary function,
+  requiring `#[test]` and refusing `#[ignore]` admitted `#[cfg(any())] #[test]`, and asking the harness to
+  *list* the direction admitted an ignored test under whichever features the listing was taken with. Each
+  repair closed the spelling a review brought and left the next
+- **PINNED-BY** `every_declared_site_names_a_direction_that_runs_and_passes`
 
 #### Scenario: An ambient channel moves what a builder reads
 

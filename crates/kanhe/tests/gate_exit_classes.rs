@@ -77,7 +77,7 @@ const TARGETS_SPAWNING_A_PROCESS: [(&str, &str); 28] = [
     ),
     (
         "crates/kanhe/tests/hermetic_invocations.rs",
-        "git: enumerates the tracked Rust it reads, through the builder it holds every other site to",
+        "git: enumerates the tracked Rust it reads; cargo, to run each declared site's proving direction",
     ),
     (
         "crates/kanhe/tests/gate_identity.rs",

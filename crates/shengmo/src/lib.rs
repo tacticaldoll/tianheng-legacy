@@ -29,5 +29,6 @@
 #![deny(missing_docs)]
 
 pub mod bounds;
+pub mod hermetic_probe;
 pub mod law;
 pub mod workspace;

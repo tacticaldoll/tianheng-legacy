@@ -932,6 +932,51 @@ them.
 
 ### Self-governance
 
+- **Two weaker sets had been standing in for two stronger ones, and both are now separate things.**
+  *Registered tests* is not *tests that ran*, and *channels worth attacking* is not *variables that must be
+  emptied first*. Each had been one list doing two jobs.
+
+  **A proof is run, not listed.** Four readers said otherwise in turn: `sig.ident` alone admitted an
+  ordinary function; `#[test]` plus a refusal of `#[ignore]` admitted `#[cfg(any())] #[test]` and an
+  `ignore` reached through `cfg_attr`; and asking the harness to *list* the direction admitted an ignored
+  test, under whichever features the listing was taken with rather than the `--all-features` CI runs. The
+  direction is executed now — `--all-features`, `--include-ignored`, and the run must report exactly one
+  test, because a filter matching nothing also exits zero. Negative run, on a proof that runs and fails:
+
+  ```
+  crates/shengmo/tests/family_coverage.rs: `no_ambient_channel_moves_…` did not pass:
+  assertion `left == right` failed: a proof that fails
+  ```
+
+  And the review's own falsifier is closed rather than merely detected: a proof left `#[ignore]` **still
+  runs**, because `--include-ignored` is what the meta-run passes.
+
+- **The baseline was derived from the attack cases, and so missed a variable no case attacks.** The builder
+  sets `GIT_CONFIG_NOSYSTEM`; nothing injects it; so nothing cleared it, and a host that carries it
+  suppresses the system-config channel — collapsing the `GIT_CONFIG_SYSTEM` case's control. The inventory
+  carries both sets now, and a channel attacked without being cleared is refused. Negative runs:
+
+  ```
+  the inventory attacks GIT_CONFIG_SYSTEM and does not clear it first, so what a case demonstrates could be an inherited channel rather than the injected one
+
+  a bare `Command` read the same under GIT_CONFIG_SYSTEM as without it   left: "isolated"   right: "isolated"
+  ```
+
+  The second is the review's finding, demonstrated: with `GIT_CONFIG_NOSYSTEM` out of the baseline and set
+  in the host, the case proves nothing and says so.
+
+- **One owner holds the evidence; each site holds only its builder.** Three runners parsed the inventory,
+  validated it their own way and assembled the child's environment by hand — and what drifted was not the
+  builders but the evidence: one baseline missed a variable another's had, and a count each accepted stood
+  in for a set none of them held. `shengmo::hermetic_probe` owns the parse, the validation, the injection,
+  the report's shape and the judgement.
+
+  It lives in `shengmo` because that is the **only** member both consumers reach without a new edge or a
+  published promise: measured across the workspace, `kanhe` depends on `shengmo`, the two copies are
+  `shengmo`'s own test targets, and every other crate reachable from both — `tianheng` and what it carries —
+  ships. `shengmo` ships in no package, and shared test support is the role it already had.
+
+
 - **Whether a proof runs is an execution result, and three attribute readers had said otherwise.** The
   citation compared `sig.ident` alone, so an ordinary function of the same name satisfied it; then it
   required `#[test]` and refused `#[ignore]`, and `#[cfg(any())] #[test]` — or an `ignore` reached through
