@@ -477,7 +477,16 @@ fn cfg_attr_group_path_eqs<'a>(
                 let ident = &bytes[start..i];
                 let qualified = after_path_sep;
                 after_path_sep = false;
-                if ident == b"path" {
+                // **The narrowing belongs to the target as much as to the wrapper.** `qualified` was
+                // computed here and spent on the `cfg_attr` arm alone, so `foo::path = "bogus.rs"` — an
+                // attribute belonging to somebody else — was collected as a module remap. Measured
+                // against rustc 1.96.0, edition 2021, `--crate-type lib`:
+                // `#[cfg_attr(any(), foo::path = "bogus.rs", path = "real.rs")] mod plat;` compiles,
+                // because a false predicate means no applied attribute is expanded and `foo::path` is
+                // never resolved. This scanner is cfg-blind, so it unions every candidate on disk — and a
+                // file named by nobody's `path` is not one. Reading it reports a violation against source
+                // the governed tree does not compile.
+                if ident == b"path" && !qualified {
                     let mut j = i;
                     while j < bytes.len() && bytes[j].is_ascii_whitespace() {
                         j += 1;

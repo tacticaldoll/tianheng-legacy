@@ -434,6 +434,13 @@ A plain `mod name;` declaration SHALL resolve to exactly one conventional source
 - **WHEN** a crate declares `#[cfg_attr(unix, path = "unix_child.rs")] #[cfg_attr(not(unix), path = "other_child.rs")] mod child;`, BOTH `unix_child.rs` and `other_child.rs` exist on disk, and neither `src/child.rs` nor `src/child/mod.rs` exists
 - **THEN** the system skips the plain-file requirement rather than erroring, and both `unix_child.rs` and `other_child.rs` are governed under `crate::child` — the shape every real rustc build compiles through exactly one of the two mutually-exhaustive targets, never through a conventional file this declaration never needs
 
+#### Scenario: A qualified applied path names no module target
+
+- **WHEN** a crate declares `#[cfg_attr(any(), foo::path = "bogus.rs", path = "real.rs")] mod plat;` and `bogus.rs` exists on disk
+- **THEN** no dimension reads `bogus.rs` as a target of `crate::plat`, because the built-in remap is the **single-segment** `path` and a segment reached through `::` is somebody else's attribute — measured under rustc 1.96.0, edition 2021, `--crate-type lib`, the declaration compiles, since a false predicate expands no applied attribute and never resolves `foo::path`
+- **AND** the same narrowing governs the target as much as the `cfg_attr` wrapper it was first written for: reading the qualified target reports a violation against source the governed tree does not compile, and counts a probe inside it as coverage for a seam nothing probes on any real build
+- **PINNED-BY** `a_qualified_applied_path_is_not_a_module_target`
+
 #### Scenario: A raw-identifier attribute name is the built-in it spells
 
 - **WHEN** a crate declares `#[r#path = "imp_unix.rs"] mod imp;`, with `imp_unix.rs` on disk and a conventional `src/imp.rs` present as well

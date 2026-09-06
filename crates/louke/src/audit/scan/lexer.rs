@@ -531,12 +531,22 @@ pub(crate) fn path_meta_values(
             // reader had just closed. A segment reached through `::` carries no module target — and
             // *reached through* is decided by the token before it, tracked forward past trivia, because a
             // look-behind over whitespace alone read `foo::/**/cfg_attr` as unqualified.
-            last_ident_was_cfg_attr = name == b"cfg_attr" && !after_path_sep;
+            // **The same narrowing, spent on the wrapper and not on the target.** The comment above
+            // states the rule — the built-in is the SINGLE-segment path — and the `path` arm below did
+            // not apply it: `after_path_sep` was cleared before that arm could read it, so
+            // `foo::path = "bogus.rs"` was collected as a module target. Measured against rustc 1.96.0,
+            // edition 2021, `--crate-type lib`:
+            // `#[cfg_attr(any(), foo::path = "bogus.rs", path = "real.rs")] mod plat;` compiles, because
+            // a false predicate expands no applied attribute and never resolves `foo::path`. A probe
+            // inside a file nobody's `path` names then counted as coverage, and the audit reported clean
+            // over a seam nothing probes on any real build.
+            let qualified = after_path_sep;
+            last_ident_was_cfg_attr = name == b"cfg_attr" && !qualified;
             after_path_sep = false;
             let applied = groups
                 .last()
                 .is_some_and(|group| group.applies_metas && group.past_predicate);
-            if name == b"path" && applied {
+            if name == b"path" && applied && !qualified {
                 let eq = skip_preamble_trivia(bytes, name_end, paren_close);
                 if bytes.get(eq) == Some(&b'=') {
                     found.extend(read_path_string(bytes, eq + 1, mod_index));

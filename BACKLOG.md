@@ -2455,7 +2455,25 @@ consumer for an undemonstrated deduplication.
   Rust-valid spelling of any of those four properties that the pinned corpus does not already contain. What
   it would decide is whether this reader's corpus can be **enumerated** — the audit-cycle shape
   `PROJECT.md` records, where the enumeration is generated and staleness-checked rather than
-  hand-maintained — instead of answered one shape at a time. *Authority:* engine. *Compatibility:* patch;
+  hand-maintained — instead of answered one shape at a time.
+
+  **FIRED, at the release cut.** The spelling is a qualified applied `path`:
+  `#[cfg_attr(any(), foo::path = "bogus.rs", path = "real.rs")] mod plat;`, which rustc 1.96.0 compiles
+  because a false predicate expands no applied attribute and never resolves `foo::path`. It exercises the
+  third property — whether a segment is reached through `::` — applied to the **target** rather than to the
+  wrapper, and the pinned corpus holds only the wrapper half
+  (`a_path_qualified_look_alike_is_not_cfg_attr`). Both scanners computed the qualification and spent it on
+  the `cfg_attr` decision alone; `path_meta_values`' own doc comment stated the rule its `path` arm did
+  not apply. Measured, one dimension perturbed at a time: 圭表 answered `1` — a violation against source
+  the governed tree does not compile — and 漏刻 answered `0` over a seam whose only probe sat in that
+  file, which is the fabricated coverage this entry's *Risk* names. 渾儀 takes the same question through
+  `get_ident` and was correct.
+
+  The local repair landed as `a_qualified_applied_path_is_not_a_module_target`, and it is the ninth wrong
+  answer this entry's null option counts rather than an argument against it. **What has NOT been decided is
+  the option**, and this entry is still where that waits: the firing establishes that the corpus is not
+  enumerable by inspection, which is what the three options below are about. A local patch is not that
+  decision and does not stand in for it. *Authority:* engine. *Compatibility:* patch;
   every repair to date narrows what is read.
 
   **Three options, their costs, and the precedents each rests on.** Recorded here rather than decided,
