@@ -596,3 +596,63 @@ fn a_remap_sharing_its_cfg_attr_with_another_applied_attribute_is_still_read() {
         "漏刻: a sibling applied attribute does not hide the remap"
     );
 }
+
+/// A **qualified** applied `path` is somebody else's attribute, not a module remap.
+///
+/// **The narrowing that closed `foo::cfg_attr` was applied to the wrapper and not to the target.** Both
+/// byte scanners compute whether a segment was reached through `::` and both spend it on the `cfg_attr`
+/// decision alone: 圭表 captures `qualified` and tests it only in the `cfg_attr` arm, 漏刻 clears
+/// `after_path_sep` before the `path` arm reads it. The doc comment on `path_meta_values` states the rule
+/// its own `path` arm does not apply — *the built-in is the SINGLE-segment path*. 渾儀 takes it through
+/// `get_ident`, which declines a multi-segment path, and is correct here.
+///
+/// **Measured against rustc 1.96.0, edition 2021, `--crate-type lib`**:
+/// `#[cfg_attr(any(), foo::path = "imp_bogus.rs", path = "imp_real.rs")] pub mod imp;` compiles. The
+/// predicate is false, so no applied attribute is expanded and `foo::path` is never resolved — which is
+/// what makes the declaration legal source rather than a shape rustc would reject. The module the build
+/// contains is the conventional `imp.rs`.
+///
+/// The two dimensions are cfg-blind by construction, so they union every candidate that exists on disk —
+/// and `imp_bogus.rs` is not a candidate at all. Reading it produces both halves of the class this reader's
+/// own backlog entry records: a violation reported against source the governed tree does not compile, and a
+/// **clean** verdict over a seam nothing probes on any real build.
+#[test]
+fn a_qualified_applied_path_is_not_a_module_target() {
+    let package = "cfg-attr-qualified-applied-path";
+    // No `TOP_LEVEL_PROBED`: the declared seam's ONLY probe sits in the bogus target, so 漏刻 reporting
+    // clean is the fabricated coverage rather than an incidental pass.
+    let lib = format!(
+        "{FORBIDDEN_MOD}\
+         #[cfg_attr(any(), foo::path = \"imp_bogus.rs\", path = \"imp_real.rs\")]\npub mod imp;\n"
+    );
+    let bogus = "use crate::forbidden::Thing;\n\
+                 pub fn leak() -> crate::forbidden::Thing { crate::forbidden::Thing }\n\
+                 pub fn probed(o: u8) { assert_boundary!(\"conformance-seam\", o); }\n";
+    let fixture = fixture(
+        package,
+        &lib,
+        &[
+            ("imp.rs", IMP_STUB),
+            ("imp_real.rs", IMP_STUB),
+            ("imp_bogus.rs", bogus),
+        ],
+    );
+
+    assert_eq!(
+        guibiao_exit(package, fixture.manifest(), "crate::imp", REASON),
+        0,
+        "圭表: `foo::path` names no module target, so the forbidden `use` in a file no build compiles is \
+         not a violation of `crate::imp`"
+    );
+    assert_eq!(
+        hunyi_exit(package, fixture.manifest(), "crate::imp", REASON),
+        0,
+        "渾儀: the control — `get_ident` already declines a multi-segment path"
+    );
+    assert_eq!(
+        louke_exit(fixture.lib(), SEAM, REASON),
+        1,
+        "漏刻: the seam's only probe sits in a file no build compiles, so the seam is unprobed and must \
+         react — reading it would be coverage fabricated by a spelling"
+    );
+}

@@ -132,6 +132,31 @@ them.
   Found by re-reading this window's own repairs rather than by running anything, which is where a claim about
   code sits when the code is right.
 
+- **BREAKING** — **The narrowing that closed a qualified `cfg_attr` was never applied to the target it
+  wraps.** Both byte scanners compute whether a segment was reached through `::` and both spend it on the
+  `cfg_attr` decision alone — 圭表 captures the flag and tests it in that arm only, 漏刻 clears it before
+  the `path` arm can read it. `path_meta_values`' own doc comment states the rule its `path` arm does
+  not apply: *the built-in is the SINGLE-segment path*. A file disagreeing with itself, in the reader whose
+  subject that rule is.
+
+  Measured under rustc 1.96.0, edition 2021, `--crate-type lib`:
+  `#[cfg_attr(any(), foo::path = "bogus.rs", path = "real.rs")] mod plat;` compiles, because a false
+  predicate expands no applied attribute and `foo::path` is never resolved. Both dimensions are cfg-blind
+  by construction and union every candidate on disk — and a file named by nobody's `path` is not one.
+
+  **Both halves of the class, one perturbation each.** 圭表 answered `1`: a violation reported against
+  source the governed tree does not compile. 漏刻 answered `0` over a seam whose only probe sat in that
+  file — coverage fabricated by a spelling, which is the Core Contract's forbidden bug. 渾儀 takes the
+  same question through `get_ident`, which declines a multi-segment path, and was correct.
+
+  The `path_meta_values` `WATCH` records exactly this trigger — *a Rust-valid spelling of any of those four
+  properties that the pinned corpus does not already contain* — and it has **fired**. The entry now carries
+  what fired it and says plainly that the local repair is not the decision it waits for.
+
+  **Why breaking:** an adopter whose source carries a qualified applied attribute ending in `path` has 圭表
+  and 漏刻 baselines that no longer describe their tree — the entries that named the wrongly-read file are
+  gone.
+
 - **A repair that was not made, and the measurement that stopped it.** 渾儀 answers a `cfg_attr` whose
   applied metas do not parse two ways: `cfg_attr_path_values` drops the whole attribute's `path` candidates
   with `.ok()`, while `scan::items::extract_derives` answers the identical failure on the identical
