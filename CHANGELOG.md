@@ -932,6 +932,44 @@ them.
 
 ### Self-governance
 
+- **Whether a proof runs is an execution result, and three attribute readers had said otherwise.** The
+  citation compared `sig.ident` alone, so an ordinary function of the same name satisfied it; then it
+  required `#[test]` and refused `#[ignore]`, and `#[cfg(any())] #[test]` — or an `ignore` reached through
+  `cfg_attr` — satisfied it while never entering the harness. Each repair closed the spelling a review
+  brought and left the next, because *whether a test runs* is decided by cfg evaluation and the harness
+  registry rather than by attributes a reader can see.
+
+  It is asked of the harness now: the target is listed and the direction must be in what it lists. Negative
+  run, using the review's own falsifier:
+
+  ```
+  crates/shengmo/tests/family_coverage.rs: the harness does not list `no_ambient_channel_moves_what_the_family_coverage_builder_reads`, so nothing runs it
+  ```
+
+- **A row count is not a set.** The inventory was held at `len() >= 8`, so a row could be replaced by a
+  second row for a channel already listed — the count intact, the channel it displaced asked about by
+  nobody. All three consumers refuse a repeated channel now. Negative run, replacing `GIT_CONFIG` with a
+  second `GIT_DIR` row:
+
+  ```
+  the channel inventory names GIT_DIR twice; a repeated row makes the count without making the case, so the channel it displaced is asked about by nobody
+  ```
+
+- **"One channel per case" was an addition, not a baseline.** Each case injected its channel onto the
+  environment this test binary inherited, so what its control demonstrated was *a* channel rather than *the*
+  channel. Every governed channel and the two indexed helpers are cleared before one is injected.
+
+  **It has no negative run, and that is stated rather than left as a gap.** Every governed channel is closed
+  by the builder, so an inherited one cannot flip a verdict: the fix is to what a passing case *attributes*,
+  not to whether it passes. Measured with `GIT_DIR` set in the host and the baseline removed — no case
+  changed. A property a single edit cannot falsify is one this repository records as carried by reading.
+
+- **The module header still described the model this file no longer holds.** It named an `Isolated` state
+  that no longer exists and claimed a comparison of environment operations that was deleted. It states the
+  two questions the file actually answers: which tracked files construct their own `git`, and whether a
+  declared site names a direction the harness lists.
+
+
 - **The behavioural matrix was written out per site, and a matrix per site is a matrix that diverges per
   site.** Four cases stood in each of three files — the three repository selectors and
   `GIT_CONFIG_PARAMETERS` — while `GIT_CONFIG`, the two configuration-file channels and the indexed channel

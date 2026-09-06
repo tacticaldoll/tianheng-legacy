@@ -112,6 +112,49 @@ fn channel_cases(inventory: &str) -> Vec<(String, String, String, String)> {
         .collect()
 }
 
+/// The inventory names each channel once, and enough of them.
+///
+/// **A count is not a set.** Held as `len() >= 8`, a row could be replaced by a second row for a channel
+/// already listed: the count stays and the channel it displaced is asked about by nobody. Identity is what
+/// the matrix is, so a repeated channel is refused.
+fn assert_channel_set(cases: &[(String, String, String, String)]) {
+    let mut seen = std::collections::BTreeSet::new();
+    for (channel, _, _, _) in cases {
+        assert!(
+            seen.insert(channel.clone()),
+            "the channel inventory names {channel} twice; a repeated row makes the count without making \
+             the case, so the channel it displaced is asked about by nobody"
+        );
+    }
+    assert!(
+        cases.len() >= 8,
+        "the channel inventory collapsed to {} case(s); a matrix that shrinks is one this check stops \
+         asking about",
+        cases.len()
+    );
+}
+
+/// Empty every channel the inventory governs before one is injected.
+///
+/// **One channel per case is a baseline, not an addition.** Injected onto the environment this test binary
+/// inherited, a case ran under whatever `GIT_*` the host already carried, so what the control demonstrated
+/// was *a* channel rather than *the* channel — the reading could be an inherited one's. The indexed helpers
+/// go with them: they are the two variables the count needs.
+///
+/// **It has no negative run, and that is stated rather than left as a gap.** Every governed channel is
+/// closed by the builder, so an inherited one cannot flip a verdict: the fix is to what a passing case
+/// *attributes*, not to whether it passes. Measured with `GIT_DIR` set in the host and this baseline
+/// removed — no case changed. A property a single edit cannot falsify is one this repository records as
+/// carried by reading, the disposition it gives the same shape elsewhere.
+fn clear_governed_channels(probe: &mut Command, cases: &[(String, String, String, String)]) {
+    for (channel, _, _, _) in cases {
+        probe.env_remove(channel);
+    }
+    for helper in ["GIT_CONFIG_KEY_0", "GIT_CONFIG_VALUE_0"] {
+        probe.env_remove(helper);
+    }
+}
+
 /// Put one channel into `probe`'s environment, as the inventory spells it.
 fn inject(
     probe: &mut Command,
@@ -273,12 +316,7 @@ fn no_ambient_channel_moves_what_a_hermetic_command_reads() {
         .expect("write the ambient config");
 
     let cases = channel_cases(&inventory);
-    assert!(
-        cases.len() >= 8,
-        "the channel inventory collapsed to {} case(s); a matrix that shrinks is one this check stops \
-         asking about",
-        cases.len()
-    );
+    assert_channel_set(&cases);
 
     let mut readings = Vec::new();
     for (channel, injection, read, isolated) in &cases {
@@ -289,6 +327,7 @@ fn no_ambient_channel_moves_what_a_hermetic_command_reads() {
             "--nocapture",
             "--test-threads=1",
         ]);
+        clear_governed_channels(&mut probe, &cases);
         inject(&mut probe, channel, injection, &decoy, &config);
         let out = probe
             .env("KANHE_HERMETIC_PROBE_JUDGED", &judged)
