@@ -1,25 +1,27 @@
-//! Repository check: a `git` this repository constructs itself is the builder's, or it is declared.
+//! Repository check: a `git` this repository constructs itself is the builder's, or it is declared — and a
+//! declared site's isolation is proven by a run.
 //!
 //! `kanhe::hermetic_git::hermetic` decides what a `git` behind a verdict may inherit — the configuration
 //! files, the `GIT_CONFIG_*` channels, and `GIT_DIR`/`GIT_WORK_TREE`/`GIT_INDEX_FILE`, which move **which
 //! repository** the command acts on and so reach past `current_dir` entirely. A caller that constructs its
 //! own `Command::new("git")` inherits all of it.
 //!
-//! **The class this closes is not a bare invocation; it is a copy that inherits nothing.** The enumeration
-//! `hermetic_git::tracked_records` owns states three properties a caller must not decide for itself. Two
-//! sites cannot reach that owner — `shengmo`'s test targets, because `kanhe` depends on `shengmo` and the
-//! edge would close a cycle — so they hold the properties by transcription, and transcription is partial by
-//! nature: the first pass carried `-z` and the strict decode across and left the isolation behind, in both
-//! copies, unmentioned in either comment. Nothing said what a copy owes, so nothing noticed two of three.
+//! **This file answers two questions, and neither is whether a command is isolated.** It answers which
+//! tracked files construct their own `git`, held two-directionally against a declared set; and, for a site
+//! that cannot reach the builder, that the site names a proving direction the **harness lists**. Isolation
+//! itself is what that direction's run says.
 //!
-//! This is the sibling shape of `gate_exit_classes`: membership in a declared set is what it holds, and the
-//! purpose beside each entry is a reader's aid rather than a fact this check judges. What it adds is the
-//! second column — whether the site claims the isolation — because a boundary-forced copy that claims it and
-//! does not carry it is exactly the state this was written after.
+//! **The split is what ten rounds of findings bought.** This check once decided isolation by reading the
+//! source that builds a command — which methods, with which literals, on which array — and every round a
+//! review supplied a spelling that reading missed: a rename, a macro, a literal compared by its rendering,
+//! a constant kept while its loop was deleted, a removal made on a decoy receiver. Each is a different way
+//! to write the same program, and a run does not care how the program is written. The environment model is
+//! deleted rather than extended.
 //!
-//! **The granularity is the file**, like its sibling's. A file declared `Isolated` must carry every
-//! environment operation the builder makes; that a construction and those operations sit in the same
-//! function is not checked, and no declared file holds more than one construction today.
+//! **What remains is stated as a stop where it is one.** `constructs_git` reads literal constructions: a
+//! program passed as a value, a name bound outside the file, a construction inside a comment or a string
+//! literal are each a declared bound with a pinning direction, carried in
+//! `docs/observation-bounds.md` rather than in this header.
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
@@ -353,20 +355,19 @@ fn every_git_this_repository_constructs_is_the_builders_or_is_declared() {
     );
 }
 
-/// Every declared site names the direction that proves it, and that direction is there.
+/// Every declared site's proving direction is one the harness **lists**.
 ///
-/// **The isolation itself is no longer read from the source.** It was: this case compared the environment
-/// operations a copy makes against the builder's, modelled from syntax. Ten rounds of review walked that
-/// model through a rename, a macro, a literal compared by its rendering, a constant kept while its loop was
-/// deleted, and a removal made on a decoy receiver — each a different way to write the same program, each
-/// closed, each followed by the next. A run does not care how the program is written.
+/// **Executability is an execution result, not an attribute read.** The first spelling compared `sig.ident`
+/// alone, so an ordinary function of the same name satisfied a citation nothing runs. The second required
+/// `#[test]` and refused `#[ignore]` — and `#[cfg(any())] #[test]`, or an `ignore` reached through
+/// `cfg_attr`, still satisfied it while never entering the harness. Each repair closed the spelling a review
+/// brought and left the next one, because *whether a test runs* is decided by cfg evaluation and the harness
+/// registry, not by the attributes a reader can see.
 ///
-/// So the responsibility is split. **Isolation is proven by a child-process direction in the site's own
-/// file**, one channel injected at a time with a reading that channel moves; this check answers only the
-/// ownership question a reader of syntax can answer — that the site names such a direction and that the
-/// direction exists. An item's name is what `syn` reports, not something modelled from it.
+/// So it is asked of the harness: the target is listed, and the direction must be in what it lists. That
+/// answer is the same for every spelling of the same fact.
 #[test]
-fn every_declared_site_names_the_direction_that_proves_it() {
+fn every_declared_site_names_a_direction_the_harness_lists() {
     let Some(root) = workspace_root() else {
         return;
     };
@@ -377,40 +378,29 @@ fn every_declared_site_names_the_direction_that_proves_it() {
             continue;
         };
         checked += 1;
-        let text = std::fs::read_to_string(root.join(path))
-            .unwrap_or_else(|err| panic!("cannot read the declared site '{path}': {err}"));
-        let parsed = syn::parse_file(&text).unwrap_or_else(|err| {
-            panic!("the declared site '{path}' is not Rust this reader parses: {err}")
-        });
-        // **A name is not a proof, and a `#[test]` that is ignored is not one either.** Comparing
-        // `sig.ident` alone, an ordinary function of the same name — or the same test with its attribute
-        // removed — satisfied a citation that nothing runs.
-        let named: Vec<&syn::ItemFn> = parsed
-            .items
-            .iter()
-            .filter_map(|item| match item {
-                syn::Item::Fn(function) if function.sig.ident == direction => Some(function),
-                _ => None,
-            })
-            .collect();
-        let attribute = |function: &syn::ItemFn, name: &str| {
-            function
-                .attrs
-                .iter()
-                .any(|attribute| attribute.path().is_ident(name))
-        };
-        match named.as_slice() {
-            [] => missing.push(format!("  {path}: declares no `{direction}`")),
-            [function] if !attribute(function, "test") => missing.push(format!(
-                "  {path}: `{direction}` is not a `#[test]`, so nothing runs it"
-            )),
-            [function] if attribute(function, "ignore") => missing.push(format!(
-                "  {path}: `{direction}` is `#[ignore]`, so nothing runs it unless someone remembers"
-            )),
-            [_] => {}
-            _ => missing.push(format!(
-                "  {path}: `{direction}` is declared more than once, so the citation names a set"
-            )),
+        let (package, target) = declared_target(path);
+        let out = std::process::Command::new(env!("CARGO"))
+            //  enumerates rather than runs, so the workspace-test marker this suite is gated by
+            // is not needed and is not spelled a second time here.
+            .args(["test", "-p", package, "--test", target, "--", "--list"])
+            .current_dir(&root)
+            .output()
+            .unwrap_or_else(|err| panic!("cannot list the tests of {package}/{target}: {err}"));
+        assert!(
+            out.status.success(),
+            "listing the tests of {package}/{target} failed, so whether it registers `{direction}` was \
+             never read: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        let listed = String::from_utf8_lossy(&out.stdout);
+        let registers = listed
+            .lines()
+            .filter_map(|line| line.strip_suffix(": test"))
+            .any(|name| name == direction);
+        if !registers {
+            missing.push(format!(
+                "  {path}: the harness does not list `{direction}`, so nothing runs it"
+            ));
         }
     }
     assert!(
@@ -420,10 +410,28 @@ fn every_declared_site_names_the_direction_that_proves_it() {
     );
     assert!(
         missing.is_empty(),
-        "a site names a direction that proves its isolation and the direction is not there, so nothing \
-         runs it:\n{}",
+        "a site names a direction that proves its isolation and the harness does not list it:\n{}",
         missing.join("\n")
     );
+}
+
+/// The `(package, test target)` a declared path names — `crates/<package>/tests/<target>.rs`.
+fn declared_target(path: &str) -> (&str, &str) {
+    let mut parts = path.split('/');
+    let (Some("crates"), Some(package), Some("tests"), Some(file), None) = (
+        parts.next(),
+        parts.next(),
+        parts.next(),
+        parts.next(),
+        parts.next(),
+    ) else {
+        panic!("a site proven by a direction lives in a test target: {path}");
+    };
+    (
+        package,
+        file.strip_suffix(".rs")
+            .unwrap_or_else(|| panic!("a test target is a `.rs` file: {path}")),
+    )
 }
 
 /// A `git` mentioned in prose is not a `git` constructed.

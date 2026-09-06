@@ -2034,6 +2034,12 @@ matrix that diverges per site, which is the transcription failure one level up f
 end. `crates/kanhe/tests/fixtures/hermetic_channels.tsv` holds them once and every builder consumes it, so a
 channel added there is a case every builder starts owing.
 
+**Each case SHALL run from a cleared baseline, and the inventory SHALL name each channel once.** Injected
+onto the environment the test binary inherited, a case ran under whatever `GIT_*` the host carried, so what
+its control demonstrated was *a* channel rather than *the* channel. And a row count is not a set: held as a
+minimum, a row could be replaced by a second row for a channel already listed, leaving the count intact and
+the channel it displaced asked about by nobody.
+
 **Each reading SHALL carry its exit status.** Folded into stdout, a `git` that failed produced an empty
 reading — and the worktree case's isolated value *is* the empty string, so a failure passed as isolation.
 
@@ -2044,12 +2050,15 @@ reading — and the worktree case's isolated value *is* the empty string, so a f
   gains one must be named, and a name that outlives its site must go
 - **PINNED-BY** `every_git_this_repository_constructs_is_the_builders_or_is_declared`
 
-#### Scenario: A declared copy names the direction that proves it
+#### Scenario: A declared copy names a direction the harness lists
 
 - **WHEN** a site cannot reach the builder and declares the direction that proves its isolation
-- **THEN** that direction exists in that file — an ownership question a reader of syntax answers, where the
-  isolation itself is what the direction's run says
-- **PINNED-BY** `every_declared_site_names_the_direction_that_proves_it`
+- **THEN** the harness for that target **lists** that direction. Executability is an execution result rather
+  than an attribute read: comparing the name alone admitted an ordinary function, requiring `#[test]` and
+  refusing `#[ignore]` admitted `#[cfg(any())] #[test]` and an `ignore` reached through `cfg_attr`, and each
+  repair closed the spelling a review brought and left the next — because whether a test runs is decided by
+  cfg evaluation and the harness registry, not by the attributes a reader can see
+- **PINNED-BY** `every_declared_site_names_a_direction_the_harness_lists`
 
 #### Scenario: An ambient channel moves what a builder reads
 

@@ -528,6 +528,16 @@ fn no_ambient_channel_moves_what_the_examples_suite_builder_reads() {
         .filter(|line| !line.trim_start().starts_with('#') && !line.trim().is_empty())
         .map(|line| line.split('\t').map(str::to_string).collect())
         .collect();
+    // **A count is not a set.** Held as `len() >= 8`, a row could be replaced by a second row for a
+    // channel already listed: the count stays and the channel it displaced is asked about by nobody.
+    let mut seen = std::collections::BTreeSet::new();
+    for case in &cases {
+        assert!(
+            seen.insert(case[0].clone()),
+            "the channel inventory names {} twice; a repeated row makes the count without making the case",
+            case[0]
+        );
+    }
     assert!(
         cases.len() >= 8,
         "the channel inventory collapsed to {} case(s); a matrix that shrinks is one this check stops \
@@ -552,6 +562,15 @@ fn no_ambient_channel_moves_what_the_examples_suite_builder_reads() {
             "--nocapture",
             "--test-threads=1",
         ]);
+        // **One channel per case is a baseline, not an addition.** Injected onto the environment this
+        // test binary inherited, a case ran under whatever `GIT_*` the host already carried, so a reading
+        // attributed to the injected channel could be another one's.
+        for other in &cases {
+            probe.env_remove(&other[0]);
+        }
+        for helper in ["GIT_CONFIG_KEY_0", "GIT_CONFIG_VALUE_0"] {
+            probe.env_remove(helper);
+        }
         match injection.as_str() {
             "git-dir" => {
                 probe.env(channel, decoy.join(".git"));
