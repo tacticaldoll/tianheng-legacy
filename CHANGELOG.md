@@ -132,6 +132,30 @@ them.
   Found by re-reading this window's own repairs rather than by running anything, which is where a claim about
   code sits when the code is right.
 
+- **The instrument built to end a class committed that class, in its first round.** The differential's
+  rustc step asked one question with one arm: compile the shape *with* a reference to an item defined only
+  in the remap target, and report a failure as *rustc rejects the generated spelling … the corpus claims a
+  shape Rust does not admit*. That arm fires on two facts. Measured:
+  `#[cfg_attr(unix, allow(dead_code))]` declared governed reported exactly that sentence over source rustc
+  **accepts** — rustc's own first line, `cannot find function only_in_target in module imp`, was about the
+  reference rather than the spelling. Two facts an author repairs in opposite places, and the message named
+  the wrong one.
+
+  Three questions now, three arms, three messages: *rustc will not take this spelling* is the generator's
+  legality claim; *rustc takes it but the build does not contain the named target* is the declared answer;
+  and for a look-alike, *with its predicate made live it DOES apply a remap* is the corpus calling a real
+  module target a decoy.
+
+  **The third arm is the part that was not merely a repair.** A look-alike's declaration — *no configuration
+  compiles this file* — rested on the generator's word. It is now measured: each look-alike's predicate is
+  made live and rustc is asked, and *no remap applies* is established either by rustc refusing the attribute
+  outright or by it compiling while the target's item does not resolve. Seven look-alikes, each shown rather
+  than asserted. What rustc still cannot decide is said where it applies: a governed shape under a dead
+  predicate has no live configuration on this host, so question one is all it can answer and the live rows
+  are what keep that declaration honest.
+
+  All three arms were checked for bite, each reporting the fact it owns rather than a neighbour's.
+
 - **The lexical-scanner question is decided, and the option chosen was not one of the three recorded.**
   The entry's *what would decide it* rested on a premise: that separating lexing from interpretation is
   *how* enumeration becomes possible. It is not. The enumeration was built over the readers **as they
