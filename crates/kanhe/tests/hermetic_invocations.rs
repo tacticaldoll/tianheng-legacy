@@ -58,160 +58,267 @@ const CONSTRUCTS_GIT_ITSELF: [(&str, Isolation, &str); 3] = [
     ),
 ];
 
-/// The environment operations the builder makes, which a site declaring [`Isolation::Isolated`] must make too.
+/// One environment operation: the method, the variable it names, and the value it assigns.
 ///
-/// Held against `kanhe::hermetic_git`'s own text rather than written out from memory, so a variable the
-/// builder starts clearing is one this check starts requiring.
-const ENVIRONMENT_OPERATIONS: [&str; 11] = [
-    "GIT_CONFIG_GLOBAL",
-    "GIT_CONFIG_SYSTEM",
-    "GIT_CONFIG_NOSYSTEM",
-    "GIT_CONFIG_COUNT",
-    "GIT_CONFIG_KEY_0",
-    "GIT_CONFIG_VALUE_0",
-    "GIT_DIR",
-    "GIT_WORK_TREE",
-    "GIT_INDEX_FILE",
-    "GIT_CONFIG_PARAMETERS",
-    "GIT_CONFIG",
-];
-
-/// Every string literal a `.env(…)` or `.env_remove(…)` call in `stream` names.
-///
-/// **The operation, not the name appearing somewhere.** Held as `line.contains(variable)` over non-comment
-/// text, this check was satisfied by `let _ = "GIT_DIR";` — an inert string standing in for an isolation
-/// that is not made. It asked whether a *name* occurs where the property is whether a *call* happens, which
-/// is the third round in a row this file read Rust as text for a question about code.
-fn environment_calls(stream: proc_macro2::TokenStream) -> BTreeSet<String> {
-    let mut named = BTreeSet::new();
-    let mut pending = vec![stream];
-    while let Some(stream) = pending.pop() {
-        let trees: Vec<proc_macro2::TokenTree> = stream.into_iter().collect();
-        for (index, tree) in trees.iter().enumerate() {
-            if let proc_macro2::TokenTree::Group(group) = tree {
-                pending.push(group.stream());
-            }
-            let proc_macro2::TokenTree::Ident(method) = tree else {
-                continue;
-            };
-            if (method != "env" && method != "env_remove") || index == 0 || index + 1 >= trees.len()
-            {
-                continue;
-            }
-            let called = matches!(&trees[index - 1], proc_macro2::TokenTree::Punct(dot) if dot.as_char() == '.');
-            let proc_macro2::TokenTree::Group(arguments) = &trees[index + 1] else {
-                continue;
-            };
-            if !called || arguments.delimiter() != proc_macro2::Delimiter::Parenthesis {
-                continue;
-            }
-            // Spelled without a `let` chain: this crate's MSRV predates them, and the workspace toolchain
-            // compiles one silently — the MSRV job is what said so.
-            if let Some(proc_macro2::TokenTree::Literal(variable)) =
-                arguments.stream().into_iter().next()
-            {
-                if let Some(name) = variable
-                    .to_string()
-                    .strip_prefix('"')
-                    .and_then(|rest| rest.strip_suffix('"'))
-                {
-                    named.insert(name.to_string());
-                }
-            }
-        }
-    }
-    named
+/// **A name is not an operation, and this modelled one as the other.** Collected as bare variable names,
+/// the set could not tell `.env_remove("GIT_DIR")` from `.env("GIT_DIR", "/tmp/other")` — a copy that
+/// *points* the selector somewhere satisfied a requirement that it *clear* it — nor `GIT_CONFIG_COUNT`
+/// pinned to `"1"` from the same variable set to `"0"`, which reopens the ambient-key channel the builder's
+/// own header spends a paragraph closing. Both were live falsifiers.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct Operation {
+    method: String,
+    variable: String,
+    /// The assigned value for `env`, and `None` for `env_remove`, which assigns nothing.
+    value: Option<String>,
 }
 
-/// Every string literal in `stream`, for the two arrays [`kanhe::hermetic_git::hermetic`] iterates.
-fn string_literals(stream: proc_macro2::TokenStream) -> BTreeSet<String> {
-    let mut found = BTreeSet::new();
-    let mut pending = vec![stream];
-    while let Some(stream) = pending.pop() {
-        for tree in stream {
-            match tree {
-                proc_macro2::TokenTree::Group(group) => pending.push(group.stream()),
-                proc_macro2::TokenTree::Literal(literal) => {
-                    if let Some(name) = literal
-                        .to_string()
-                        .strip_prefix('"')
-                        .and_then(|rest| rest.strip_suffix('"'))
-                    {
-                        found.insert(name.to_string());
+/// The environment operations a site declaring [`Isolation::Isolated`] must make, written out here and held
+/// against the builder **both ways**.
+///
+/// Compared one way it caught the builder dropping an operation and never the builder gaining one, so a
+/// twelfth would have been required of no copy. Written as bare variable names it could not tell
+/// `.env_remove("GIT_DIR")` from `.env("GIT_DIR", "/tmp/other")`, nor `GIT_CONFIG_COUNT` pinned to `"1"`
+/// from the same variable set to `"0"` — a copy that reopens the ambient-key channel while satisfying it.
+fn expected_operations() -> BTreeSet<Operation> {
+    let assigns = |variable: &str, value: &str| Operation {
+        method: "env".to_string(),
+        variable: variable.to_string(),
+        value: Some(value.to_string()),
+    };
+    let clears = |variable: &str| Operation {
+        method: "env_remove".to_string(),
+        variable: variable.to_string(),
+        value: None,
+    };
+    [
+        assigns("GIT_CONFIG_GLOBAL", "/dev/null"),
+        assigns("GIT_CONFIG_SYSTEM", "/dev/null"),
+        assigns("GIT_CONFIG_NOSYSTEM", "1"),
+        assigns("GIT_CONFIG_COUNT", "1"),
+        assigns("GIT_CONFIG_KEY_0", "core.excludesFile"),
+        assigns("GIT_CONFIG_VALUE_0", "/dev/null"),
+        clears("GIT_DIR"),
+        clears("GIT_WORK_TREE"),
+        clears("GIT_INDEX_FILE"),
+        clears("GIT_CONFIG_PARAMETERS"),
+        clears("GIT_CONFIG"),
+    ]
+    .into_iter()
+    .collect()
+}
+
+/// What this reader could decide about a file.
+///
+/// **Three states, because a file it cannot parse is not a file that constructs nothing.** The tokeniser's
+/// failure arm fell back to an exact substring, which answers `false` for a construction split across lines
+/// — so an unparseable file carrying one was reported clean, silently, which is the one direction the Core
+/// Contract forbids.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Reading {
+    Constructs,
+    DoesNot,
+    Undecidable,
+}
+
+/// A string literal's **value**, not its rendering.
+///
+/// `Literal::to_string` gives back the source spelling, so `r"git"` and `"\x67it"` — both of which decode to
+/// `git` — compared unequal to `"git"`, and a construction written either way was not read.
+fn literal_value(literal: &syn::Lit) -> Option<String> {
+    match literal {
+        syn::Lit::Str(text) => Some(text.value()),
+        _ => None,
+    }
+}
+
+/// That expression, where it is a string literal.
+fn string_of(expression: &syn::Expr) -> Option<String> {
+    match expression {
+        syn::Expr::Lit(literal) => literal_value(&literal.lit),
+        _ => None,
+    }
+}
+
+/// **Read with a parser, not by counting tokens around a name.**
+///
+/// Four rounds of findings in this file were one cause, and it survived a repair: reading *lines* gave way
+/// to reading *tokens*, and the readers stayed positional — `trees[index - 3]` for the owner segment, a
+/// literal compared by its rendering, a value at `inner.get(2)` or dropped. Each round closed the instance
+/// the review brought. `refusal_register`'s own header records this repository already learning it once:
+/// a reader that is *text over Rust* is not exhaustive over the language, and reading its own Rust with a
+/// real parser is what closed that floor. `syn` is already a dev-dependency here for exactly that.
+///
+/// A call's callee, its argument count and each argument's decoded value are what a parse gives; none of
+/// them is an offset from something else.
+#[derive(Default)]
+struct Constructions {
+    found: bool,
+}
+
+impl<'ast> syn::visit::Visit<'ast> for Constructions {
+    fn visit_expr_call(&mut self, node: &'ast syn::ExprCall) {
+        if let syn::Expr::Path(callee) = &*node.func {
+            let segments: Vec<String> = callee
+                .path
+                .segments
+                .iter()
+                .map(|segment| segment.ident.to_string())
+                .collect();
+            let names_command = segments.len() >= 2
+                && segments[segments.len() - 2] == "Command"
+                && segments[segments.len() - 1] == "new";
+            if names_command
+                && node.args.len() == 1
+                && string_of(&node.args[0]).as_deref() == Some("git")
+            {
+                self.found = true;
+            }
+        }
+        syn::visit::visit_expr_call(self, node);
+    }
+}
+
+/// Whether `text` constructs a `git`, or says it could not decide.
+fn constructs_git(text: &str) -> Reading {
+    let Ok(parsed) = syn::parse_file(text) else {
+        return Reading::Undecidable;
+    };
+    let mut constructions = Constructions::default();
+    syn::visit::Visit::visit_file(&mut constructions, &parsed);
+    if constructions.found {
+        Reading::Constructs
+    } else {
+        Reading::DoesNot
+    }
+}
+
+/// The two readings a direction asserts, so a tri-state reader is not flattened at every call site.
+fn reads(text: &str) -> bool {
+    matches!(constructs_git(text), Reading::Constructs)
+}
+
+/// Every `.env(…)` / `.env_remove(…)` operation a syntax node makes, values included.
+///
+/// A value spelled as an identifier is kept as that identifier and resolved by the caller against the
+/// builder's own constants: `hermetic` writes `.env("GIT_CONFIG_KEY_0", EXCLUDES_SETTING)` where a copy that
+/// cannot reach it writes the string, and those are the same operation.
+#[derive(Default)]
+struct Environment {
+    made: BTreeSet<Operation>,
+}
+
+impl<'ast> syn::visit::Visit<'ast> for Environment {
+    fn visit_expr_method_call(&mut self, node: &'ast syn::ExprMethodCall) {
+        let method = node.method.to_string();
+        if method == "env" || method == "env_remove" {
+            if let Some(variable) = node.args.first().and_then(string_of) {
+                let value = node.args.iter().nth(1).and_then(|assigned| match assigned {
+                    syn::Expr::Lit(literal) => literal_value(&literal.lit),
+                    syn::Expr::Path(constant) => {
+                        constant.path.get_ident().map(|ident| ident.to_string())
                     }
-                }
-                _ => {}
+                    _ => None,
+                });
+                self.made.insert(Operation {
+                    variable,
+                    value: if method == "env_remove" { None } else { value },
+                    method,
+                });
             }
         }
+        syn::visit::visit_expr_method_call(self, node);
     }
-    found
 }
 
-/// The token group that is `name`'s body — a `fn`'s braces, or a `const`'s value after its `=`.
+/// Every string literal's value in an expression — the two arrays [`kanhe::hermetic_git::hermetic`] iterates.
+#[derive(Default)]
+struct Strings {
+    found: BTreeSet<String>,
+}
+
+impl<'ast> syn::visit::Visit<'ast> for Strings {
+    fn visit_lit(&mut self, node: &'ast syn::Lit) {
+        if let Some(value) = literal_value(node) {
+            self.found.insert(value);
+        }
+    }
+}
+
+/// The value a `const` in `file` declares, as a string.
+fn const_string(file: &syn::File, name: &str) -> Option<String> {
+    const_strings(file, name).into_iter().next()
+}
+
+/// Every string a `const` in `file` declares — one for a plain value, several for an array.
 ///
-/// Named by its opening rather than sliced to a terminator. Searched for `"\n}\n"` with `"];\n"` as a
-/// fallback, the two single-line `const` openings took the *next function's* closing brace — an 87-line span
-/// for a one-line subject — and the fallback was a branch no input could reach. A group carries its own end,
-/// so there is no terminator to pick and nothing to get wrong.
-fn item_body(
-    stream: proc_macro2::TokenStream,
-    keyword: &str,
-    name: &str,
-) -> Option<proc_macro2::TokenStream> {
-    let trees: Vec<proc_macro2::TokenTree> = stream.into_iter().collect();
-    for index in 0..trees.len().saturating_sub(1) {
-        let opens = matches!(&trees[index], proc_macro2::TokenTree::Ident(word) if word == keyword)
-            && matches!(&trees[index + 1], proc_macro2::TokenTree::Ident(word) if word == name);
-        if !opens {
-            continue;
-        }
-        // A `fn`'s body is its first brace group; a `const`'s value is the group after its `=`, which keeps
-        // the type's own brackets and the doc attribute's out.
-        let mut cursor = index + 2;
-        if keyword == "const" {
-            while cursor < trees.len()
-                && !matches!(&trees[cursor], proc_macro2::TokenTree::Punct(equals) if equals.as_char() == '=')
-            {
-                cursor += 1;
+/// An item named by the parser, so there is no terminator to pick. Sliced out of text by searching for one,
+/// the two single-line `const` openings took the *next function's* closing brace — an 87-line span for a
+/// one-line subject — and the arm written for them was a branch no input could reach.
+fn const_strings(file: &syn::File, name: &str) -> BTreeSet<String> {
+    for item in &file.items {
+        if let syn::Item::Const(declared) = item {
+            if declared.ident == name {
+                let mut strings = Strings::default();
+                syn::visit::Visit::visit_expr(&mut strings, &declared.expr);
+                return strings.found;
             }
-        }
-        while cursor < trees.len() {
-            if let proc_macro2::TokenTree::Group(group) = &trees[cursor] {
-                let wanted = if keyword == "const" {
-                    proc_macro2::Delimiter::Bracket
-                } else {
-                    proc_macro2::Delimiter::Brace
-                };
-                if group.delimiter() == wanted {
-                    return Some(group.stream());
-                }
-            }
-            cursor += 1;
         }
     }
-    None
+    BTreeSet::new()
 }
 
-/// Every `GIT_*` variable [`kanhe::hermetic_git::hermetic`] acts on, read from the builder's own items.
+/// Every environment operation [`kanhe::hermetic_git::hermetic`] makes, read from the builder's own items.
 ///
 /// `hermetic`'s own body for the calls it makes, and the two arrays it iterates for the names it removes.
 /// The fixture-side `commit` names `GIT_AUTHOR_DATE` and `GIT_COMMITTER_DATE`, which are no part of what a
 /// *read* inherits and are outside these items by construction rather than by a filter over a wider span.
-fn environment_operations_of(builder: &str) -> BTreeSet<String> {
-    let stream: proc_macro2::TokenStream = builder
-        .parse()
-        .expect("the builder is Rust this reader can tokenise");
-    let body = item_body(stream.clone(), "fn", "hermetic").expect(
-        "the builder no longer holds a `fn hermetic`, so this reader's subject is not its subject",
+///
+/// A value the builder spells as a constant is resolved to that constant's own value, so a copy writing the
+/// string and the builder writing the name are read as the one operation they are.
+fn environment_operations_of(builder: &str) -> BTreeSet<Operation> {
+    let parsed = syn::parse_file(builder).expect("the builder is Rust this reader can parse");
+
+    let mut inside = Environment::default();
+    let mut seen = false;
+    for item in &parsed.items {
+        if let syn::Item::Fn(function) = item {
+            if function.sig.ident == "hermetic" {
+                seen = true;
+                syn::visit::Visit::visit_block(&mut inside, &function.block);
+            }
+        }
+    }
+    assert!(
+        seen,
+        "the builder no longer holds a `fn hermetic`, so this reader's subject is not its subject"
     );
-    let mut found = environment_calls(body);
+
+    let mut found: BTreeSet<Operation> = inside
+        .made
+        .into_iter()
+        .map(|operation| Operation {
+            value: operation
+                .value
+                .map(|value| const_string(&parsed, &value).unwrap_or(value)),
+            ..operation
+        })
+        .collect();
+
     let mut arrays = 0usize;
     for array in ["CONFIG_CHANNELS", "REPOSITORY_SELECTORS"] {
-        let Some(value) = item_body(stream.clone(), "const", array) else {
+        let names = const_strings(&parsed, array);
+        if names.is_empty() {
             continue;
-        };
+        }
         arrays += 1;
-        found.extend(string_literals(value));
+        for variable in names {
+            found.insert(Operation {
+                method: "env_remove".to_string(),
+                variable,
+                value: None,
+            });
+        }
     }
     assert_eq!(
         arrays, 2,
@@ -229,68 +336,6 @@ fn workspace_root() -> Option<PathBuf> {
     )
 }
 
-/// Whether `text` constructs a `git` — read as tokens, because that is what the question is about.
-///
-/// **Three rounds of findings in this file were one cause: it read Rust as lines.** A substring over a
-/// trimmed line missed a construction rustfmt split across lines, and read one inside a `/* … */` block —
-/// contradicting the requirement in one direction and the prose bound in the other, at once. Comments are
-/// what a lexer discards and a line break is not a token, so both go away by asking `proc_macro2` instead
-/// of by adding an arm per shape. It is already a dev-dependency here, and `repeated_paragraph` took the
-/// same route for the same reason.
-///
-/// The shape sought is `Command :: new ( "git" )` — the `Command` segment included, so a `new` on something
-/// else is not read, and the argument compared as a **literal token** rather than as text, so any spelling
-/// of the same string that a lexer produces is the same answer.
-fn constructs_git(text: &str) -> bool {
-    let Ok(stream) = text.parse::<proc_macro2::TokenStream>() else {
-        // A file this reader cannot tokenise is one it cannot classify. Reporting it as constructing is the
-        // over-reporting direction, which is visible; the corpus check reports how many it read either way.
-        return text.contains("Command::new(\"git\")");
-    };
-    let mut pending = vec![stream];
-    while let Some(stream) = pending.pop() {
-        let trees: Vec<proc_macro2::TokenTree> = stream.into_iter().collect();
-        for (index, tree) in trees.iter().enumerate() {
-            if let proc_macro2::TokenTree::Group(group) = tree {
-                pending.push(group.stream());
-            }
-            let proc_macro2::TokenTree::Ident(ident) = tree else {
-                continue;
-            };
-            if ident != "new" || index < 3 || index + 1 >= trees.len() {
-                continue;
-            }
-            let named_command = matches!(&trees[index - 3], proc_macro2::TokenTree::Ident(owner) if owner == "Command")
-                && matches!(&trees[index - 2], proc_macro2::TokenTree::Punct(colon) if colon.as_char() == ':')
-                && matches!(&trees[index - 1], proc_macro2::TokenTree::Punct(colon) if colon.as_char() == ':');
-            if !named_command {
-                continue;
-            }
-            let proc_macro2::TokenTree::Group(arguments) = &trees[index + 1] else {
-                continue;
-            };
-            if arguments.delimiter() != proc_macro2::Delimiter::Parenthesis {
-                continue;
-            }
-            // A trailing comma is what rustfmt leaves when it wraps the argument, so the group is the
-            // literal and optionally that comma — the shape, not the spelling.
-            let inner: Vec<proc_macro2::TokenTree> = arguments.stream().into_iter().collect();
-            let program = match inner.as_slice() {
-                [proc_macro2::TokenTree::Literal(program)] => Some(program),
-                [
-                    proc_macro2::TokenTree::Literal(program),
-                    proc_macro2::TokenTree::Punct(comma),
-                ] if comma.as_char() == ',' => Some(program),
-                _ => None,
-            };
-            if program.is_some_and(|program| program.to_string() == "\"git\"") {
-                return true;
-            }
-        }
-    }
-    false
-}
-
 #[test]
 fn every_git_this_repository_constructs_is_the_builders_or_is_declared() {
     let Some(root) = workspace_root() else {
@@ -301,19 +346,32 @@ fn every_git_this_repository_constructs_is_the_builders_or_is_declared() {
         "the tracked Rust is enumerable; a failed enumeration is not a repository with no sources",
     );
     let mut constructing = BTreeSet::new();
+    let mut undecidable = Vec::new();
     let mut examined = 0usize;
     for path in &tracked {
         let text = std::fs::read_to_string(root.join(path)).unwrap_or_else(|err| {
             panic!("cannot read tracked file '{path}' — a file this check claims to have inspected must have been read: {err}")
         });
         examined += 1;
-        if constructs_git(&text) {
-            constructing.insert(path.clone());
+        match constructs_git(&text) {
+            Reading::Constructs => {
+                constructing.insert(path.clone());
+            }
+            Reading::DoesNot => {}
+            Reading::Undecidable => undecidable.push(path.clone()),
         }
     }
     assert!(
         examined > 0,
         "no tracked Rust was inspected, so this check would report clean over nothing"
+    );
+    // A file this reader cannot parse is not a file that constructs nothing. Its predecessor fell back to a
+    // substring, which answers `false` for a construction split across lines — clean, silently, over a file
+    // it never read.
+    assert!(
+        undecidable.is_empty(),
+        "tracked Rust this reader could not parse, so whether it constructs a `git` was never decided:\n  {}",
+        undecidable.join("\n  ")
     );
 
     let declared: BTreeSet<String> = CONSTRUCTS_GIT_ITSELF
@@ -341,11 +399,8 @@ fn a_site_that_cannot_reach_the_builder_holds_what_the_builder_holds() {
     // `GIT_COMMITTER_DATE` for the fixture side, and those are no part of what a read inherits.
     let builder = std::fs::read_to_string(root.join("crates/kanhe/src/hermetic_git.rs"))
         .expect("the builder is readable");
-    let makes: BTreeSet<String> = environment_operations_of(&builder);
-    let required: BTreeSet<String> = ENVIRONMENT_OPERATIONS
-        .iter()
-        .map(|v| (*v).to_string())
-        .collect();
+    let makes = environment_operations_of(&builder);
+    let required = expected_operations();
     assert_eq!(
         makes, required,
         "the environment operations `hermetic` makes differ from the set this check requires of a copy. \
@@ -366,14 +421,21 @@ fn a_site_that_cannot_reach_the_builder_holds_what_the_builder_holds() {
         // isolation that is not made. The line filter it carried was itself a repair of the same shape one
         // round earlier, when the paragraph explaining the isolation named every variable it removes and so
         // satisfied the check on its own. Both go away by reading the calls.
-        let stream: proc_macro2::TokenStream = text
-            .parse()
-            .unwrap_or_else(|err| panic!("the declared site '{path}' is not tokenisable: {err}"));
-        let made = environment_calls(stream);
-        for variable in ENVIRONMENT_OPERATIONS {
-            if !made.contains(variable) {
+        let parsed = syn::parse_file(&text).unwrap_or_else(|err| {
+            panic!("the declared site '{path}' is not Rust this reader parses: {err}")
+        });
+        let mut inside = Environment::default();
+        syn::visit::Visit::visit_file(&mut inside, &parsed);
+        for operation in &makes {
+            if !inside.made.contains(operation) {
                 missing.push(format!(
-                    "  {path}: makes no `env`/`env_remove` call naming {variable}"
+                    "  {path}: makes no `.{}({:?}{})` call",
+                    operation.method,
+                    operation.variable,
+                    operation
+                        .value
+                        .as_ref()
+                        .map_or(String::new(), |value| format!(", {value:?}"))
                 ));
             }
         }
@@ -399,24 +461,22 @@ fn a_site_that_cannot_reach_the_builder_holds_what_the_builder_holds() {
 /// `a-paragraph-repeated-out-of-line-is-not-read`, in the round that repaired it.
 #[test]
 fn a_construction_named_in_prose_is_not_read() {
-    assert!(!constructs_git(
+    assert!(!reads(
         "/// `Command::new(\"git\")` is what this forbids\nfn f() {}"
     ));
-    assert!(!constructs_git(
+    assert!(!reads(
         "fn f() {\n    // a bare Command::new(\"git\") inherits the environment\n}"
     ));
     // **Every comment form, which is what asking a lexer buys.** A trimmed-line reader saw `//` and not
     // `/* … */`, so a block comment carrying the spelling was read as a construction — the prose bound
     // saying the opposite two files away.
-    assert!(!constructs_git(
+    assert!(!reads(
         "fn f() {\n    /* a bare Command::new(\"git\") inherits the environment */\n}"
     ));
-    assert!(!constructs_git(
+    assert!(!reads(
         "fn f() {\n    let x = 1; /* Command::new(\"git\") */\n}"
     ));
-    assert!(constructs_git(
-        "fn f() {\n    let out = Command::new(\"git\");\n}"
-    ));
+    assert!(reads("fn f() {\n    let out = Command::new(\"git\");\n}"));
 }
 
 /// A construction rustfmt split across lines is still a construction.
@@ -426,17 +486,15 @@ fn a_construction_named_in_prose_is_not_read() {
 /// own requirement — that every file constructing a `git` is declared — was wider than its reader.
 #[test]
 fn a_construction_split_across_lines_is_read() {
-    assert!(constructs_git(
+    assert!(reads(
         "fn f() {\n    let out = Command::new(\n        \"git\",\n    );\n}"
     ));
     // The control: the same wrapping around a different program is not read, so the assertion above is
     // about the argument rather than about a reader that reports every `new`.
-    assert!(!constructs_git(
+    assert!(!reads(
         "fn f() {\n    let out = Command::new(\n        \"cargo\",\n    );\n}"
     ));
-    assert!(!constructs_git(
-        "fn f() {\n    let out = Other::new(\"git\");\n}"
-    ));
+    assert!(!reads("fn f() {\n    let out = Other::new(\"git\");\n}"));
 }
 
 /// A `git` constructed through a program value is not read.
@@ -446,14 +504,14 @@ fn a_construction_split_across_lines_is_read() {
 /// — `Command::new(program)` — which is why the stop exists rather than being closed.
 #[test]
 fn a_construction_through_a_program_value_is_not_read() {
-    assert!(!constructs_git(
-        "    let mut command = Command::new(program);"
+    assert!(!reads(
+        "fn f() {\n    let mut command = Command::new(program);\n}"
     ));
-    assert!(!constructs_git("    let out = Command::new(&exe)"));
-    // The control: the literal form on the same shape of line is read, so the assertions above are about
-    // the value rather than about a reader that reports nothing.
-    assert!(constructs_git(
-        "    let mut command = Command::new(\"git\");"
+    assert!(!reads("fn f() {\n    let out = Command::new(&exe);\n}"));
+    // The control: the literal form in the same file is read, so the assertions above are about the value
+    // rather than about a reader that reports nothing.
+    assert!(reads(
+        "fn f() {\n    let mut command = Command::new(\"git\");\n}"
     ));
 }
 
@@ -465,11 +523,9 @@ fn a_construction_through_a_program_value_is_not_read() {
 /// one is the under-reaction, so it is the one declared:
 /// `repository-checks/a-git-constructed-inside-a-string-literal-is-not-read-a-stated-bound`.
 ///
-/// The mechanism is escaping. Rust source carrying a construction inside an ordinary literal spells it
-/// `Command::new(\"git\")`, which is not the unescaped text this reader looks for, so the file drops out —
-/// and a file that writes Rust and compiles it is where that matters. Deciding it properly means separating
-/// a literal from the code around it, which `repeated_paragraph` carries a lexer to do and this check does
-/// not.
+/// A literal is one expression, so what it carries is that expression's value and not a call — and a file
+/// that writes Rust and compiles it is where that matters. Reading lines, this split in two by escaping;
+/// read as syntax, both literal forms answer the same way and the raw-string over-report is gone.
 ///
 /// **Both fixtures are assembled, and the raw one has to be.** This file is inside the corpus the live sweep
 /// reads, so a raw string carrying the spelling verbatim would make this file report itself — measured, it
@@ -481,16 +537,17 @@ fn a_construction_through_a_program_value_is_not_read() {
 fn a_construction_inside_an_ordinary_string_literal_is_not_read() {
     // Assembled, because this file is inside the corpus the live sweep reads.
     let quote = '"';
-    let ordinary =
-        format!("    let fixture = {quote}let out = Command::new(\\{quote}git\\{quote}){quote};");
+    let ordinary = format!(
+        "fn f() {{\n    let fixture = {quote}let out = Command::new(\\{quote}git\\{quote}){quote};\n}}"
+    );
     assert!(
-        !constructs_git(&ordinary),
+        !reads(&ordinary),
         "an ordinary literal escapes the quotes, so it carries a different text and drops out on its own"
     );
     // The control: the same line without the literal around it is read, so the assertion above is about the
     // escaping rather than about a reader that reports nothing.
-    assert!(constructs_git(&format!(
-        "    let out = Command::new({quote}git{quote})"
+    assert!(reads(&format!(
+        "fn f() {{\n    let out = Command::new({quote}git{quote});\n}}"
     )));
 }
 
@@ -508,9 +565,81 @@ fn a_construction_inside_a_raw_string_is_not_read() {
         "fn f() {{\n    let fixture = r#{quote}let out = Command::new({quote}git{quote}){quote}#;\n}}"
     );
     assert!(
-        !constructs_git(&raw),
+        !reads(&raw),
         "a raw string is one literal token, so what it carries is that token's text and not a call"
     );
+}
+
+/// A construction spelled another way is the same construction.
+///
+/// `Literal::to_string` gives back the **source rendering**, so `r"git"` and `"\x67it"` — both of which
+/// decode to `git` — compared unequal to `"git"` and neither was read. A parser decodes, so the reader
+/// answers about the program named rather than about how it was typed.
+#[test]
+fn a_construction_spelled_another_way_is_still_read() {
+    assert!(reads("fn f() {\n    let out = Command::new(r\"git\");\n}"));
+    assert!(reads(
+        "fn f() {\n    let out = Command::new(\"\\x67it\");\n}"
+    ));
+    // The control: another program spelled the same ways is not read.
+    assert!(!reads(
+        "fn f() {\n    let out = Command::new(r\"cargo\");\n}"
+    ));
+}
+
+/// An operation is its method and its value, not the variable it names.
+///
+/// Collected as bare names, the set could not tell clearing a selector from **pointing** it somewhere, nor
+/// a count pinned to `"1"` from the same count set to `"0"` — which reopens the ambient-key channel the
+/// builder's header spends a paragraph closing. Both were falsifiers a review supplied and both passed.
+#[test]
+fn an_operation_is_its_method_and_its_value() {
+    let operations = |source: &str| {
+        let parsed = syn::parse_file(source).expect("the probe is Rust");
+        let mut inside = Environment::default();
+        syn::visit::Visit::visit_file(&mut inside, &parsed);
+        inside.made
+    };
+    let clears = operations("fn f() {\n    c.env_remove(\"GIT_DIR\");\n}");
+    let points = operations("fn f() {\n    c.env(\"GIT_DIR\", \"/tmp/other\");\n}");
+    assert_ne!(
+        clears, points,
+        "clearing a repository selector and pointing it somewhere are not one operation"
+    );
+
+    let pinned = operations("fn f() {\n    c.env(\"GIT_CONFIG_COUNT\", \"1\");\n}");
+    let opened = operations("fn f() {\n    c.env(\"GIT_CONFIG_COUNT\", \"0\");\n}");
+    assert_ne!(
+        pinned, opened,
+        "a count pinned to one and a count set to zero are not one operation: the second reopens the \
+         ambient-key channel while naming the same variable"
+    );
+
+    // And the builder's own constant-spelled value is resolved, so a copy writing the string and the
+    // builder writing the name are read as the one operation they are.
+    assert!(
+        expected_operations().contains(&Operation {
+            method: "env".to_string(),
+            variable: "GIT_CONFIG_KEY_0".to_string(),
+            value: Some("core.excludesFile".to_string()),
+        }),
+        "the expected set carries the resolved value, not the constant's name"
+    );
+}
+
+/// A file this reader cannot parse is undecidable, not a file that constructs nothing.
+///
+/// The tokeniser's failure arm fell back to an exact substring, which answers `false` for a construction
+/// split across lines — so an unparseable file carrying one was reported clean, silently, which is the one
+/// direction the Core Contract forbids. The corpus direction names such a path and fails.
+#[test]
+fn a_file_this_reader_cannot_parse_is_undecidable() {
+    assert_eq!(constructs_git("fn f( {"), Reading::Undecidable);
+    assert_eq!(
+        constructs_git("fn f() {\n    let out = Command::new(\n        \"git\",\n    );\n}"),
+        Reading::Constructs
+    );
+    assert_eq!(constructs_git("fn f() {}"), Reading::DoesNot);
 }
 
 /// The declared set names a path this repository tracks.
