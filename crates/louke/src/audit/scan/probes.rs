@@ -1,6 +1,10 @@
 use super::lexer::*;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+// The two readers that separate an absent target from one this reader could not stat live in `xingbiao`,
+// because 圭表 and 渾儀 ask the same question and none of the three may ask another. This module's own
+// copies were the first of the three to exist; the substrate is where the answer belongs.
+use xingbiao::{is_directory, is_regular_file};
 
 /// What the source scan found for a probe occurrence (`assert_boundary!`).
 #[derive(Debug)]
@@ -495,11 +499,6 @@ pub(crate) fn collect_scope_modules(
     }
     Ok(())
 }
-
-/// The two readers that separate an absent target from one this reader could not stat live in
-/// [`xingbiao`], because 圭表 and 渾儀 ask the same question and none of the three may ask another. This
-/// module's own copies were the first of the three to exist; the substrate is where the answer belongs.
-use xingbiao::{is_directory, is_regular_file};
 
 /// Resolve a `mod name;` to its conventional file and the base directory for its own children:
 /// `Ok(Some(..))` for `<base>/name.rs` or `<base>/name/mod.rs`, `Ok(None)` when neither exists (the

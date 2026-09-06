@@ -132,6 +132,16 @@ them.
   Found by re-reading this window's own repairs rather than by running anything, which is where a claim about
   code sits when the code is right.
 
+- **An import sat 200 lines below its first call site, with its reason attached to a `use` that renders
+  nowhere.** 漏刻's probe scanner takes `is_directory` / `is_regular_file` from the substrate; the `use`
+  stood at line 502 between two functions while the file's import block is lines 1–3 and the first call is
+  line 299. The two mid-file imports this workspace already has each express a reason by their placement —
+  one pairs with a `pub use` re-export, one is `#[cfg(test)]`-gated — and this one had none. A `///`
+  attached to a private `use` is documented nowhere, so its explanation reached only a reader already
+  standing at line 502.
+
+  Moved to the block, with the explanation kept as a `//` note beside it.
+
 - **The reader that forbids a commit object could not see one cited inside a longer span, which is why
   three of them stood.** `is_abbreviated_object` asks whether a code span **is** the hex. `git show <object>`
   is a single span carrying spaces, so the predicate answered *no* while the citation was plainly in it —
