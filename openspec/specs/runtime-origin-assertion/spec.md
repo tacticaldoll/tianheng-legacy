@@ -381,10 +381,20 @@ identifier `cfg_attr`; every other parenthesised group carries none.
 **The attribute admitting applied metas is the built-in `cfg_attr`, whose path is exactly that one
 segment.** A group is an applied-meta position only where its `(` follows that path, so a qualified
 look-alike — `foo::cfg_attr(a, path = "…")` — carries no module target, and neither does any other
-attribute taking a `path` argument of its own. **Trivia SHALL NOT decide what a path is**: whether a
+attribute taking a `path` argument of its own. **The same narrowing governs the applied `path` meta
+itself**: the built-in remap is the single-segment `path`, so `foo::path = "…"` in an applied position
+carries no module target either. The rule was first written for the wrapper alone and the target was left
+out of it, which is a requirement narrower than the shape it is about. **Trivia SHALL NOT decide what a path is**: whether a
 segment is reached through `::` is a fact about the token before it, and a reader answering it by looking
 behind over whitespace alone read `foo::/**/cfg_attr` as unqualified, restoring the same over-read through
 a third spelling. A comment between the separator and the segment is trivia and changes nothing.
+
+#### Scenario: A qualified applied path carries no module target
+
+- **WHEN** the scanner meets `#[cfg_attr(any(), foo::path = "bogus.rs", path = "real.rs")] mod plat;` with `bogus.rs` on disk
+- **THEN** `bogus.rs` is not scanned as `crate::plat`, because the built-in remap is the single-segment `path` — measured under rustc 1.96.0, edition 2021, `--crate-type lib`, the declaration compiles, since a false predicate expands no applied attribute and `foo::path` is never resolved
+- **AND** the consequence is this capability's own: a probe inside a file no build compiles counted as coverage, so the audit reported clean over a seam nothing probes
+- **PINNED-BY** `a_qualified_applied_path_is_not_a_module_target`
 
 #### Scenario: A qualified look-alike is not the built-in attribute
 
