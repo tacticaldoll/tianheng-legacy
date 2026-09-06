@@ -18,8 +18,9 @@
 //!
 //! The widenings are named rather than left to be inferred: the path-identity primitives
 //! ([`canonicalize_or_fail`], [`try_visit`]) arrived for a module-graph cycle guard, and the
-//! filesystem-answer policy ([`is_absence`] and its readers) arrived after all three dimensions were
-//! measured collapsing *absent* into *unreadable* — each is one notch finer than the last, on the same
+//! filesystem-answer policy ([`is_regular_file`], [`is_directory`] and the crate-private criterion behind
+//! them) arrived after all three dimensions were measured collapsing *absent* into *unreadable* — each is
+//! one notch finer than the last, on the same
 //! question of what the tree holds.
 //!
 //! Sits beneath all three observation dimensions — static (圭表), semantic (渾儀) and runtime (漏刻,
@@ -388,15 +389,20 @@ pub fn audit_corpus_and_anchor(manifest_path: &Path) -> Result<(Vec<PathBuf>, Pa
 /// are left on the loud side rather than sorted on a guess.
 ///
 /// It lives here because all three dimensions ask it and none may ask another: the substrate is where a
-/// question they share is answered once, the way `canonicalize_or_fail` already is.
-pub fn is_absence(kind: std::io::ErrorKind) -> bool {
+/// question they share is answered once, the way `canonicalize_or_fail` already is. They ask it **through**
+/// [`is_regular_file`] and [`is_directory`], which are its only callers, so the criterion itself is
+/// crate-private — a published name is a promise this crate would have to keep, and nothing outside asks
+/// for it. A dimension that later needs to place a new error kind changes the criterion here, which is the
+/// point of it living here at all.
+pub(crate) fn is_absence(kind: std::io::ErrorKind) -> bool {
     matches!(
         kind,
         std::io::ErrorKind::NotFound | std::io::ErrorKind::NotADirectory
     )
 }
 
-/// Whether `path` is a regular file, or why this reader could not tell — see [`is_absence`].
+/// Whether `path` is a regular file, or why this reader could not tell — the criterion is
+/// `is_absence`, crate-private beside these two, which are its only callers.
 pub fn is_regular_file(path: &Path) -> Result<bool, String> {
     match std::fs::metadata(path) {
         Ok(found) => Ok(found.is_file()),

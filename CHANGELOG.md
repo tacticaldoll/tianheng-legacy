@@ -132,6 +132,27 @@ them.
   Found by re-reading this window's own repairs rather than by running anything, which is where a claim about
   code sits when the code is right.
 
+- **An extraction removed the reach and left the visibility behind, in two crates.** A name's visibility is
+  a promise about who may call it; an extraction that collapses the callers into one place ends the promise
+  without touching the line that makes it, and nothing complains — the name still compiles, still resolves,
+  and now says something about this tree that stopped being true.
+
+  `xingbiao::is_absence` was added `pub` this window on a crate that ships, and its callers are
+  `is_regular_file` and `is_directory` **in its own file** — a published name is a promise this crate would
+  have to keep, made for nobody. `hunyi`'s `is_anchor_absent_from_unit` is the same shape from the other
+  direction: it was called from eight files at `0.5.0`, the `over_each_unit` extraction removed every one of
+  those call sites, and the `pub(crate)` stayed. Both are now as narrow as their reach — crate-private and
+  module-private respectively. Neither name was ever released public, so there is nothing to regenerate and
+  nothing for an adopter to do.
+
+  **Nothing reacted, and nothing here is proposed to.** Reach is a whole-crate fact, and the visibility a
+  name *should* carry is not decidable from one file — the shape a reaction would need is a call graph, which
+  is a reading of source and therefore each dimension's own, not the substrate's. Found by review.
+
+  Narrowing `is_absence` broke two rustdoc links to it, which is the bound `reference-integrity` declares
+  rather than a surprise: a link to a private item is exactly what it refuses. Both were demoted to prose, as
+  `repository_path`'s own module doc already records doing for the same reason.
+
 - **The widened reader was still narrower than the clause written for it, and its scenario pinned a
   direction that could not fail.** Two independent reviews arrived at the same pair, and both hold.
 

@@ -75,7 +75,7 @@ pub(crate) fn resolve_crate_units<'m>(
 /// moves both sides together. Every OTHER failure — an unreadable source, a resolution ambiguity, a root
 /// outside the package directory — propagates immediately: deferring it until a sibling unit happened to
 /// be governable would silently pass over source the system could not read.
-pub(crate) fn is_anchor_absent_from_unit(err: &str, canonical_absence: &str) -> bool {
+fn is_anchor_absent_from_unit(err: &str, canonical_absence: &str) -> bool {
     err == canonical_absence
 }
 
