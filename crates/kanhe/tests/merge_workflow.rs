@@ -2550,3 +2550,64 @@ fn shell_strictness_is_declared_once_for_the_whole_workflow() {
         lax.join("\n")
     );
 }
+
+/// What CI said is read last, after every other guard and immediately before the merge.
+///
+/// **A rollup is one end of a relation, not a value being recorded.** The other end is the moment the merge
+/// happens, and nothing downstream reads the rollup's value — so a read placed early buys no record and
+/// leaves a window. In it, a required check re-run on the SAME head turns the rollup red while every guard
+/// after it still passes: `--match-head-commit` pins an object that did not move, and the title, base and
+/// head branch did not move either. The wrapper's own sorting criterion puts a judged relation with the
+/// re-reads, and this one was filed with the recorded values.
+///
+/// This direction asserts the position in the log rather than the presence of the call, because presence
+/// was never the question — the call was always there, in the wrong place.
+///
+/// The residual is stated where the other three state theirs: a client-side read cannot be atomic with the
+/// act it precedes, and `gh` offers no server-decided precondition for checks. What the order buys is that
+/// the window is this block's own API calls rather than those plus a whole `cargo test`.
+#[test]
+fn what_ci_said_is_read_last_before_the_merge() {
+    let Some(root) = workspace_root() else {
+        return;
+    };
+    let run = run_wrapper(&root, "subjects", &[]);
+    assert!(
+        run.status.success(),
+        "controlled workflow failed:\nstdout:\n{}\nstderr:\n{}",
+        run.stdout,
+        run.stderr
+    );
+    let lines: Vec<&str> = run.gh_log.lines().collect();
+    let at = |needle: &str| {
+        lines
+            .iter()
+            .position(|line| line.contains(needle))
+            .unwrap_or_else(|| panic!("{needle} must be read:\n{}", run.gh_log))
+    };
+    let rollup_at = at("--json statusCheckRollup");
+    let merge_at = lines
+        .iter()
+        .position(|line| line.starts_with("pr merge"))
+        .unwrap_or_else(|| panic!("the merge must be reached:\n{}", run.gh_log));
+
+    // Every other read this wrapper makes, so the assertion is *last* rather than *late*.
+    for earlier in [
+        "--json title",
+        "--json baseRefName",
+        "--json headRefName",
+        "--json headRefOid",
+        "--json changedFiles",
+    ] {
+        assert!(
+            at(earlier) < rollup_at,
+            "{earlier} must be read before the rollup, or the rollup is not the last guard; gh log was:\n{}",
+            run.gh_log
+        );
+    }
+    assert!(
+        rollup_at < merge_at,
+        "the rollup must be read before the merge; gh log was:\n{}",
+        run.gh_log
+    );
+}

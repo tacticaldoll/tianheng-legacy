@@ -1277,6 +1277,39 @@ them.
 
 ### Self-governance
 
+- **What CI said was read among the values the merge records, and it is one of the relations the merge is
+  judged against.** The merge wrapper sorts its inputs by one question: does the merge RECORD this, or is it
+  JUDGED AGAINST it? A recorded value travels as the value the gate saw; a judged relation has to still hold
+  when the merge happens, which is why the title, the base and the head branch each gained a post-gate
+  re-read. The rollup was filed with the recorded values — and it records nothing, since its value is local
+  to the guard that reads it and nothing downstream sees it.
+
+  What that leaves is a window in which a required check re-run on the **same head** turns the rollup red
+  while every guard after it still passes: the head object has not moved, so `--match-head-commit` is
+  satisfied, and none of the three branch names has moved. The read is the last guard now, once rather than
+  twice — there being no value to record from an earlier one — so the window is this block's own remaining
+  API calls rather than those plus a whole `cargo test`. `repository-checks` carries the ordering as a
+  requirement with a direction pinning it, and the residual is the post-gate bound already declared: a
+  client-side read cannot be atomic with the act it precedes, and that stop is reached through whichever
+  inputs are read that way rather than through any one of them.
+
+  **This is the third time that sorting has been got wrong in this file**, and the second time a sentence in
+  it rested the claim on an ordering. The `--admin` arm said that passing the flag to force a red merge
+  *does not work* because the rollup is refused **before `gh` is reached** — true of the read and not of the
+  merge, with the read where it was. The arm now says what it is about the flag, and the ordering is where
+  the property lives.
+
+  **And where that flag reaches at all is measured, because a review read it as a privilege escalation.**
+  Asked of this repository on 2026-09-08: the development base every squash lands on answers `404 Branch
+  not protected`, so there are no required checks there to bypass, and the release base is protected with
+  seven required checks and `enforce_admins` **enabled**, so GitHub refuses an administrator's bypass of
+  them. The flag reaches required reviews, which is the use its arm states, and reaches no check on either
+  base — so the stale reading was a race against this wrapper's own claim rather than a way past GitHub's.
+  The measurement is dated and re-asked rather than trusted, being a fact about settings.
+
+  Found by an independent review of this window, which named the ordering and the line; the security half of
+  its verdict is the half the protection settings answer.
+
 - **The runner that holds a conversation with `git` drained one of its two output pipes, and the other was
   the same hazard it had already paid for.** `run_with_stdin` gives stdout a reader of its own because the
   header above it records the measurement: 73,670 excluded paths, 9.1 MB in and 11.0 MB out against a 64 KB

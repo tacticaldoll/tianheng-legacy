@@ -237,9 +237,24 @@ while (($#)); do
     #
     # **What it no longer does is bypass CI, and the arm used to be reasoned from that.** It said this was
     # consistent with *whether CI is green stays a human's call*; `require_ci_green` refuses a red or
-    # unfinished rollup before `gh` is reached, so passing `--admin` to force a red merge through this path
-    # does not work and is not meant to. Use the web UI for that, and meet no gate at all — which is the
-    # declared bound the header names, not a loophole this arm opens.
+    # unfinished rollup, so passing `--admin` to force a red merge through this path does not work and is
+    # not meant to. Use the web UI for that, and meet no gate at all — which is the declared bound the
+    # header names, not a loophole this arm opens.
+    #
+    # **That sentence used to say `before gh is reached` and rest the whole claim on it, which is a claim
+    # about an ordering rather than about the flag.** It was true of the read and not of the merge: the
+    # rollup was read among the guards above the post-gate block, so a required check re-run on the same
+    # head could turn it red with every later guard still passing. The read is the last guard now, which is
+    # what makes the sentence about the flag again — and the residual is the declared post-gate bound rather
+    # than this arm.
+    #
+    # **Where the flag reaches at all is measured rather than assumed, because a review read it as a
+    # privilege escalation.** Asked of this repository on 2026-09-08: the development base every squash
+    # lands on answers `404 Branch not protected`, so there are no required checks there to bypass; and the
+    # release base is protected with seven required checks and `enforce_admins` **enabled**, so GitHub
+    # refuses an administrator's bypass of them. The flag reaches required reviews, which is the arm above,
+    # and reaches no check on either base. That is a fact about this repository's settings rather than about
+    # `gh`, so it is stated with its date and re-asked rather than trusted.
     #
     # It is the only flag admitted here, and the criterion above is why. `--delete-branch` shared this arm
     # with no sentence of its own: it changes neither whether the merge proceeds, nor what it records, nor
@@ -653,7 +668,6 @@ gate_output=$(TIANHENG_GATE_VERDICT=$verdict_file \
 }
 require_one_pass "$gate_output"
 require_a_verdict
-require_ci_green
 require_changed_files
 
 # The title, the base and the head branch are re-read, because each is the OTHER END OF A RELATION rather
@@ -721,6 +735,26 @@ if [[ $head_branch_now != "$head_branch" ]]; then
 this merge will not have — and the one message exception names both endpoints. Re-run this wrapper and it \
 will judge the head branch that exists now"
 fi
+
+# **What CI said is the fourth judged relation, and it was read where the first three were captured.** It
+# sat with `require_a_verdict` and `require_changed_files`, before these re-reads — and nothing downstream
+# reads its value, so that read recorded nothing and existed only to refuse. A rollup is not a value being
+# recorded: it is one end of *every check agrees*, and the other end is the moment the merge happens. Read
+# early, a required check re-run on the SAME head between the two turns the rollup red while every guard
+# after it still passes — `--match-head-commit` pins the object and the object did not move, and the three
+# branch names above did not move either. Sorted by this wrapper's own criterion, it was filed on the wrong
+# side, which is the third time that sorting has been got wrong here.
+#
+# It is read last rather than twice. The title keeps its early capture because `subject` defaults to it, so
+# there is a value to record; a rollup has none, so a second read would be a second call buying no property
+# the one late read lacks.
+#
+# **This narrows the window; it does not close it, and the bound above names the shape.** A client-side read
+# cannot be atomic with the act it precedes, so `gh` offers no `--require-checks` and the residual is the one
+# already declared for the other three: whichever inputs are re-read, the stop is a property of reading from
+# a client rather than of any one input. The window is now the four API calls this block makes rather than
+# those plus a whole `cargo test`.
+require_ci_green
 
 # Removed here, not left to the trap. An EXIT trap does not run when `exec` replaces the shell image —
 # measured, `bash -c 'trap "echo T" EXIT; exec true'` prints nothing while the same script without `exec` prints
