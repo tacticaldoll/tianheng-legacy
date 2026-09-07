@@ -26,6 +26,20 @@ them.
 
 ### Governance
 
+- **The file that records what a pin proves carried a hand-written count of its own subject.** Its header
+  named how many bounds the window had declared and how many bounds one target holds. Both were true when
+  typed and both were understatements of the same sets before the window closed — a new bound and two more
+  bounds arrived after the figures did — in the one file whose whole argument is that a citation proves a
+  name resolves and only a record proves a pin bites.
+
+  A census belongs where something enumerates it, and something already does: `pin_bites` prints
+  `N declared mutation(s) covering N of M cited test(s)` on every clean run. So the figures are gone and
+  neither is replaced by another figure — what stands in their place is the property they were standing in
+  for. **What a window owes is its own bounds, not the standing set**: paying a record for every citation
+  the repository already carries is not affordable and paying one per bound a window declares is, so the
+  obligation rides the act that creates the debt. And the target with unrecorded bounds names them instead
+  of counting them, since a denominator there is a count that moves while the sentence does not.
+
 - **A scenario stated a refusal and nothing reached it.** `repository-checks` declares that a tracked Rust
   file the lexer refuses is a cannot-judge naming the path, and the reaction was there — but the
   repeated-paragraph target's twelve directions covered an unreadable file and a path that is not UTF-8 and
