@@ -19,9 +19,11 @@ use crate::refusal::{Refusal, cannot_judge_at, violation_at};
 
 /// The judgement's own git, isolated from everything outside the repository it judges.
 ///
-/// This file already had [`hermetic`] and used it for its **fixtures**; the judgement ran through a bare
-/// `Command::new("git")`. The fixtures were isolated and the verdict was not, which is the wrong way round —
+/// The builder was reached for by this gate's **fixture** and not by its judgement, which ran through a bare
+/// `Command::new("git")`. The fixture was isolated and the verdict was not, which is the wrong way round —
 /// a `core.excludesFile` outside the repository made the cleanliness read return empty for an untracked file.
+/// The fixture is [`crate::fixture::publish_source`] now, and both halves reach
+/// [`crate::hermetic_git::hermetic`] from where it lives rather than through a re-export here.
 ///
 /// Neutralising `core.excludesFile` **explicitly** was the load-bearing half, measured rather than assumed —
 /// as this table read while it was:
@@ -977,108 +979,6 @@ pub(crate) fn verify_with(program: &str, payload: &str, signature: &Path) -> Res
         verifier_reached_no_verdict("its payload was not delivered, or it was not reaped")
     })?;
     verdict_of(out.status)
-}
-
-// --- the fixture ------------------------------------------------------------------------------------------
-
-/// A repository in the exact shape a publish runs from: `main` pushed to a bare remote, its tip a
-/// `release: <version>` snapshot, tagged with a signed annotated tag, worktree clean.
-///
-/// The caller owns the root and its cleanup, because a builder that also decided lifetime would make a
-/// caller's single guard two.
-pub struct Fixture {
-    /// The working tree a publish would run from.
-    pub repo: PathBuf,
-    /// The bare remote `main` was pushed to.
-    pub remote: PathBuf,
-    /// The signing key the annotated tag was made with.
-    pub key: PathBuf,
-}
-
-pub use crate::hermetic_git::hermetic;
-use crate::hermetic_git::{commit, fixture as run};
-
-/// Build a [`Fixture`] under `root`, in the shape a publish is allowed to run from.
-///
-/// Every step is hermetic: a fixture that inherited the machine's signing configuration once turned an
-/// intentionally unsigned tag into a signed one, which made a refusal impossible to demonstrate.
-pub fn build_fixture(root: &Path, name: &str, version: &str) -> Fixture {
-    let repo = root.join(name);
-    let remote = root.join(format!("{name}-origin.git"));
-    let key = root.join(format!("{name}-key"));
-    std::fs::create_dir_all(&repo).expect("the fixture root is writable");
-
-    run(
-        root,
-        "ssh-keygen",
-        &[
-            "-q",
-            "-t",
-            "ed25519",
-            "-N",
-            "",
-            "-C",
-            "fixture",
-            "-f",
-            &key.display().to_string(),
-        ],
-    );
-    run(
-        root,
-        "git",
-        &["init", "-q", "--bare", &remote.display().to_string()],
-    );
-    run(&repo, "git", &["init", "-q", "-b", "main"]);
-    for (k, v) in [
-        ("user.name", "Publish Source Test"),
-        ("user.email", "publish-source@example.invalid"),
-        ("gpg.format", "ssh"),
-        ("commit.gpgsign", "false"),
-        ("tag.gpgsign", "false"),
-        ("tag.forceSignAnnotated", "false"),
-    ] {
-        run(&repo, "git", &["config", k, v]);
-    }
-    run(
-        &repo,
-        "git",
-        &["config", "user.signingkey", &key.display().to_string()],
-    );
-
-    std::fs::write(
-        repo.join("Cargo.toml"),
-        format!("[workspace]\nmembers = []\n\n[workspace.package]\nversion = \"{version}\"\n"),
-    )
-    .expect("write the fixture manifest");
-    commit(&repo, &format!("release: {version}"));
-    run(
-        &repo,
-        "git",
-        &[
-            "tag",
-            "-s",
-            &format!("v{version}"),
-            "-m",
-            &format!("v{version}"),
-        ],
-    );
-    run(
-        &repo,
-        "git",
-        &["remote", "add", "origin", &remote.display().to_string()],
-    );
-    run(&repo, "git", &["push", "-q", "origin", "main"]);
-    // **The tag is pushed too, because the accepted shape is *the tagged commit on the remote's main*.** This
-    // pushed `main` alone, so the direction every refusal is measured against was itself the unpushed-tag
-    // case, and every tag read in the gate was local. A fixture that cannot express the shape cannot hold the
-    // claim; `a_tag_that_is_not_on_the_remote_is_a_violation` is the shape it could not express.
-    run(
-        &repo,
-        "git",
-        &["push", "-q", "origin", &format!("refs/tags/v{version}")],
-    );
-
-    Fixture { repo, remote, key }
 }
 
 #[cfg(test)]

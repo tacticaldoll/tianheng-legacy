@@ -26,6 +26,32 @@ them.
 
 ### Governance
 
+- **A gate and the fixture that demonstrates it were one module, twice, with a banner comment where the
+  boundary belonged.** `release_coherence_gate` and `publish_source_gate` each held both jobs behind a
+  `// --- the fixture ---` line, and `hermetic_git` held a third piece of the same job beside its invocation
+  forms. A banner is a reader's note about a boundary; a module is the boundary. Both builders, and the
+  commit helper the two shared, now live under `kanhe::fixture`, with a submodule per gate and the shared
+  primitives in the parent.
+
+  **The compiler stated the thing the banner could only assert.** With the section gone,
+  `release_coherence_gate`'s `use crate::hermetic_git::fixture as run` became an unused import — so the
+  judgement half had been holding a fixture runner, and now holds none. That is the measurement this change
+  rests on, and it is the whole of it: a relocation preserves behaviour, so no direction was added and none
+  was owed. What exercises the moved builders is the three targets that consume them, unchanged: 128, 38 and
+  1 directions, green before and after.
+
+  Two things the move surfaced rather than caused. The two builders wrote a fixture file two ways — one
+  through a helper that creates the directories above it, one through a bare `std::fs::write` that did not —
+  so a fixture naming a nested path depended on some earlier call having made the directory; they share the
+  helper now. And `cargo doc` under `-D warnings` caught the one claim the move falsified: a doc link that
+  resolved only through a re-export, in a sentence saying this file used the builder for its fixtures.
+
+  **This has no reaction, and the reason is that the decidable half is not the class.** A reader could refuse
+  a `*_gate.rs` that imports the fixture runner — the seed both gates actually used — but a gate can equally
+  construct a fixture through the command builder directly, so the instrument would defend a fraction of the
+  rule while reading as though it defended the rule. That is the shape this repository withdrew once already,
+  and the criterion stays the instrument here.
+
 - **The file that records what a pin proves carried a hand-written count of its own subject.** Its header
   named how many bounds the window had declared and how many bounds one target holds. Both were true when
   typed and both were understatements of the same sets before the window closed — a new bound and two more

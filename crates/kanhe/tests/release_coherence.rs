@@ -17,9 +17,12 @@ const A_DIFFERENT_DAY: &str = "2026-07-21";
 
 use kanhe::release_coherence_gate as gate;
 
-use gate::{
-    build_fixture, commit, development_changelog, judge, release_changelog, workspace_files,
-};
+// The fixture and the judgement are separate modules now, and this file reaches each by its own name so a
+// reader can tell which half a call belongs to.
+use kanhe::fixture::commit;
+use kanhe::fixture::release_coherence as fixture;
+
+use gate::judge;
 use refusal::Kind;
 use std::path::{Path, PathBuf};
 
@@ -120,7 +123,7 @@ fn the_release_surfaces_are_coherent() {
 #[test]
 fn a_snapshot_is_coherent() {
     let root = scratch("snapshot");
-    let fixture = build_fixture(&root, "snapshot", "0.2.0");
+    let fixture = fixture::build(&root, "snapshot", "0.2.0");
     let verdict = judge(&fixture.repo);
     let _ = std::fs::remove_dir_all(&root);
     assert!(verdict.is_ok(), "{:?}", verdict.err());
@@ -140,7 +143,7 @@ fn a_snapshot_is_coherent() {
 #[test]
 fn a_release_section_dated_away_from_its_commit_is_a_violation() {
     let root = scratch("date-disagrees");
-    let fixture = build_fixture(&root, "date-disagrees", "0.2.0");
+    let fixture = fixture::build(&root, "date-disagrees", "0.2.0");
     let path = fixture.repo.join("CHANGELOG.md");
     let text = std::fs::read_to_string(&path).expect("the fixture changelog is readable");
     std::fs::write(
@@ -171,8 +174,8 @@ fn a_release_section_dated_away_from_its_commit_is_a_violation() {
 #[test]
 fn development_with_release_notes_is_coherent() {
     let root = scratch("development");
-    let fixture = build_fixture(&root, "development", "0.2.0");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    let fixture = fixture::build(&root, "development", "0.2.0");
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "docs: describe pending work");
     let verdict = judge(&fixture.repo);
     let _ = std::fs::remove_dir_all(&root);
@@ -182,9 +185,9 @@ fn development_with_release_notes_is_coherent() {
 #[test]
 fn a_release_ready_tree_is_coherent() {
     let root = scratch("ready");
-    let fixture = build_fixture(&root, "ready", "0.2.0");
-    workspace_files(&fixture.repo, "0.2.1");
-    release_changelog(&fixture.repo, "0.2.1", "0.2.0");
+    let fixture = fixture::build(&root, "ready", "0.2.0");
+    fixture::workspace_files(&fixture.repo, "0.2.1");
+    fixture::release_changelog(&fixture.repo, "0.2.1", "0.2.0");
     commit(&fixture.repo, "chore: prepare release");
     let verdict = judge(&fixture.repo);
     let _ = std::fs::remove_dir_all(&root);
@@ -203,7 +206,7 @@ fn a_release_ready_tree_is_coherent() {
 #[test]
 fn a_renamed_family_dependency_is_resolved_by_its_package_field() {
     let root = scratch("renamed-dep");
-    let fixture = build_fixture(&root, "renamed-dep", "0.2.0");
+    let fixture = fixture::build(&root, "renamed-dep", "0.2.0");
     let manifest = fixture.repo.join("examples/adopter/Cargo.toml");
     let text = std::fs::read_to_string(&manifest).expect("read");
     std::fs::write(
@@ -211,7 +214,7 @@ fn a_renamed_family_dependency_is_resolved_by_its_package_field() {
         format!("{text}alias = {{ package = \"xuanji\", version = \"0.0.1\" }}\n"),
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "chore: rename a family dependency");
     refusal::expect(
         "release-coherence#example-pin-disagrees",
@@ -227,10 +230,10 @@ fn a_renamed_family_dependency_is_resolved_by_its_package_field() {
 #[test]
 fn a_dated_section_for_the_pending_release_is_adopter_facing() {
     let root = scratch("pending-dated");
-    let fixture = build_fixture(&root, "pending-dated", "0.2.0");
+    let fixture = fixture::build(&root, "pending-dated", "0.2.0");
     with_machinery(&fixture.repo);
-    workspace_files(&fixture.repo, "0.2.1");
-    release_changelog(&fixture.repo, "0.2.1", "0.2.0");
+    fixture::workspace_files(&fixture.repo, "0.2.1");
+    fixture::release_changelog(&fixture.repo, "0.2.1", "0.2.0");
     let path = fixture.repo.join("CHANGELOG.md");
     let text = std::fs::read_to_string(&path).expect("read");
     std::fs::write(
@@ -260,9 +263,9 @@ fn a_dated_section_for_the_pending_release_is_adopter_facing() {
 #[test]
 fn a_dated_heading_whose_suffix_is_not_a_date_is_a_violation() {
     let root = scratch("not-a-date");
-    let fixture = build_fixture(&root, "not-a-date", "0.2.0");
-    workspace_files(&fixture.repo, "0.2.1");
-    release_changelog(&fixture.repo, "0.2.1", "0.2.0");
+    let fixture = fixture::build(&root, "not-a-date", "0.2.0");
+    fixture::workspace_files(&fixture.repo, "0.2.1");
+    fixture::release_changelog(&fixture.repo, "0.2.1", "0.2.0");
     let path = fixture.repo.join("CHANGELOG.md");
     let text = std::fs::read_to_string(&path).expect("read");
     std::fs::write(
@@ -293,7 +296,7 @@ fn a_dated_heading_whose_suffix_is_not_a_date_is_a_violation() {
 #[test]
 fn a_member_whose_name_carries_version_still_reads_its_pin() {
     let root = scratch("version-in-name");
-    let fixture = build_fixture(&root, "version-in-name", "0.2.0");
+    let fixture = fixture::build(&root, "version-in-name", "0.2.0");
     let manifest = fixture.repo.join("Cargo.toml");
     let text = std::fs::read_to_string(&manifest).expect("read");
     std::fs::write(
@@ -305,7 +308,7 @@ fn a_member_whose_name_carries_version_still_reads_its_pin() {
         ),
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(
         &fixture.repo,
         "chore: add a member whose name carries the word",
@@ -342,7 +345,7 @@ fn a_detailed_dependency_table_is_read_renamed_or_not() {
         ),
     ] {
         let root = scratch(&format!("detailed-{}", label.replace(' ', "-")));
-        let fixture = build_fixture(&root, "detailed", "0.2.0");
+        let fixture = fixture::build(&root, "detailed", "0.2.0");
         let manifest = fixture.repo.join("examples/adopter/Cargo.toml");
         let text = std::fs::read_to_string(&manifest).expect("read");
         // **The example's own inline entry goes, so the table under test is the only declaration of it.**
@@ -355,7 +358,7 @@ fn a_detailed_dependency_table_is_read_renamed_or_not() {
             "{label}: the example's inline entry must be the one this table replaces"
         );
         std::fs::write(&manifest, format!("{without_inline}\n{table}")).expect("write");
-        development_changelog(&fixture.repo, "0.2.0", true);
+        fixture::development_changelog(&fixture.repo, "0.2.0", true);
         commit(&fixture.repo, "chore: a detailed dependency table");
         let verdict = judge(&fixture.repo);
         let _ = std::fs::remove_dir_all(&root);
@@ -412,11 +415,11 @@ fn an_escaped_dependency_table_heading_is_read_as_the_table_cargo_reads() {
         ),
     ] {
         let root = scratch(&format!("escaped-heading-{}", label.replace(' ', "-")));
-        let fixture = build_fixture(&root, "escaped-heading", "0.2.0");
+        let fixture = fixture::build(&root, "escaped-heading", "0.2.0");
         let manifest = fixture.repo.join("examples/adopter/Cargo.toml");
         let text = std::fs::read_to_string(&manifest).expect("read");
         std::fs::write(&manifest, format!("{text}\n{table}")).expect("write");
-        development_changelog(&fixture.repo, "0.2.0", true);
+        fixture::development_changelog(&fixture.repo, "0.2.0", true);
         commit(&fixture.repo, "chore: an escaped dependency table heading");
         let verdict = judge(&fixture.repo);
         let _ = std::fs::remove_dir_all(&root);
@@ -446,11 +449,11 @@ fn an_escaped_dependency_table_heading_is_read_as_the_table_cargo_reads() {
 #[test]
 fn a_feature_named_after_a_family_crate_is_not_a_pin() {
     let root = scratch("feature-named");
-    let fixture = build_fixture(&root, "feature-named", "0.2.0");
+    let fixture = fixture::build(&root, "feature-named", "0.2.0");
     let manifest = fixture.repo.join("examples/adopter/Cargo.toml");
     let text = std::fs::read_to_string(&manifest).expect("read");
     std::fs::write(&manifest, format!("{text}\n[features]\nxuanji = []\n")).expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "chore: a feature named after a family crate");
     let verdict = judge(&fixture.repo);
     let _ = std::fs::remove_dir_all(&root);
@@ -477,7 +480,7 @@ fn a_feature_named_after_a_family_crate_is_not_a_pin() {
 #[test]
 fn a_table_whose_dot_is_escaped_is_one_key_and_not_a_dependency_table() {
     let root = scratch("escaped-separator");
-    let fixture = build_fixture(&root, "escaped-separator", "0.2.0");
+    let fixture = fixture::build(&root, "escaped-separator", "0.2.0");
     let manifest = fixture.repo.join("examples/adopter/Cargo.toml");
     let text = std::fs::read_to_string(&manifest).expect("read");
     std::fs::write(
@@ -488,7 +491,7 @@ fn a_table_whose_dot_is_escaped_is_one_key_and_not_a_dependency_table() {
         ),
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "chore: a table whose dot is escaped");
     let verdict = judge(&fixture.repo);
     let _ = std::fs::remove_dir_all(&root);
@@ -507,9 +510,9 @@ fn a_table_whose_dot_is_escaped_is_one_key_and_not_a_dependency_table() {
 fn a_dated_heading_whose_fields_are_out_of_range_is_a_violation() {
     for impossible in ["2026-99-99", "2026-00-10", "0000-00-00"] {
         let root = scratch(&format!("range-{impossible}"));
-        let fixture = build_fixture(&root, "range", "0.2.0");
-        workspace_files(&fixture.repo, "0.2.1");
-        release_changelog(&fixture.repo, "0.2.1", "0.2.0");
+        let fixture = fixture::build(&root, "range", "0.2.0");
+        fixture::workspace_files(&fixture.repo, "0.2.1");
+        fixture::release_changelog(&fixture.repo, "0.2.1", "0.2.0");
         let path = fixture.repo.join("CHANGELOG.md");
         let text = std::fs::read_to_string(&path).expect("read");
         std::fs::write(
@@ -542,8 +545,8 @@ fn a_shallow_history_cannot_be_judged() {
     git(&repo, &["config", "user.name", "T"]);
     git(&repo, &["config", "user.email", "t@example.invalid"]);
     git(&repo, &["config", "commit.gpgsign", "false"]);
-    workspace_files(&repo, "0.2.0");
-    development_changelog(&repo, "0.2.0", true);
+    fixture::workspace_files(&repo, "0.2.0");
+    fixture::development_changelog(&repo, "0.2.0", true);
     commit(&repo, "chore: initial import");
     refusal::expect(
         "release-coherence#release-history-shallow",
@@ -555,8 +558,8 @@ fn a_shallow_history_cannot_be_judged() {
 #[test]
 fn a_malformed_release_subject_is_a_violation() {
     let root = scratch("malformed");
-    let fixture = build_fixture(&root, "malformed", "0.2.0");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    let fixture = fixture::build(&root, "malformed", "0.2.0");
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "release: next");
     refusal::expect(
         "release-coherence#release-history-version-malformed",
@@ -572,9 +575,9 @@ fn a_malformed_release_subject_is_a_violation() {
 #[test]
 fn a_regressed_workspace_version_is_a_violation() {
     let root = scratch("regression");
-    let fixture = build_fixture(&root, "regression", "0.2.0");
-    workspace_files(&fixture.repo, "0.1.9");
-    development_changelog(&fixture.repo, "0.1.9", true);
+    let fixture = fixture::build(&root, "regression", "0.2.0");
+    fixture::workspace_files(&fixture.repo, "0.1.9");
+    fixture::development_changelog(&fixture.repo, "0.1.9", true);
     commit(&fixture.repo, "chore: regress version");
     refusal::expect(
         "release-coherence#workspace-version-behind-latest-release",
@@ -590,8 +593,8 @@ fn a_regressed_workspace_version_is_a_violation() {
 #[test]
 fn development_with_no_release_narrative_is_a_violation() {
     let root = scratch("empty-development");
-    let fixture = build_fixture(&root, "empty-development", "0.2.0");
-    development_changelog(&fixture.repo, "0.2.0", false);
+    let fixture = fixture::build(&root, "empty-development", "0.2.0");
+    fixture::development_changelog(&fixture.repo, "0.2.0", false);
     commit(&fixture.repo, "chore: omit release note");
     refusal::expect(
         "release-coherence#unreleased-has-no-adopter-narrative",
@@ -607,13 +610,13 @@ fn development_with_no_release_narrative_is_a_violation() {
 #[test]
 fn a_manifest_that_does_not_inherit_the_workspace_version_is_a_violation() {
     let root = scratch("no-inherit");
-    let fixture = build_fixture(&root, "no-inherit", "0.2.0");
+    let fixture = fixture::build(&root, "no-inherit", "0.2.0");
     std::fs::write(
         fixture.repo.join("crates/xuanji/Cargo.toml"),
         "[package]\nname = \"xuanji\"\nversion = \"0.2.0\"\nedition = \"2024\"\n",
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "chore: pin a member directly");
     refusal::expect(
         "release-coherence#member-does-not-inherit-workspace-version",
@@ -629,7 +632,7 @@ fn a_manifest_that_does_not_inherit_the_workspace_version_is_a_violation() {
 #[test]
 fn an_internal_pin_that_disagrees_is_a_violation() {
     let root = scratch("stale-pin");
-    let fixture = build_fixture(&root, "stale-pin", "0.2.0");
+    let fixture = fixture::build(&root, "stale-pin", "0.2.0");
     let manifest = fixture.repo.join("Cargo.toml");
     let text = std::fs::read_to_string(&manifest).expect("read");
     std::fs::write(
@@ -637,7 +640,7 @@ fn an_internal_pin_that_disagrees_is_a_violation() {
         text.replace("version = \"0.2.0\" }", "version = \"0.1.0\" }"),
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "chore: stale the internal pin");
     refusal::expect(
         "release-coherence#internal-pin-disagrees",
@@ -649,13 +652,13 @@ fn an_internal_pin_that_disagrees_is_a_violation() {
 #[test]
 fn an_example_pin_the_workspace_version_does_not_satisfy_is_a_violation() {
     let root = scratch("example-pin");
-    let fixture = build_fixture(&root, "example-pin", "0.2.0");
+    let fixture = fixture::build(&root, "example-pin", "0.2.0");
     std::fs::write(
         fixture.repo.join("examples/adopter/Cargo.toml"),
         "[package]\nname = \"adopter\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[dependencies]\nxuanji = \"0.9\"\n",
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "chore: stale an example pin");
     refusal::expect(
         "release-coherence#example-pin-disagrees",
@@ -676,9 +679,9 @@ fn an_example_pin_the_workspace_version_does_not_satisfy_is_a_violation() {
 #[test]
 fn a_lock_file_this_parser_cannot_read_cannot_be_judged() {
     let root = scratch("lock-unparseable");
-    let fixture = build_fixture(&root, "lock-unparseable", "0.2.0");
-    workspace_files(&fixture.repo, "0.2.1");
-    release_changelog(&fixture.repo, "0.2.1", "0.2.0");
+    let fixture = fixture::build(&root, "lock-unparseable", "0.2.0");
+    fixture::workspace_files(&fixture.repo, "0.2.1");
+    fixture::release_changelog(&fixture.repo, "0.2.1", "0.2.0");
     std::fs::write(
         fixture.repo.join("Cargo.lock"),
         "version = 4\n\n[[package]\nname = \"xuanji\"\n",
@@ -698,9 +701,9 @@ fn a_lock_file_this_parser_cannot_read_cannot_be_judged() {
 #[test]
 fn a_stale_lock_entry_for_the_second_package_is_a_violation() {
     let root = scratch("stale-lock");
-    let fixture = build_fixture(&root, "stale-lock", "0.2.0");
-    workspace_files(&fixture.repo, "0.2.1");
-    release_changelog(&fixture.repo, "0.2.1", "0.2.0");
+    let fixture = fixture::build(&root, "stale-lock", "0.2.0");
+    fixture::workspace_files(&fixture.repo, "0.2.1");
+    fixture::release_changelog(&fixture.repo, "0.2.1", "0.2.0");
     let lock = fixture.repo.join("Cargo.lock");
     let text = std::fs::read_to_string(&lock).expect("read");
     std::fs::write(
@@ -726,8 +729,8 @@ fn a_stale_lock_entry_for_the_second_package_is_a_violation() {
 #[test]
 fn a_release_section_repeating_a_heading_is_a_violation() {
     let root = scratch("duplicate-heading");
-    let fixture = build_fixture(&root, "duplicate-heading", "0.2.0");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    let fixture = fixture::build(&root, "duplicate-heading", "0.2.0");
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     unreleased_body(
         &fixture.repo,
         "### Changed\n- An adopter-facing change.\n\n### Changed\n- A second block of the same name.",
@@ -743,8 +746,8 @@ fn a_release_section_repeating_a_heading_is_a_violation() {
 #[test]
 fn a_break_with_nowhere_to_read_what_to_do_is_a_violation() {
     let root = scratch("breaking");
-    let fixture = build_fixture(&root, "breaking", "0.2.0");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    let fixture = fixture::build(&root, "breaking", "0.2.0");
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     unreleased_body(
         &fixture.repo,
         "### Changed\n- **BREAKING** a change with nowhere to read what to do.",
@@ -761,8 +764,8 @@ fn a_break_with_nowhere_to_read_what_to_do_is_a_violation() {
 #[test]
 fn a_break_with_its_migration_is_coherent() {
     let root = scratch("breaking-ok");
-    let fixture = build_fixture(&root, "breaking-ok", "0.2.0");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    let fixture = fixture::build(&root, "breaking-ok", "0.2.0");
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     unreleased_body(
         &fixture.repo,
         "### Changed\n- **BREAKING** a change.\n\n### Migration\n- Regenerate the baseline.",
@@ -788,8 +791,8 @@ fn a_break_with_its_migration_is_coherent() {
 #[test]
 fn prose_about_the_marker_is_read_as_a_marker_a_stated_bound() {
     let root = scratch("breaking-prose");
-    let fixture = build_fixture(&root, "breaking-prose", "0.2.0");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    let fixture = fixture::build(&root, "breaking-prose", "0.2.0");
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     unreleased_body(
         &fixture.repo,
         "### Changed\n- A diagnostic whose exit code does not move, so it earns no **BREAKING** mark.",
@@ -807,8 +810,8 @@ fn prose_about_the_marker_is_read_as_a_marker_a_stated_bound() {
 #[test]
 fn an_adopter_heading_naming_a_gate_is_a_violation() {
     let root = scratch("adopter-names-path");
-    let fixture = build_fixture(&root, "adopter-names-path", "0.2.0");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    let fixture = fixture::build(&root, "adopter-names-path", "0.2.0");
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     with_machinery(&fixture.repo);
     unreleased_body(
         &fixture.repo,
@@ -830,8 +833,8 @@ fn an_adopter_heading_naming_a_gate_is_a_violation() {
 #[test]
 fn the_same_entry_under_the_self_governance_heading_is_coherent() {
     let root = scratch("self-governance");
-    let fixture = build_fixture(&root, "self-governance", "0.2.0");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    let fixture = fixture::build(&root, "self-governance", "0.2.0");
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     with_machinery(&fixture.repo);
     unreleased_body(
         &fixture.repo,
@@ -903,8 +906,8 @@ fn a_gate_named_in_any_word_form_is_a_violation() {
         ),
     ] {
         let root = scratch(name);
-        let fixture = build_fixture(&root, name, "0.2.0");
-        development_changelog(&fixture.repo, "0.2.0", true);
+        let fixture = fixture::build(&root, name, "0.2.0");
+        fixture::development_changelog(&fixture.repo, "0.2.0", true);
         with_machinery(&fixture.repo);
         unreleased_body(&fixture.repo, body);
         commit(&fixture.repo, "docs: name a gate");
@@ -934,8 +937,8 @@ fn a_gate_named_in_any_word_form_is_a_violation() {
 #[test]
 fn a_repository_reached_through_a_non_canonical_path_still_resolves_its_members() {
     let root = scratch("non-canonical-root");
-    let fixture = build_fixture(&root, "non-canonical-root", "0.2.0");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    let fixture = fixture::build(&root, "non-canonical-root", "0.2.0");
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     with_machinery(&fixture.repo);
     unreleased_body(
         &fixture.repo,
@@ -971,7 +974,7 @@ fn a_repository_reached_through_a_non_canonical_path_still_resolves_its_members(
 #[test]
 fn a_lib_name_before_the_package_table_is_not_the_package_name() {
     let root = scratch("lib-name-first");
-    let fixture = build_fixture(&root, "lib-name-first", "0.2.0");
+    let fixture = fixture::build(&root, "lib-name-first", "0.2.0");
     std::fs::write(
         fixture.repo.join("crates/xuanji/Cargo.toml"),
         "[lib]
@@ -979,7 +982,7 @@ name = \"wrong_name\"\n\n[package]\nname = \"xuanji\"\nversion.workspace = true\
          edition = \"2024\"\n",
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "chore: order the tables the other way");
     let verdict = judge(&fixture.repo);
     let _ = std::fs::remove_dir_all(&root);
@@ -999,7 +1002,7 @@ name = \"wrong_name\"\n\n[package]\nname = \"xuanji\"\nversion.workspace = true\
 #[test]
 fn a_package_name_this_reader_cannot_read_is_a_cannot_judge() {
     let root = scratch("unreadable-name");
-    let fixture = build_fixture(&root, "unreadable-name", "0.2.0");
+    let fixture = fixture::build(&root, "unreadable-name", "0.2.0");
     std::fs::write(
         fixture.repo.join("crates/xuanji/Cargo.toml"),
         // **This WHEN moved when a real parser replaced the hand-rolled reader.** It was `name = 'xuanji'` — a
@@ -1027,9 +1030,9 @@ fn a_package_name_this_reader_cannot_read_is_a_cannot_judge() {
 #[test]
 fn a_lock_name_this_reader_cannot_read_is_a_cannot_judge() {
     let root = scratch("lock-name-unreadable");
-    let fixture = build_fixture(&root, "lock-name-unreadable", "0.2.0");
-    workspace_files(&fixture.repo, "0.2.1");
-    release_changelog(&fixture.repo, "0.2.1", "0.2.0");
+    let fixture = fixture::build(&root, "lock-name-unreadable", "0.2.0");
+    fixture::workspace_files(&fixture.repo, "0.2.1");
+    fixture::release_changelog(&fixture.repo, "0.2.1", "0.2.0");
     let lock = fixture.repo.join("Cargo.lock");
     let text = std::fs::read_to_string(&lock).expect("read the fixture lock");
     // **This WHEN moved when a real parser replaced the hand-rolled walker.** It was `name = 'xuanji'` — a
@@ -1057,7 +1060,7 @@ fn a_lock_name_this_reader_cannot_read_is_a_cannot_judge() {
 #[test]
 fn an_example_pin_this_reader_cannot_read_is_a_cannot_judge() {
     let root = scratch("pin-unreadable");
-    let fixture = build_fixture(&root, "pin-unreadable", "0.2.0");
+    let fixture = fixture::build(&root, "pin-unreadable", "0.2.0");
     let example = "adopter";
     let manifest = fixture.repo.join(format!("examples/{example}/Cargo.toml"));
     let text = std::fs::read_to_string(&manifest).expect("read the fixture example manifest");
@@ -1067,7 +1070,7 @@ fn an_example_pin_this_reader_cannot_read_is_a_cannot_judge() {
         .replace("xuanji = \"", "xuanji = '")
         .replace("\"\n", "'\n");
     std::fs::write(&manifest, single).expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "chore: quote an example pin the other way");
     refuse(&fixture.repo, Kind::CannotJudge, "cannot read");
     let _ = std::fs::remove_dir_all(&root);
@@ -1085,9 +1088,9 @@ fn an_example_pin_this_reader_cannot_read_is_a_cannot_judge() {
 #[test]
 fn a_registry_entry_sharing_a_members_name_is_not_the_members_entry() {
     let root = scratch("lock-name-shared");
-    let fixture = build_fixture(&root, "lock-name-shared", "0.2.0");
-    workspace_files(&fixture.repo, "0.2.1");
-    release_changelog(&fixture.repo, "0.2.1", "0.2.0");
+    let fixture = fixture::build(&root, "lock-name-shared", "0.2.0");
+    fixture::workspace_files(&fixture.repo, "0.2.1");
+    fixture::release_changelog(&fixture.repo, "0.2.1", "0.2.0");
     let lock = fixture.repo.join("Cargo.lock");
     let text = std::fs::read_to_string(&lock).expect("read the fixture lock");
     let decoy = "version = 4\n\n[[package]]\nname = \"xuanji\"\nversion = \"9.9.9\"\n\
@@ -1115,9 +1118,9 @@ fn a_registry_entry_sharing_a_members_name_is_not_the_members_entry() {
 #[test]
 fn two_source_less_entries_under_one_name_cannot_be_judged() {
     let root = scratch("lock-name-ambiguous");
-    let fixture = build_fixture(&root, "lock-name-ambiguous", "0.2.0");
-    workspace_files(&fixture.repo, "0.2.1");
-    release_changelog(&fixture.repo, "0.2.1", "0.2.0");
+    let fixture = fixture::build(&root, "lock-name-ambiguous", "0.2.0");
+    fixture::workspace_files(&fixture.repo, "0.2.1");
+    fixture::release_changelog(&fixture.repo, "0.2.1", "0.2.0");
     let lock = fixture.repo.join("Cargo.lock");
     let text = std::fs::read_to_string(&lock).expect("read the fixture lock");
     let twin = "version = 4\n\n[[package]]\nname = \"xuanji\"\nversion = \"9.9.9\"\n";
@@ -1144,9 +1147,9 @@ fn two_source_less_entries_under_one_name_cannot_be_judged() {
 #[test]
 fn a_non_package_table_does_not_absorb_the_block_above_it() {
     let root = scratch("lock-foreign-table");
-    let fixture = build_fixture(&root, "lock-foreign-table", "0.2.0");
-    workspace_files(&fixture.repo, "0.2.1");
-    release_changelog(&fixture.repo, "0.2.1", "0.2.0");
+    let fixture = fixture::build(&root, "lock-foreign-table", "0.2.0");
+    fixture::workspace_files(&fixture.repo, "0.2.1");
+    fixture::release_changelog(&fixture.repo, "0.2.1", "0.2.0");
     let lock = fixture.repo.join("Cargo.lock");
     let text = std::fs::read_to_string(&lock).expect("read the fixture lock");
     std::fs::write(
@@ -1182,9 +1185,9 @@ fn a_non_package_table_does_not_absorb_the_block_above_it() {
 #[test]
 fn a_commented_out_internal_pin_is_not_a_pin() {
     let root = scratch("commented-pin");
-    let fixture = build_fixture(&root, "commented-pin", "0.2.0");
-    workspace_files(&fixture.repo, "0.2.1");
-    release_changelog(&fixture.repo, "0.2.1", "0.2.0");
+    let fixture = fixture::build(&root, "commented-pin", "0.2.0");
+    fixture::workspace_files(&fixture.repo, "0.2.1");
+    fixture::release_changelog(&fixture.repo, "0.2.1", "0.2.0");
     let manifest = fixture.repo.join("Cargo.toml");
     let text = std::fs::read_to_string(&manifest).expect("read the fixture manifest");
     std::fs::write(
@@ -1224,9 +1227,9 @@ fn a_commented_out_internal_pin_is_not_a_pin() {
 #[test]
 fn an_inherit_line_with_a_glued_comment_still_inherits() {
     let root = scratch("glued-comment");
-    let fixture = build_fixture(&root, "glued-comment", "0.2.0");
-    workspace_files(&fixture.repo, "0.2.1");
-    release_changelog(&fixture.repo, "0.2.1", "0.2.0");
+    let fixture = fixture::build(&root, "glued-comment", "0.2.0");
+    fixture::workspace_files(&fixture.repo, "0.2.1");
+    fixture::release_changelog(&fixture.repo, "0.2.1", "0.2.0");
     let member = fixture.repo.join("crates/xuanji/Cargo.toml");
     let text = std::fs::read_to_string(&member).expect("read the member manifest");
     std::fs::write(
@@ -1253,9 +1256,9 @@ fn an_inherit_line_with_a_glued_comment_still_inherits() {
 #[test]
 fn a_member_whose_only_inherit_line_is_commented_out_is_refused() {
     let root = scratch("commented-inherit");
-    let fixture = build_fixture(&root, "commented-inherit", "0.2.0");
-    workspace_files(&fixture.repo, "0.2.1");
-    release_changelog(&fixture.repo, "0.2.1", "0.2.0");
+    let fixture = fixture::build(&root, "commented-inherit", "0.2.0");
+    fixture::workspace_files(&fixture.repo, "0.2.1");
+    fixture::release_changelog(&fixture.repo, "0.2.1", "0.2.0");
     let member = fixture.repo.join("crates/xuanji/Cargo.toml");
     let text = std::fs::read_to_string(&member).expect("read the member manifest");
     std::fs::write(
@@ -1279,8 +1282,8 @@ fn a_member_whose_only_inherit_line_is_commented_out_is_refused() {
 #[test]
 fn a_basename_the_enumerator_does_not_resolve_is_coherent() {
     let root = scratch("unresolved");
-    let fixture = build_fixture(&root, "unresolved", "0.2.0");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    let fixture = fixture::build(&root, "unresolved", "0.2.0");
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     with_machinery(&fixture.repo);
     unreleased_body(
         &fixture.repo,
@@ -1303,8 +1306,8 @@ fn a_basename_the_enumerator_does_not_resolve_is_coherent() {
 /// case by widening a scope AND blinding an enumerator at once: a bound was then plainly false and its pin
 /// stayed green, because a dead check is silent about everything. Only a live control reaches that.
 fn assert_reaction_is_live(root: &Path) {
-    let fixture = build_fixture(root, "live-control", "0.2.0");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    let fixture = fixture::build(root, "live-control", "0.2.0");
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     with_machinery(&fixture.repo);
     unreleased_body(
         &fixture.repo,
@@ -1328,7 +1331,7 @@ fn assert_reaction_is_live(root: &Path) {
 fn a_dated_section_naming_a_gate_is_a_stated_bound() {
     let root = scratch("bound-dated");
     assert_reaction_is_live(&root);
-    let fixture = build_fixture(&root, "dated", "0.2.0");
+    let fixture = fixture::build(&root, "dated", "0.2.0");
     with_machinery(&fixture.repo);
     let path = fixture.repo.join("CHANGELOG.md");
     let text = std::fs::read_to_string(&path).expect("read");
@@ -1364,8 +1367,8 @@ fn a_dated_section_naming_a_gate_is_a_stated_bound() {
 fn machinery_tracked_by_nothing_is_a_stated_bound() {
     let root = scratch("bound-untracked");
     assert_reaction_is_live(&root);
-    let fixture = build_fixture(&root, "untracked", "0.2.0");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    let fixture = fixture::build(&root, "untracked", "0.2.0");
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     unreleased_body(
         &fixture.repo,
         "### Fixed\n- A repair naming `scripts/check_fixture_gate.sh`.",
@@ -1389,8 +1392,8 @@ fn machinery_tracked_by_nothing_is_a_stated_bound() {
 #[test]
 fn a_colliding_basename_is_a_stated_bound() {
     let root = scratch("bound-collide");
-    let fixture = build_fixture(&root, "collide", "0.2.0");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    let fixture = fixture::build(&root, "collide", "0.2.0");
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     std::fs::create_dir_all(fixture.repo.join("scripts")).expect("create");
     std::fs::write(
         fixture.repo.join("scripts/publish.sh"),
@@ -1424,8 +1427,8 @@ fn a_colliding_basename_is_a_stated_bound() {
 fn a_directory_named_without_its_slash_is_a_stated_bound() {
     let root = scratch("bound-unslashed");
     assert_reaction_is_live(&root);
-    let fixture = build_fixture(&root, "unslashed", "0.2.0");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    let fixture = fixture::build(&root, "unslashed", "0.2.0");
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     with_machinery(&fixture.repo);
     unreleased_body(
         &fixture.repo,
@@ -1450,8 +1453,8 @@ fn a_directory_named_without_its_slash_is_a_stated_bound() {
 fn a_name_reached_only_through_a_url_is_a_stated_bound() {
     let root = scratch("bound-url");
     assert_reaction_is_live(&root);
-    let fixture = build_fixture(&root, "url", "0.2.0");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    let fixture = fixture::build(&root, "url", "0.2.0");
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     with_machinery(&fixture.repo);
     unreleased_body(
         &fixture.repo,
@@ -1486,8 +1489,8 @@ fn a_name_reached_only_through_a_url_is_a_stated_bound() {
 fn a_heading_inside_a_fenced_block_does_not_reattribute_a_later_entry() {
     let root = scratch("bound-fenced");
     assert_reaction_is_live(&root);
-    let fixture = build_fixture(&root, "fenced", "0.2.0");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    let fixture = fixture::build(&root, "fenced", "0.2.0");
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     with_machinery(&fixture.repo);
     unreleased_body(
         &fixture.repo,
@@ -1511,8 +1514,8 @@ fn a_heading_inside_a_fenced_block_does_not_reattribute_a_later_entry() {
 #[test]
 fn two_unreleased_sections_are_a_violation() {
     let root = scratch("two-unreleased");
-    let fixture = build_fixture(&root, "two-unreleased", "0.2.0");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    let fixture = fixture::build(&root, "two-unreleased", "0.2.0");
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     let path = fixture.repo.join("CHANGELOG.md");
     let text = std::fs::read_to_string(&path).expect("read");
     std::fs::write(
@@ -1535,7 +1538,7 @@ fn two_unreleased_sections_are_a_violation() {
 #[test]
 fn a_snapshot_whose_unreleased_carries_an_item_is_a_violation() {
     let root = scratch("snapshot-unreleased");
-    let fixture = build_fixture(&root, "snapshot-unreleased", "0.2.0");
+    let fixture = fixture::build(&root, "snapshot-unreleased", "0.2.0");
     let path = fixture.repo.join("CHANGELOG.md");
     let text = std::fs::read_to_string(&path).expect("read");
     std::fs::write(
@@ -1565,9 +1568,9 @@ fn a_snapshot_whose_unreleased_carries_an_item_is_a_violation() {
 #[test]
 fn a_release_with_no_dated_notes_is_a_violation() {
     let root = scratch("no-dated-notes");
-    let fixture = build_fixture(&root, "no-dated-notes", "0.2.0");
-    workspace_files(&fixture.repo, "0.2.1");
-    development_changelog(&fixture.repo, "0.2.1", false);
+    let fixture = fixture::build(&root, "no-dated-notes", "0.2.0");
+    fixture::workspace_files(&fixture.repo, "0.2.1");
+    fixture::development_changelog(&fixture.repo, "0.2.1", false);
     commit(&fixture.repo, "chore: prepare without notes");
     refusal::expect(
         "release-coherence#dated-release-notes-missing",
@@ -1583,8 +1586,8 @@ fn a_release_with_no_dated_notes_is_a_violation() {
 #[test]
 fn an_unreleased_comparison_link_that_does_not_start_at_the_version_is_a_violation() {
     let root = scratch("bad-unreleased-link");
-    let fixture = build_fixture(&root, "bad-unreleased-link", "0.2.0");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    let fixture = fixture::build(&root, "bad-unreleased-link", "0.2.0");
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     let path = fixture.repo.join("CHANGELOG.md");
     let text = std::fs::read_to_string(&path).expect("read");
     std::fs::write(&path, text.replace("v0.2.0...HEAD", "v0.1.0...HEAD")).expect("write");
@@ -1603,9 +1606,9 @@ fn an_unreleased_comparison_link_that_does_not_start_at_the_version_is_a_violati
 #[test]
 fn a_dated_comparison_link_that_does_not_start_at_the_previous_release_is_a_violation() {
     let root = scratch("bad-dated-link");
-    let fixture = build_fixture(&root, "bad-dated-link", "0.2.0");
-    workspace_files(&fixture.repo, "0.2.1");
-    release_changelog(&fixture.repo, "0.2.1", "0.0.9");
+    let fixture = fixture::build(&root, "bad-dated-link", "0.2.0");
+    fixture::workspace_files(&fixture.repo, "0.2.1");
+    fixture::release_changelog(&fixture.repo, "0.2.1", "0.0.9");
     commit(
         &fixture.repo,
         "chore: point the release link at the wrong predecessor",
@@ -1620,9 +1623,9 @@ fn a_dated_comparison_link_that_does_not_start_at_the_previous_release_is_a_viol
 #[test]
 fn a_lockfile_missing_a_workspace_package_is_a_violation() {
     let root = scratch("lock-missing");
-    let fixture = build_fixture(&root, "lock-missing", "0.2.0");
-    workspace_files(&fixture.repo, "0.2.1");
-    release_changelog(&fixture.repo, "0.2.1", "0.2.0");
+    let fixture = fixture::build(&root, "lock-missing", "0.2.0");
+    fixture::workspace_files(&fixture.repo, "0.2.1");
+    fixture::release_changelog(&fixture.repo, "0.2.1", "0.2.0");
     let lock = fixture.repo.join("Cargo.lock");
     let text = std::fs::read_to_string(&lock).expect("read");
     std::fs::write(
@@ -1648,7 +1651,7 @@ fn a_lockfile_missing_a_workspace_package_is_a_violation() {
 #[test]
 fn an_internal_dependency_with_no_version_pin_is_a_violation() {
     let root = scratch("unpinned-internal");
-    let fixture = build_fixture(&root, "unpinned-internal", "0.2.0");
+    let fixture = fixture::build(&root, "unpinned-internal", "0.2.0");
     let manifest = fixture.repo.join("Cargo.toml");
     let text = std::fs::read_to_string(&manifest).expect("read");
     std::fs::write(
@@ -1659,7 +1662,7 @@ fn an_internal_dependency_with_no_version_pin_is_a_violation() {
         ),
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "chore: drop the internal pin");
     refusal::expect(
         "release-coherence#internal-pin-absent",
@@ -1671,8 +1674,8 @@ fn an_internal_dependency_with_no_version_pin_is_a_violation() {
 #[test]
 fn a_snapshot_whose_version_disagrees_with_its_subject_is_a_violation() {
     let root = scratch("snapshot-mismatch");
-    let fixture = build_fixture(&root, "snapshot-mismatch", "0.2.0");
-    workspace_files(&fixture.repo, "0.3.0");
+    let fixture = fixture::build(&root, "snapshot-mismatch", "0.2.0");
+    fixture::workspace_files(&fixture.repo, "0.3.0");
     git(&fixture.repo, &["add", "."]);
     git(
         &fixture.repo,
@@ -1689,8 +1692,8 @@ fn a_snapshot_whose_version_disagrees_with_its_subject_is_a_violation() {
 #[test]
 fn a_release_subject_with_no_space_is_a_violation() {
     let root = scratch("no-space-subject");
-    let fixture = build_fixture(&root, "no-space-subject", "0.2.0");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    let fixture = fixture::build(&root, "no-space-subject", "0.2.0");
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "release:0.3.0");
     refusal::expect(
         "release-coherence#release-history-subject-malformed",
@@ -1736,8 +1739,8 @@ fn every_enumeration_refuses_rather_than_reporting_clean_over_nothing() {
         ),
     ] {
         let root = scratch(wreck);
-        let fixture = build_fixture(&root, wreck, "0.2.0");
-        development_changelog(&fixture.repo, "0.2.0", true);
+        let fixture = fixture::build(&root, wreck, "0.2.0");
+        fixture::development_changelog(&fixture.repo, "0.2.0", true);
         match wreck {
             "internal-pins" => {
                 let manifest = fixture.repo.join("Cargo.toml");
@@ -1961,7 +1964,7 @@ fn a_repository_with_no_commit_cannot_have_its_history_read() {
 #[test]
 fn a_lockfile_that_is_a_directory_cannot_be_read() {
     let root = scratch("lock-directory");
-    let fixture = build_fixture(&root, "lock-directory", "0.2.0");
+    let fixture = fixture::build(&root, "lock-directory", "0.2.0");
     std::fs::remove_file(fixture.repo.join("Cargo.lock")).expect("remove the lockfile");
     std::fs::create_dir(fixture.repo.join("Cargo.lock")).expect("put a directory in its place");
     refusal::expect(
@@ -1978,7 +1981,7 @@ fn a_lockfile_that_is_a_directory_cannot_be_read() {
 #[test]
 fn an_absent_crate_directory_cannot_be_enumerated() {
     let root = scratch("no-crates");
-    let fixture = build_fixture(&root, "no-crates", "0.2.0");
+    let fixture = fixture::build(&root, "no-crates", "0.2.0");
     std::fs::remove_dir_all(fixture.repo.join("crates")).expect("remove crates/");
     refusal::expect(
         "release-coherence#directory-not-enumerable",
@@ -1995,7 +1998,7 @@ fn an_absent_crate_directory_cannot_be_enumerated() {
 #[test]
 fn a_crate_directory_holding_no_manifest_cannot_be_enumerated() {
     let root = scratch("empty-crates");
-    let fixture = build_fixture(&root, "empty-crates", "0.2.0");
+    let fixture = fixture::build(&root, "empty-crates", "0.2.0");
     std::fs::remove_dir_all(fixture.repo.join("crates")).expect("remove crates/");
     std::fs::create_dir(fixture.repo.join("crates")).expect("recreate it empty");
     refusal::expect(
@@ -2018,7 +2021,7 @@ fn a_crate_directory_holding_no_manifest_cannot_be_enumerated() {
 #[test]
 fn a_member_manifest_that_is_not_text_cannot_be_read() {
     let root = scratch("manifest-not-text");
-    let fixture = build_fixture(&root, "manifest-not-text", "0.2.0");
+    let fixture = fixture::build(&root, "manifest-not-text", "0.2.0");
     let manifest = fixture.repo.join("crates/xuanji/Cargo.toml");
     std::fs::write(&manifest, [0x5b, 0x70, 0xff, 0xfe, 0x5d])
         .expect("write bytes that are not UTF-8");
@@ -2030,7 +2033,7 @@ fn a_member_manifest_that_is_not_text_cannot_be_read() {
 #[test]
 fn machinery_that_cannot_be_enumerated_cannot_be_judged() {
     let root = scratch("unreadable-index");
-    let fixture = build_fixture(&root, "unreadable-index", "0.2.0");
+    let fixture = fixture::build(&root, "unreadable-index", "0.2.0");
     std::fs::write(fixture.repo.join(".git/index"), b"not an index").expect("corrupt the index");
     refusal::expect(
         "release-coherence#directory-listing-unreadable",
@@ -2047,7 +2050,7 @@ fn machinery_that_cannot_be_enumerated_cannot_be_judged() {
 #[test]
 fn an_example_manifest_that_is_not_text_cannot_be_read() {
     let root = scratch("example-not-text");
-    let fixture = build_fixture(&root, "example-not-text", "0.2.0");
+    let fixture = fixture::build(&root, "example-not-text", "0.2.0");
     let manifest = fixture.repo.join("examples/adopter/Cargo.toml");
     assert!(manifest.is_file(), "the fixture builds an example manifest");
     std::fs::write(&manifest, [0x5b, 0x70, 0xff, 0xfe, 0x5d])
@@ -2067,10 +2070,10 @@ fn an_example_manifest_that_is_not_text_cannot_be_read() {
 #[test]
 fn an_example_directory_holding_no_manifest_is_skipped() {
     let root = scratch("example-no-manifest");
-    let fixture = build_fixture(&root, "example-no-manifest", "0.2.0");
+    let fixture = fixture::build(&root, "example-no-manifest", "0.2.0");
     std::fs::create_dir_all(fixture.repo.join("examples/notes")).expect("create");
     std::fs::write(fixture.repo.join("examples/notes/README.md"), "prose\n").expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(
         &fixture.repo,
         "docs: add a directory that is not an example crate",
@@ -2096,7 +2099,7 @@ fn an_example_directory_holding_no_manifest_is_skipped() {
 #[test]
 fn a_glued_comment_cannot_supply_an_internal_version_pin() {
     let root = scratch("glued-pin");
-    let fixture = build_fixture(&root, "glued-pin", "0.2.0");
+    let fixture = fixture::build(&root, "glued-pin", "0.2.0");
     let manifest = fixture.repo.join("Cargo.toml");
     let text = std::fs::read_to_string(&manifest).expect("read");
     std::fs::write(
@@ -2107,7 +2110,7 @@ fn a_glued_comment_cannot_supply_an_internal_version_pin() {
         ),
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "chore: glue the pin into a comment");
     refusal::expect(
         "release-coherence#internal-pin-absent",
@@ -2132,7 +2135,7 @@ fn a_glued_comment_cannot_supply_an_internal_version_pin() {
 #[test]
 fn a_package_heading_with_a_trailing_comment_still_opens_the_table() {
     let root = scratch("commented-heading");
-    let fixture = build_fixture(&root, "commented-heading", "0.2.0");
+    let fixture = fixture::build(&root, "commented-heading", "0.2.0");
     let member = fixture.repo.join("crates/xuanji/Cargo.toml");
     let text = std::fs::read_to_string(&member).expect("read the member manifest");
     std::fs::write(
@@ -2140,7 +2143,7 @@ fn a_package_heading_with_a_trailing_comment_still_opens_the_table() {
         text.replacen("[package]", "[package] # the repository checks", 1),
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "chore: comment the package heading");
     let verdict = judge(&fixture.repo);
     let _ = std::fs::remove_dir_all(&root);
@@ -2172,9 +2175,9 @@ fn an_inherit_line_spelled_with_tabs_still_inherits() {
         ("tab-before-comment", "version.workspace = true\t# c"),
     ] {
         let root = scratch(label);
-        let fixture = build_fixture(&root, label, "0.2.0");
-        workspace_files(&fixture.repo, "0.2.1");
-        release_changelog(&fixture.repo, "0.2.1", "0.2.0");
+        let fixture = fixture::build(&root, label, "0.2.0");
+        fixture::workspace_files(&fixture.repo, "0.2.1");
+        fixture::release_changelog(&fixture.repo, "0.2.1", "0.2.0");
         let member = fixture.repo.join("crates/xuanji/Cargo.toml");
         let text = std::fs::read_to_string(&member).expect("read the member manifest");
         std::fs::write(&member, text.replace("version.workspace = true", spelling)).expect("write");
@@ -2204,7 +2207,7 @@ fn an_inherit_line_spelled_with_tabs_still_inherits() {
 #[test]
 fn a_family_pin_under_a_target_triple_is_read() {
     let root = scratch("target-triple");
-    let fixture = build_fixture(&root, "target-triple", "0.2.0");
+    let fixture = fixture::build(&root, "target-triple", "0.2.0");
     let manifest = fixture.repo.join("examples/adopter/Cargo.toml");
     let text = std::fs::read_to_string(&manifest).expect("read");
     std::fs::write(
@@ -2212,7 +2215,7 @@ fn a_family_pin_under_a_target_triple_is_read() {
         format!("{text}\n[target.x86_64-unknown-linux-gnu.dependencies]\nxuanji = \"0.0.1\"\n"),
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(
         &fixture.repo,
         "chore: depend on a family crate for one target",
@@ -2248,7 +2251,7 @@ fn a_family_pin_under_a_target_triple_is_read() {
 #[test]
 fn a_family_pin_under_a_quoted_cfg_target_is_observed() {
     let root = scratch("target-cfg");
-    let fixture = build_fixture(&root, "target-cfg", "0.2.0");
+    let fixture = fixture::build(&root, "target-cfg", "0.2.0");
     let manifest = fixture.repo.join("examples/adopter/Cargo.toml");
     let text = std::fs::read_to_string(&manifest).expect("read");
     std::fs::write(
@@ -2256,7 +2259,7 @@ fn a_family_pin_under_a_quoted_cfg_target_is_observed() {
         format!("{text}\n[target.'cfg(unix)'.dependencies]\nxuanji = \"0.0.1\"\n"),
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "chore: depend on a family crate under a cfg");
     refusal::expect(
         "release-coherence#example-pin-disagrees",
@@ -2290,11 +2293,11 @@ fn a_pin_under_a_cfg_target_carrying_a_dot_is_read() {
         ),
     ] {
         let root = scratch(&format!("cfg-dot-{label}"));
-        let fixture = build_fixture(&root, "cfg-dot", "0.2.0");
+        let fixture = fixture::build(&root, "cfg-dot", "0.2.0");
         let manifest = fixture.repo.join("examples/adopter/Cargo.toml");
         let text = std::fs::read_to_string(&manifest).expect("read");
         std::fs::write(&manifest, format!("{text}\n{table}")).expect("write");
-        development_changelog(&fixture.repo, "0.2.0", true);
+        fixture::development_changelog(&fixture.repo, "0.2.0", true);
         commit(
             &fixture.repo,
             "chore: a pin under a cfg target carrying a dot",
@@ -2349,11 +2352,11 @@ fn a_workspace_table_is_not_a_dependency_of_the_package_carrying_it() {
         ),
     ] {
         let root = scratch(&format!("workspace-table-{label}"));
-        let fixture = build_fixture(&root, "workspace-table", "0.2.0");
+        let fixture = fixture::build(&root, "workspace-table", "0.2.0");
         let manifest = fixture.repo.join("examples/adopter/Cargo.toml");
         let text = std::fs::read_to_string(&manifest).expect("read");
         std::fs::write(&manifest, format!("{text}\n{table}\nxuanji = \"0.0.1\"\n")).expect("write");
-        development_changelog(&fixture.repo, "0.2.0", true);
+        fixture::development_changelog(&fixture.repo, "0.2.0", true);
         commit(&fixture.repo, "chore: a workspace table in an example");
         let verdict = judge(&fixture.repo);
         let _ = std::fs::remove_dir_all(&root);
@@ -2367,7 +2370,7 @@ fn a_workspace_table_is_not_a_dependency_of_the_package_carrying_it() {
 
     // The other direction: an example whose only family mention is a catalog declares no family dependency.
     let root = scratch("catalog-is-not-a-requirement");
-    let fixture = build_fixture(&root, "catalog-is-not-a-requirement", "0.2.0");
+    let fixture = fixture::build(&root, "catalog-is-not-a-requirement", "0.2.0");
     std::fs::create_dir_all(fixture.repo.join("examples/catalogue")).expect("create");
     std::fs::write(
         fixture.repo.join("examples/catalogue/Cargo.toml"),
@@ -2375,7 +2378,7 @@ fn a_workspace_table_is_not_a_dependency_of_the_package_carrying_it() {
          [dependencies]\nserde_json = \"1\"\n\n[workspace.dependencies]\nxuanji = \"0.2\"\n",
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(
         &fixture.repo,
         "chore: an example offering what it does not require",
@@ -2432,7 +2435,7 @@ fn an_example_inheriting_from_its_own_catalog_is_held_to_the_catalog_version() {
             ("a stale catalog", "0.0.1", true),
         ] {
             let root = scratch(&format!("inherits-{spelling}-{}", label.replace(' ', "-")));
-            let fixture = build_fixture(&root, "inherits", "0.2.0");
+            let fixture = fixture::build(&root, "inherits", "0.2.0");
             std::fs::write(
                 fixture.repo.join("examples/adopter/Cargo.toml"),
                 format!(
@@ -2441,7 +2444,7 @@ fn an_example_inheriting_from_its_own_catalog_is_held_to_the_catalog_version() {
                 ),
             )
             .expect("write");
-            development_changelog(&fixture.repo, "0.2.0", true);
+            fixture::development_changelog(&fixture.repo, "0.2.0", true);
             commit(
                 &fixture.repo,
                 "chore: inherit a family pin from the example's own catalog",
@@ -2483,14 +2486,14 @@ fn an_example_inheriting_from_its_own_catalog_is_held_to_the_catalog_version() {
 #[test]
 fn an_example_inheriting_what_no_catalog_offers_is_not_judged() {
     let root = scratch("inherits-nothing");
-    let fixture = build_fixture(&root, "inherits-nothing", "0.2.0");
+    let fixture = fixture::build(&root, "inherits-nothing", "0.2.0");
     std::fs::write(
         fixture.repo.join("examples/adopter/Cargo.toml"),
         "[workspace]\n[package]\nname = \"adopter\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
          [workspace.dependencies]\nserde_json = \"1\"\n\n[dependencies]\nxuanji = { workspace = true }\n",
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "chore: inherit what nothing offers");
     let refusal = refuse(
         &fixture.repo,
@@ -2555,11 +2558,11 @@ fn an_inline_field_that_cannot_be_decoded_is_not_a_clean_pin() {
         ),
     ] {
         let root = scratch(&format!("undecodable-field-{label}"));
-        let fixture = build_fixture(&root, "undecodable-field", "0.2.0");
+        let fixture = fixture::build(&root, "undecodable-field", "0.2.0");
         let manifest = fixture.repo.join("examples/adopter/Cargo.toml");
         let text = std::fs::read_to_string(&manifest).expect("read");
         std::fs::write(&manifest, format!("{text}{entry}\n")).expect("write");
-        development_changelog(&fixture.repo, "0.2.0", true);
+        fixture::development_changelog(&fixture.repo, "0.2.0", true);
         commit(&fixture.repo, "chore: a field this reader cannot decode");
         let verdict = judge(&fixture.repo);
         let _ = std::fs::remove_dir_all(&root);
@@ -2621,9 +2624,9 @@ fn two_dated_sections_for_one_version_are_not_judged() {
         ("no suffix at all", "## [0.2.1]"),
     ] {
         let root = scratch(&format!("two-dated-{}", label.replace(' ', "-")));
-        let fixture = build_fixture(&root, "two-dated", "0.2.0");
-        workspace_files(&fixture.repo, "0.2.1");
-        release_changelog(&fixture.repo, "0.2.1", "0.2.0");
+        let fixture = fixture::build(&root, "two-dated", "0.2.0");
+        fixture::workspace_files(&fixture.repo, "0.2.1");
+        fixture::release_changelog(&fixture.repo, "0.2.1", "0.2.0");
         let path = fixture.repo.join("CHANGELOG.md");
         let text = std::fs::read_to_string(&path).expect("read");
         let heading = text
@@ -2664,11 +2667,11 @@ fn two_dated_sections_for_one_version_are_not_judged() {
 #[test]
 fn a_lock_block_writing_version_before_name_still_records_it() {
     let root = scratch("lock-order");
-    let fixture = build_fixture(&root, "lock-order", "0.2.0");
+    let fixture = fixture::build(&root, "lock-order", "0.2.0");
     // Release-ready, because the lock reader runs only in that phase and in the snapshot — a development
     // fixture never reaches it, which is what a first version of this direction asserted `Ok` past.
-    workspace_files(&fixture.repo, "0.2.1");
-    release_changelog(&fixture.repo, "0.2.1", "0.2.0");
+    fixture::workspace_files(&fixture.repo, "0.2.1");
+    fixture::release_changelog(&fixture.repo, "0.2.1", "0.2.0");
     let lock = fixture.repo.join("Cargo.lock");
     let text = std::fs::read_to_string(&lock).expect("read");
     let target = "[[package]]\nname = \"xuanji\"\nversion = \"0.2.1\"";
@@ -2715,7 +2718,7 @@ fn a_lock_block_writing_version_before_name_still_records_it() {
 #[test]
 fn a_dependency_key_whose_name_carries_a_dot_is_one_key() {
     let root = scratch("dotted-name");
-    let fixture = build_fixture(&root, "dotted-name", "0.2.0");
+    let fixture = fixture::build(&root, "dotted-name", "0.2.0");
     let manifest = fixture.repo.join("examples/adopter/Cargo.toml");
     let text = std::fs::read_to_string(&manifest).expect("read");
     std::fs::write(
@@ -2730,7 +2733,7 @@ fn a_dependency_key_whose_name_carries_a_dot_is_one_key() {
         ),
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(
         &fixture.repo,
         "chore: a dependency key whose name carries a dot",
@@ -2761,7 +2764,7 @@ fn a_dependency_key_whose_name_carries_a_dot_is_one_key() {
 #[test]
 fn a_family_crate_offered_with_no_path_is_a_violation() {
     let root = scratch("pathless-family");
-    let fixture = build_fixture(&root, "pathless-family", "0.2.0");
+    let fixture = fixture::build(&root, "pathless-family", "0.2.0");
     let manifest = fixture.repo.join("Cargo.toml");
     let text = std::fs::read_to_string(&manifest).expect("read");
     std::fs::write(
@@ -2772,7 +2775,7 @@ fn a_family_crate_offered_with_no_path_is_a_violation() {
         ),
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "chore: offer a family crate with no path");
     let verdict = judge(&fixture.repo);
     let _ = std::fs::remove_dir_all(&root);
@@ -2869,7 +2872,7 @@ fn a_family_crate_path_is_compared_against_the_members_own_directory() {
         ("empty", "", Answer::CannotJudge("names no directory")),
     ] {
         let root = scratch(&format!("member-dir-{}", label.replace(' ', "-")));
-        let fixture = build_fixture(&root, "member-dir", "0.2.0");
+        let fixture = fixture::build(&root, "member-dir", "0.2.0");
         let manifest = fixture.repo.join("Cargo.toml");
         let text = std::fs::read_to_string(&manifest).expect("read");
         std::fs::write(
@@ -2882,7 +2885,7 @@ fn a_family_crate_path_is_compared_against_the_members_own_directory() {
             ),
         )
         .expect("write");
-        development_changelog(&fixture.repo, "0.2.0", true);
+        fixture::development_changelog(&fixture.repo, "0.2.0", true);
         commit(&fixture.repo, "chore: spell a member path");
         let verdict = judge(&fixture.repo);
         let _ = std::fs::remove_dir_all(&root);
@@ -2950,7 +2953,7 @@ fn a_family_crate_path_is_compared_against_the_members_own_directory() {
 #[test]
 fn a_case_alias_of_a_member_directory_is_a_stated_bound() {
     let root = scratch("case-alias");
-    let fixture = build_fixture(&root, "case-alias", "0.2.0");
+    let fixture = fixture::build(&root, "case-alias", "0.2.0");
     let manifest = fixture.repo.join("Cargo.toml");
     let text = std::fs::read_to_string(&manifest).expect("read");
     std::fs::write(
@@ -2961,7 +2964,7 @@ fn a_case_alias_of_a_member_directory_is_a_stated_bound() {
         ),
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "chore: offer a member through a case alias");
     let verdict = judge(&fixture.repo);
     let _ = std::fs::remove_dir_all(&root);
@@ -2992,12 +2995,12 @@ fn a_case_alias_of_a_member_directory_is_a_stated_bound() {
 #[test]
 fn a_release_commit_carrying_no_changelog_is_refused() {
     let root = scratch("release-commit-no-changelog");
-    let fixture = build_fixture(&root, "release-commit-no-changelog", "0.2.0");
+    let fixture = fixture::build(&root, "release-commit-no-changelog", "0.2.0");
     std::fs::remove_file(fixture.repo.join("CHANGELOG.md")).expect("the fixture wrote one");
     std::fs::write(fixture.repo.join("NOTES.md"), "prepared\n").expect("write");
     commit(&fixture.repo, "release: 0.2.0");
     // A readable changelog in the worktree, which is what made the absence invisible.
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     let verdict = judge(&fixture.repo);
     let _ = std::fs::remove_dir_all(&root);
     refusal::expect(
@@ -3023,7 +3026,7 @@ fn a_changelog_git_cannot_read_at_head_is_not_a_modified_worktree() {
     use std::io::Write;
 
     let root = scratch("changelog-head-bytes");
-    let fixture = build_fixture(&root, "changelog-head-bytes", "0.2.0");
+    let fixture = fixture::build(&root, "changelog-head-bytes", "0.2.0");
     let path = fixture.repo.join("CHANGELOG.md");
 
     let mut invalid = std::fs::File::create(&path).expect("write the committed changelog");
@@ -3035,7 +3038,7 @@ fn a_changelog_git_cannot_read_at_head_is_not_a_modified_worktree() {
 
     // The worktree's copy is readable, so the gate's own read of the file succeeds and only the blob behind
     // it cannot be represented.
-    release_changelog(&fixture.repo, "0.2.0", "0.1.0");
+    fixture::release_changelog(&fixture.repo, "0.2.0", "0.1.0");
 
     let verdict = judge(&fixture.repo);
     let _ = std::fs::remove_dir_all(&root);
@@ -3060,8 +3063,8 @@ fn a_changelog_git_cannot_read_at_head_is_not_a_modified_worktree() {
 #[test]
 fn a_checkout_edited_only_in_trailing_whitespace_is_not_a_snapshot() {
     let root = scratch("snapshot-whitespace");
-    let fixture = build_fixture(&root, "snapshot-whitespace", "0.2.0");
-    release_changelog(&fixture.repo, "0.2.0", "0.1.0");
+    let fixture = fixture::build(&root, "snapshot-whitespace", "0.2.0");
+    fixture::release_changelog(&fixture.repo, "0.2.0", "0.1.0");
     std::fs::write(fixture.repo.join("NOTES.md"), "prepared\n").expect("write");
     commit(&fixture.repo, "release: 0.2.0");
 
@@ -3103,14 +3106,14 @@ fn a_checkout_edited_only_in_trailing_whitespace_is_not_a_snapshot() {
 #[test]
 fn editing_at_a_release_snapshot_is_development() {
     let root = scratch("snapshot-edited");
-    let fixture = build_fixture(&root, "snapshot-edited", "0.2.0");
-    release_changelog(&fixture.repo, "0.2.0", "0.1.0");
+    let fixture = fixture::build(&root, "snapshot-edited", "0.2.0");
+    fixture::release_changelog(&fixture.repo, "0.2.0", "0.1.0");
     // The release commit has to carry a change, as its sibling direction records; what it carries is beside
     // the point.
     std::fs::write(fixture.repo.join("NOTES.md"), "prepared\n").expect("write");
     commit(&fixture.repo, "release: 0.2.0");
     // The next cycle's first edit, uncommitted — `head` is still the release commit.
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     let verdict = judge(&fixture.repo);
     let _ = std::fs::remove_dir_all(&root);
     let ok =
@@ -3135,7 +3138,7 @@ fn editing_at_a_release_snapshot_is_development() {
 #[test]
 fn a_single_quoted_package_name_is_read() {
     let root = scratch("single-quoted-name");
-    let fixture = build_fixture(&root, "single-quoted-name", "0.2.0");
+    let fixture = fixture::build(&root, "single-quoted-name", "0.2.0");
     // The member's own manifest, spelled the legal way this reader used to decline. A stale example pin sits
     // beside it, so the verdict is about that pin being judged at all rather than about reading nothing.
     std::fs::write(
@@ -3153,7 +3156,7 @@ fn a_single_quoted_package_name_is_read() {
         staled
     })
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(
         &fixture.repo,
         "chore: name the package with a single-quoted string",
@@ -3187,7 +3190,7 @@ fn a_single_quoted_package_name_is_read() {
 #[test]
 fn a_stale_internal_pin_behind_a_quoted_tail_is_refused() {
     let root = scratch("quoted-tail-pin");
-    let fixture = build_fixture(&root, "quoted-tail-pin", "0.2.0");
+    let fixture = fixture::build(&root, "quoted-tail-pin", "0.2.0");
     let manifest = fixture.repo.join("Cargo.toml");
     let text = std::fs::read_to_string(&manifest).expect("read");
     std::fs::write(
@@ -3203,7 +3206,7 @@ fn a_stale_internal_pin_behind_a_quoted_tail_is_refused() {
         ),
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(
         &fixture.repo,
         "chore: pin an internal dependency behind a quoted tail",
@@ -3252,11 +3255,11 @@ fn every_inherit_spelling_cargo_honours_is_read_as_inheriting() {
         ("quoted inner key", "version = { \"workspace\" = true }"),
     ] {
         let root = scratch(&format!("inherit-{}", label.replace(' ', "-")));
-        let fixture = build_fixture(&root, "inherit", "0.2.0");
+        let fixture = fixture::build(&root, "inherit", "0.2.0");
         let manifest = fixture.repo.join("crates/xuanji/Cargo.toml");
         let text = std::fs::read_to_string(&manifest).expect("read");
         std::fs::write(&manifest, text.replace("version.workspace = true", line)).expect("write");
-        development_changelog(&fixture.repo, "0.2.0", true);
+        fixture::development_changelog(&fixture.repo, "0.2.0", true);
         commit(&fixture.repo, "chore: spell the inherit line another way");
         let verdict = judge(&fixture.repo);
         let _ = std::fs::remove_dir_all(&root);
@@ -3285,14 +3288,14 @@ fn every_inherit_spelling_cargo_honours_is_read_as_inheriting() {
 #[test]
 fn a_member_inheriting_through_a_sub_table_heading_is_read_as_inheriting() {
     let root = scratch("inherit-sub-table");
-    let fixture = build_fixture(&root, "inherit-sub-table", "0.2.0");
+    let fixture = fixture::build(&root, "inherit-sub-table", "0.2.0");
     let manifest = fixture.repo.join("crates/xuanji/Cargo.toml");
     std::fs::write(
         &manifest,
         "[package]\nname = \"xuanji\"\nedition = \"2024\"\n\n[package.version]\nworkspace = true\n",
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "chore: inherit through a sub-table heading");
     let verdict = judge(&fixture.repo);
     let _ = std::fs::remove_dir_all(&root);
@@ -3315,11 +3318,11 @@ fn a_member_inheriting_through_a_sub_table_heading_is_read_as_inheriting() {
 #[test]
 fn an_example_manifest_that_is_not_a_regular_file_is_not_an_absent_one() {
     let root = scratch("example-manifest-not-a-file");
-    let fixture = build_fixture(&root, "example-manifest-not-a-file", "0.2.0");
+    let fixture = fixture::build(&root, "example-manifest-not-a-file", "0.2.0");
     let manifest = fixture.repo.join("examples/adopter/Cargo.toml");
     std::fs::remove_file(&manifest).expect("the fixture writes this manifest");
     std::fs::create_dir(&manifest).expect("a directory may take its place");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "chore: put a directory where a manifest was");
     refusal::expect(
         "release-coherence#example-manifest-not-a-readable-file",
@@ -3356,11 +3359,11 @@ fn an_example_manifest_that_is_not_a_regular_file_is_not_an_absent_one() {
 #[test]
 fn a_crate_manifest_that_is_not_a_regular_file_is_not_an_absent_one() {
     let root = scratch("crate-manifest-not-a-file");
-    let fixture = build_fixture(&root, "crate-manifest-not-a-file", "0.2.0");
+    let fixture = fixture::build(&root, "crate-manifest-not-a-file", "0.2.0");
     let manifest = fixture.repo.join("crates/xuanji/Cargo.toml");
     std::fs::remove_file(&manifest).expect("the fixture writes this manifest");
     std::fs::create_dir(&manifest).expect("a directory may take its place");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(
         &fixture.repo,
         "chore: put a directory where a crate manifest was",
@@ -3392,14 +3395,14 @@ fn a_crate_manifest_that_is_not_a_regular_file_is_not_an_absent_one() {
 #[test]
 fn an_example_directory_that_cannot_be_stated_is_not_an_absent_one() {
     let root = scratch("example-directory-unreadable");
-    let fixture = build_fixture(&root, "example-directory-unreadable", "0.2.0");
+    let fixture = fixture::build(&root, "example-directory-unreadable", "0.2.0");
 
     // A loop rather than a dangling link: an absent target answers `NotFound`, which is the absence this
     // loop may legitimately skip. `ELOOP` is the answer that is neither *absent* nor *readable*.
     let looping = fixture.repo.join("examples/broken");
     std::os::unix::fs::symlink("broken", &looping).expect("a symlink may loop");
 
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(
         &fixture.repo,
         "chore: an entry under examples/ that cannot be stated",
@@ -3441,14 +3444,14 @@ fn an_example_directory_that_cannot_be_stated_is_not_an_absent_one() {
 #[test]
 fn a_member_manifest_the_parser_cannot_read_is_not_judged() {
     let root = scratch("member-unparseable");
-    let fixture = build_fixture(&root, "member-unparseable", "0.2.0");
+    let fixture = fixture::build(&root, "member-unparseable", "0.2.0");
     let manifest = fixture.repo.join("crates/xuanji/Cargo.toml");
     std::fs::write(
         &manifest,
         "[package]\nname = \"xuanji\"\nname = \"xuanji\"\nversion.workspace = true\nedition = \"2024\"\n",
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "chore: write a member manifest twice over");
     refusal::expect(
         "release-coherence#member-manifest-unparseable",
@@ -3473,7 +3476,7 @@ fn a_member_manifest_the_parser_cannot_read_is_not_judged() {
 #[test]
 fn a_member_whose_package_name_is_quoted_is_read_under_that_name() {
     let root = scratch("quoted-package-name");
-    let fixture = build_fixture(&root, "quoted-package-name", "0.2.0");
+    let fixture = fixture::build(&root, "quoted-package-name", "0.2.0");
     let manifest = fixture.repo.join("crates/xuanji/Cargo.toml");
     let text = std::fs::read_to_string(&manifest).expect("read");
     std::fs::write(
@@ -3481,7 +3484,7 @@ fn a_member_whose_package_name_is_quoted_is_read_under_that_name() {
         text.replace("name = \"xuanji\"", "\"name\" = \"xuanji\""),
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "chore: spell a package name in quotes");
     let verdict = judge(&fixture.repo);
     let _ = std::fs::remove_dir_all(&root);
@@ -3521,7 +3524,7 @@ fn assignment_shaped_text_inside_a_value_is_not_a_key() {
         ),
     ] {
         let root = scratch(&format!("value-not-a-key-{}", label.replace(' ', "-")));
-        let fixture = build_fixture(&root, "value-not-a-key", "0.2.0");
+        let fixture = fixture::build(&root, "value-not-a-key", "0.2.0");
         let manifest = fixture.repo.join("examples/adopter/Cargo.toml");
         let text = std::fs::read_to_string(&manifest).expect("read");
         // **Replaces the example's own entry rather than being appended beside it.** Appended, the manifest
@@ -3533,7 +3536,7 @@ fn assignment_shaped_text_inside_a_value_is_not_a_key() {
             "{label}: the entry must replace the example's own"
         );
         std::fs::write(&manifest, composed).expect("write");
-        development_changelog(&fixture.repo, "0.2.0", true);
+        fixture::development_changelog(&fixture.repo, "0.2.0", true);
         commit(
             &fixture.repo,
             "chore: assignment-shaped text inside a value",
@@ -3561,7 +3564,7 @@ fn assignment_shaped_text_inside_a_value_is_not_a_key() {
 #[test]
 fn two_workspace_keys_in_one_dependency_are_not_one_inheritance() {
     let root = scratch("two-offers");
-    let fixture = build_fixture(&root, "two-offers", "0.2.0");
+    let fixture = fixture::build(&root, "two-offers", "0.2.0");
     std::fs::write(
         fixture.repo.join("examples/adopter/Cargo.toml"),
         "[workspace]\n[package]\nname = \"adopter\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
@@ -3569,7 +3572,7 @@ fn two_workspace_keys_in_one_dependency_are_not_one_inheritance() {
          [dependencies]\nxuanji = { workspace = true, workspace = true }\n",
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "chore: two workspace keys in one dependency");
     let refusal = refuse(&fixture.repo, Kind::CannotJudge, "duplicate key");
     refusal::expect("release-coherence#manifest-unparseable", &refusal);
@@ -3592,7 +3595,7 @@ fn two_workspace_keys_in_one_dependency_are_not_one_inheritance() {
 #[test]
 fn a_catalog_entry_whose_identity_is_unresolvable_stops_the_inheriting_example() {
     let root = scratch("catalog-unresolvable");
-    let fixture = build_fixture(&root, "catalog-unresolvable", "0.2.0");
+    let fixture = fixture::build(&root, "catalog-unresolvable", "0.2.0");
     std::fs::write(
         fixture.repo.join("examples/adopter/Cargo.toml"),
         "[workspace]\n[package]\nname = \"adopter\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
@@ -3600,7 +3603,7 @@ fn a_catalog_entry_whose_identity_is_unresolvable_stops_the_inheriting_example()
          [dependencies]\nxuanji = { workspace = true }\n",
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(
         &fixture.repo,
         "chore: the entry taken names no readable crate",
@@ -3639,7 +3642,7 @@ fn a_catalog_entry_whose_identity_is_unresolvable_stops_the_inheriting_example()
 #[test]
 fn an_unrelated_unresolvable_catalog_entry_does_not_mask_a_stale_pin() {
     let root = scratch("catalog-unrelated-unresolvable");
-    let fixture = build_fixture(&root, "catalog-unrelated-unresolvable", "0.2.0");
+    let fixture = fixture::build(&root, "catalog-unrelated-unresolvable", "0.2.0");
     std::fs::write(
         fixture.repo.join("examples/adopter/Cargo.toml"),
         "[workspace]\n[package]\nname = \"adopter\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
@@ -3648,7 +3651,7 @@ fn an_unrelated_unresolvable_catalog_entry_does_not_mask_a_stale_pin() {
          [dependencies]\nxuanji = { workspace = true }\n",
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "chore: a stale offer beside an unread one");
     let refusal = refuse(&fixture.repo, Kind::Violation, "0.0.1");
     refusal::expect("release-coherence#example-pin-disagrees", &refusal);
@@ -3663,14 +3666,14 @@ fn an_unrelated_unresolvable_catalog_entry_does_not_mask_a_stale_pin() {
 #[test]
 fn a_catalog_entry_that_itself_inherits_is_named_rather_than_followed() {
     let root = scratch("catalog-self-inherits");
-    let fixture = build_fixture(&root, "catalog-self-inherits", "0.2.0");
+    let fixture = fixture::build(&root, "catalog-self-inherits", "0.2.0");
     std::fs::write(
         fixture.repo.join("examples/adopter/Cargo.toml"),
         "[workspace]\n[package]\nname = \"adopter\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
          [workspace.dependencies]\nxuanji = { workspace = true }\n\n[dependencies]\nxuanji = { workspace = true }\n",
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(
         &fixture.repo,
         "chore: a catalog entry that inherits from itself",
@@ -3692,7 +3695,7 @@ fn a_catalog_entry_that_itself_inherits_is_named_rather_than_followed() {
 #[test]
 fn an_example_whose_package_value_is_unreadable_is_not_judged() {
     let root = scratch("package-unreadable");
-    let fixture = build_fixture(&root, "package-unreadable", "0.2.0");
+    let fixture = fixture::build(&root, "package-unreadable", "0.2.0");
     let manifest = fixture.repo.join("examples/adopter/Cargo.toml");
     let text = std::fs::read_to_string(&manifest).expect("read");
     std::fs::write(
@@ -3703,7 +3706,7 @@ fn an_example_whose_package_value_is_unreadable_is_not_judged() {
         format!("{text}alias = {{ package = 5, version = \"0.2.0\" }}\n"),
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "chore: name a crate unreadably");
     refusal::expect(
         "release-coherence#dependency-package-value-unreadable",
@@ -3725,7 +3728,7 @@ fn an_example_whose_package_value_is_unreadable_is_not_judged() {
 #[test]
 fn an_example_declaring_several_package_keys_is_not_judged() {
     let root = scratch("package-several");
-    let fixture = build_fixture(&root, "package-several", "0.2.0");
+    let fixture = fixture::build(&root, "package-several", "0.2.0");
     let manifest = fixture.repo.join("examples/adopter/Cargo.toml");
     let text = std::fs::read_to_string(&manifest).expect("read");
     std::fs::write(
@@ -3735,7 +3738,7 @@ fn an_example_declaring_several_package_keys_is_not_judged() {
         ),
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "chore: name two crates at once");
     refusal::expect(
         "release-coherence#manifest-unparseable",
@@ -3753,7 +3756,7 @@ fn an_example_declaring_several_package_keys_is_not_judged() {
 #[test]
 fn an_example_requiring_a_family_crate_with_no_version_is_refused() {
     let root = scratch("pin-absent");
-    let fixture = build_fixture(&root, "pin-absent", "0.2.0");
+    let fixture = fixture::build(&root, "pin-absent", "0.2.0");
     let manifest = fixture.repo.join("examples/adopter/Cargo.toml");
     let text = std::fs::read_to_string(&manifest).expect("read");
     std::fs::write(
@@ -3761,7 +3764,7 @@ fn an_example_requiring_a_family_crate_with_no_version_is_refused() {
         format!("{text}tianheng = {{ path = \"../../crates/tianheng\" }}\n"),
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "chore: require a family crate by path alone");
     refusal::expect(
         "release-coherence#example-pin-absent",
@@ -3783,7 +3786,7 @@ fn an_example_requiring_a_family_crate_with_no_version_is_refused() {
 #[test]
 fn an_example_declaring_several_version_keys_is_not_judged() {
     let root = scratch("pin-several");
-    let fixture = build_fixture(&root, "pin-several", "0.2.0");
+    let fixture = fixture::build(&root, "pin-several", "0.2.0");
     let manifest = fixture.repo.join("examples/adopter/Cargo.toml");
     let text = std::fs::read_to_string(&manifest).expect("read");
     std::fs::write(
@@ -3793,7 +3796,7 @@ fn an_example_declaring_several_version_keys_is_not_judged() {
         ),
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "chore: require one crate at two versions");
     refusal::expect(
         "release-coherence#manifest-unparseable",
@@ -3814,7 +3817,7 @@ fn an_example_declaring_several_version_keys_is_not_judged() {
 #[test]
 fn an_internal_pin_written_as_a_detailed_table_is_read() {
     let root = scratch("internal-detailed");
-    let fixture = build_fixture(&root, "internal-detailed", "0.2.0");
+    let fixture = fixture::build(&root, "internal-detailed", "0.2.0");
     let manifest = fixture.repo.join("Cargo.toml");
     let text = std::fs::read_to_string(&manifest).expect("read");
     std::fs::write(
@@ -3825,7 +3828,7 @@ fn an_internal_pin_written_as_a_detailed_table_is_read() {
         ),
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(
         &fixture.repo,
         "chore: write an internal pin as a detailed table",
@@ -3841,7 +3844,7 @@ fn an_internal_pin_written_as_a_detailed_table_is_read() {
 #[test]
 fn a_stale_internal_pin_in_a_detailed_table_is_a_violation() {
     let root = scratch("internal-detailed-stale");
-    let fixture = build_fixture(&root, "internal-detailed-stale", "0.2.0");
+    let fixture = fixture::build(&root, "internal-detailed-stale", "0.2.0");
     let manifest = fixture.repo.join("Cargo.toml");
     let text = std::fs::read_to_string(&manifest).expect("read");
     std::fs::write(
@@ -3852,7 +3855,7 @@ fn a_stale_internal_pin_in_a_detailed_table_is_a_violation() {
         ),
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "chore: leave an internal pin behind");
     refusal::expect(
         "release-coherence#internal-pin-disagrees",
@@ -3894,13 +3897,13 @@ fn a_workspace_version_that_is_not_a_version_cannot_be_judged() {
 #[test]
 fn a_crate_manifest_declaring_no_package_name_stops_the_example_check() {
     let root = scratch("crate-nameless");
-    let fixture = build_fixture(&root, "crate-nameless", "0.2.0");
+    let fixture = fixture::build(&root, "crate-nameless", "0.2.0");
     std::fs::write(
         fixture.repo.join("crates/xuanji/Cargo.toml"),
         "[package]\nversion.workspace = true\nedition = \"2024\"\n",
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "chore: leave a member unnamed");
     refusal::expect(
         "release-coherence#crate-package-name-absent",
@@ -3923,7 +3926,7 @@ fn a_crate_manifest_declaring_no_package_name_stops_the_example_check() {
 #[test]
 fn a_crate_package_name_this_reader_cannot_take_stops_the_example_check() {
     let root = scratch("crate-unreadable-name");
-    let fixture = build_fixture(&root, "crate-unreadable-name", "0.2.0");
+    let fixture = fixture::build(&root, "crate-unreadable-name", "0.2.0");
     std::fs::write(
         fixture.repo.join("crates/xuanji/Cargo.toml"),
         // **This WHEN moved when a real parser replaced the hand-rolled reader.** It was `name = 'xuanji'` — a
@@ -3932,7 +3935,7 @@ fn a_crate_package_name_this_reader_cannot_take_stops_the_example_check() {
         "[package]\nname = { workspace = true }\nversion.workspace = true\nedition = \"2024\"\n",
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "chore: name a member unreadably");
     refusal::expect(
         "release-coherence#crate-package-name-unreadable",
@@ -3952,7 +3955,7 @@ fn a_crate_package_name_this_reader_cannot_take_stops_the_example_check() {
 #[test]
 fn an_example_pin_this_reader_cannot_take_is_not_one_that_satisfies() {
     let root = scratch("example-pin-unreadable");
-    let fixture = build_fixture(&root, "example-pin-unreadable", "0.2.0");
+    let fixture = fixture::build(&root, "example-pin-unreadable", "0.2.0");
     let manifest = fixture.repo.join("examples/adopter/Cargo.toml");
     let text = std::fs::read_to_string(&manifest).expect("read");
     std::fs::write(
@@ -3963,7 +3966,7 @@ fn an_example_pin_this_reader_cannot_take_is_not_one_that_satisfies() {
         format!("{text}tianheng = {{ version = 5 }}\n"),
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "chore: pin a family crate unreadably");
     refusal::expect(
         "release-coherence#example-pin-unreadable",
@@ -3986,7 +3989,7 @@ fn an_example_pin_this_reader_cannot_take_is_not_one_that_satisfies() {
 #[test]
 fn a_root_manifest_with_no_internal_path_dependency_reports_over_nothing() {
     let root = scratch("no-internal-pin");
-    let fixture = build_fixture(&root, "no-internal-pin", "0.2.0");
+    let fixture = fixture::build(&root, "no-internal-pin", "0.2.0");
     let manifest = fixture.repo.join("Cargo.toml");
     let text = std::fs::read_to_string(&manifest).expect("read");
     std::fs::write(
@@ -3997,7 +4000,7 @@ fn a_root_manifest_with_no_internal_path_dependency_reports_over_nothing() {
         ),
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(
         &fixture.repo,
         "chore: declare no dependency on a family crate",
@@ -4022,14 +4025,14 @@ fn a_root_manifest_with_no_internal_path_dependency_reports_over_nothing() {
 #[test]
 fn an_examples_directory_holding_no_manifest_at_all_reports_over_nothing() {
     let root = scratch("no-example-manifests");
-    let fixture = build_fixture(&root, "no-example-manifests", "0.2.0");
+    let fixture = fixture::build(&root, "no-example-manifests", "0.2.0");
     std::fs::remove_file(fixture.repo.join("examples/adopter/Cargo.toml")).expect("remove");
     std::fs::write(
         fixture.repo.join("examples/adopter/README.md"),
         "no manifest\n",
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "chore: leave examples/ carrying no manifest");
     refusal::expect(
         "release-coherence#no-example-manifests-found",
@@ -4056,14 +4059,14 @@ fn an_examples_directory_holding_no_manifest_at_all_reports_over_nothing() {
 #[test]
 fn an_example_requiring_no_family_crate_reports_over_nothing() {
     let root = scratch("no-family-requirement");
-    let fixture = build_fixture(&root, "no-family-requirement", "0.2.0");
+    let fixture = fixture::build(&root, "no-family-requirement", "0.2.0");
     std::fs::write(
         fixture.repo.join("examples/adopter/Cargo.toml"),
         "[package]\nname = \"adopter\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
          [dependencies]\nserde_json = \"1\"\n",
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(
         &fixture.repo,
         "chore: require no family crate from any example",
@@ -4091,7 +4094,7 @@ fn an_example_requiring_no_family_crate_reports_over_nothing() {
 #[test]
 fn an_example_declaring_nothing_is_refused_though_its_sibling_is_fine() {
     let root = scratch("bare-beside-a-good-one");
-    let fixture = build_fixture(&root, "bare-beside-a-good-one", "0.2.0");
+    let fixture = fixture::build(&root, "bare-beside-a-good-one", "0.2.0");
     // `adopter` keeps the pin the fixture builds it with, so the aggregate counter would stay non-zero.
     std::fs::create_dir_all(fixture.repo.join("examples/bare")).expect("create");
     std::fs::write(
@@ -4100,7 +4103,7 @@ fn an_example_declaring_nothing_is_refused_though_its_sibling_is_fine() {
          [dependencies]\nserde_json = \"1\"\n",
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(
         &fixture.repo,
         "chore: add an example requiring no family crate",
@@ -4126,10 +4129,10 @@ fn an_example_declaring_nothing_is_refused_though_its_sibling_is_fine() {
 #[test]
 fn a_lock_version_this_reader_cannot_take_stops_the_comparison() {
     let root = scratch("lock-version-unread");
-    let fixture = build_fixture(&root, "lock-version-unreadable", "0.2.0");
+    let fixture = fixture::build(&root, "lock-version-unreadable", "0.2.0");
     with_machinery(&fixture.repo);
-    workspace_files(&fixture.repo, "0.2.1");
-    release_changelog(&fixture.repo, "0.2.1", "0.2.0");
+    fixture::workspace_files(&fixture.repo, "0.2.1");
+    fixture::release_changelog(&fixture.repo, "0.2.1", "0.2.0");
     let lock = fixture.repo.join("Cargo.lock");
     let text = std::fs::read_to_string(&lock).expect("read");
     std::fs::write(
@@ -4164,8 +4167,8 @@ fn a_lock_version_this_reader_cannot_take_stops_the_comparison() {
 #[test]
 fn a_release_snapshot_naming_another_version_is_a_violation() {
     let root = scratch("snapshot-disagrees");
-    let fixture = build_fixture(&root, "snapshot-disagrees", "0.2.0");
-    release_changelog(&fixture.repo, "0.2.0", "0.1.0");
+    let fixture = fixture::build(&root, "snapshot-disagrees", "0.2.0");
+    fixture::release_changelog(&fixture.repo, "0.2.0", "0.1.0");
     // The release commit has to carry a change, and what it carries is beside the point: what this observes
     // is the subject of the commit HEAD sits on against the version the surfaces declare.
     std::fs::write(fixture.repo.join("NOTES.md"), "prepared\n").expect("write");
@@ -4191,13 +4194,13 @@ fn a_release_snapshot_naming_another_version_is_a_violation() {
 #[test]
 fn a_crate_manifest_that_is_not_text_cannot_be_read() {
     let root = scratch("crate-not-text");
-    let fixture = build_fixture(&root, "crate-not-text", "0.2.0");
+    let fixture = fixture::build(&root, "crate-not-text", "0.2.0");
     std::fs::write(
         fixture.repo.join("crates/xuanji/Cargo.toml"),
         [0x66, 0x6f, 0xff, 0xfe],
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(
         &fixture.repo,
         "chore: write a member manifest that is not text",
@@ -4222,7 +4225,7 @@ fn a_crate_manifest_that_is_not_text_cannot_be_read() {
 #[test]
 fn a_metadata_failure_the_subject_caused_is_reported() {
     let root = scratch("metadata-subject");
-    let fixture = build_fixture(&root, "metadata-subject", "0.2.0");
+    let fixture = fixture::build(&root, "metadata-subject", "0.2.0");
     let manifest = fixture.repo.join("crates/xuanji/Cargo.toml");
     let text = std::fs::read_to_string(&manifest).expect("read");
     std::fs::write(
@@ -4230,7 +4233,7 @@ fn a_metadata_failure_the_subject_caused_is_reported() {
         format!("{text}\n[dependencies]\nabsent = {{ path = \"../nowhere\" }}\n"),
     )
     .expect("write");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "chore: depend on a path that is not there");
     refusal::expect(
         "release-coherence#cargo-metadata-failed",
@@ -4252,8 +4255,8 @@ fn a_metadata_failure_the_subject_caused_is_reported() {
 #[test]
 fn a_workspace_whose_members_are_untracked_reports_over_nothing() {
     let root = scratch("members-untracked");
-    let fixture = build_fixture(&root, "members-untracked", "0.2.0");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    let fixture = fixture::build(&root, "members-untracked", "0.2.0");
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "chore: prepare");
     // Through git directly, because the fixture's `commit` stages everything and would put the members
     // straight back.
@@ -4282,7 +4285,7 @@ fn a_workspace_whose_members_are_untracked_reports_over_nothing() {
 /// described. The check would then run against `scripts/` alone and report clean over a nearly-empty subject.
 ///
 /// **Reachable, and reported as run rather than as read.** A review found this by reading and judged the
-/// state unreachable through `build_fixture`. It is reachable: untrack the two unpublished members and leave
+/// state unreachable through `fixture::build`. It is reachable: untrack the two unpublished members and leave
 /// the published one alone, which is what this does. `cargo metadata` still names all three, because it reads
 /// the filesystem rather than the index.
 ///
@@ -4291,8 +4294,8 @@ fn a_workspace_whose_members_are_untracked_reports_over_nothing() {
 #[test]
 fn unpublished_members_contributing_nothing_is_refused() {
     let root = scratch("machinery-empty");
-    let fixture = build_fixture(&root, "machinery-empty", "0.2.0");
-    development_changelog(&fixture.repo, "0.2.0", true);
+    let fixture = fixture::build(&root, "machinery-empty", "0.2.0");
+    fixture::development_changelog(&fixture.repo, "0.2.0", true);
     commit(&fixture.repo, "chore: prepare");
     // Through git directly, because the fixture's `commit` stages everything and would put them back. Only
     // the unpublished members go: `crates/xuanji` stays tracked, and it is what kept the old floor silent.
@@ -4362,11 +4365,11 @@ fn an_unjudged_dotted_tail_declares_as_its_inline_spelling_does() {
         ),
     ] {
         let root = scratch(&format!("unjudged-tail-{label}"));
-        let fixture = build_fixture(&root, &format!("unjudged-tail-{label}"), "0.2.0");
+        let fixture = fixture::build(&root, &format!("unjudged-tail-{label}"), "0.2.0");
         let manifest = fixture.repo.join("examples/adopter/Cargo.toml");
         let text = std::fs::read_to_string(&manifest).expect("read");
         std::fs::write(&manifest, format!("{text}{line}")).expect("write");
-        development_changelog(&fixture.repo, "0.2.0", true);
+        fixture::development_changelog(&fixture.repo, "0.2.0", true);
         commit(
             &fixture.repo,
             "chore: require a family crate through a tail this reader does not judge",
