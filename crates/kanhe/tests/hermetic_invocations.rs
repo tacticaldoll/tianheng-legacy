@@ -613,7 +613,24 @@ fn a_construction_inside_an_ordinary_string_literal_is_not_read() {
 /// It was an over-report while this file read lines: a raw string carries the spelling verbatim, so a
 /// fixture written that way was reported as constructing a `git` — measured, by this file reporting itself.
 /// A literal is one token, so asking a lexer answers both literal forms the same way and the over-report is
-/// gone rather than declared. What remains is the one stop, in both forms, and the bound says so.
+/// gone rather than declared. What remains is the one stop, in both forms, and the bound says so:
+/// `repository-checks/a-git-constructed-inside-a-string-literal-is-not-read-a-stated-bound`, which cites
+/// this direction beside its sibling.
+///
+/// **The citation is why deleting this is not silent.** The bound's subject was *either form* and its
+/// citation named only the ordinary one, so this direction could be removed with the register, both
+/// projections and every gate unchanged — the bound would have kept claiming a stop it had half the evidence
+/// for. Two directions defending one bound is what `pinned_by_many` is for; two bounds would have declared
+/// two stops where a lexer makes one.
+///
+/// Measured by renaming this function, which is what a deletion looks like to the register:
+///
+/// ```text
+/// pinning citations that do not resolve to one registered test:
+///   repository-checks/a-git-constructed-inside-a-string-literal-is-not-read-a-stated-bound is PINNED-BY
+///   `a_construction_inside_a_raw_string_is_not_read`, which the test harness does not register — a renamed
+///   or deleted test leaves this citation naming nothing
+/// ```
 #[test]
 fn a_construction_inside_a_raw_string_is_not_read() {
     // Assembled, because this file is inside the corpus the live sweep reads.
