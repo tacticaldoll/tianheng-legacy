@@ -408,12 +408,20 @@ declared figure disagreeing with a produced one was fabricating the declared fig
   sweep being asleep
 - **PINNED-BY** `a_figure_this_sweep_cannot_represent_refuses_rather_than_reading_as_absent`
 
-### Requirement: A backticked name SHALL have one reader, and an unpaired marker SHALL refuse
+### Requirement: A marked span SHALL have one reader, and an unpaired marker SHALL refuse
 
 Reading backticked identifiers out of prose SHALL go through one implementation, and that implementation SHALL
 decide the marker count before it takes a pair. Pairing markers as they arrive means one unpaired marker
 shifts every pair after it, and a shifted pairing is **readable** — it yields names, just not the document's —
 so no site doing it can report the condition.
+
+**Deciding whether a phrase sits inside a mark SHALL go through the same implementation, and the marker
+classes it pairs are the backtick and single emphasis.** That question is *membership*, and the parity of the
+markers preceding the phrase is not it: the two agree only where every marker pairs, and after one that
+closes nothing parity answers *marked* for every remaining phrase in the passage. A caller suppressing a
+finding on a marked phrase therefore suppresses all of them. An unpairable passage SHALL answer
+*undecidable*, distinct from *nothing is marked*, so a caller can choose the direction that over-reacts
+rather than the one that goes quiet.
 
 **Measured at both sites that had this shape.** A `## Capabilities` section listing `` `alpha` ``, a stray
 marker, then `` `beta` `` answered `{" here\n- ", "alpha"}`: the prose between the stray marker and `beta`'s
@@ -443,15 +451,28 @@ gave one rule two answers, and the correct half could tell the other nothing.
 - **THEN** the reaction refuses, naming the file and the line. Those are the two primitives `reading`'s own
   doc names as the shapes it replaced — a `find` twice in a loop, and a `split` with `step_by(2)` — and the
   first reader closed only the second. Measured when this was written: no site outside `reading` uses either
-- **PINNED-BY** `no_source_outside_the_shared_reader_pairs_backticks_by_hand`
+- **PINNED-BY** `no_source_outside_the_shared_reader_pairs_markers_by_hand`
+
+#### Scenario: A source outside the shared reader decides a pairing by a marker count's parity
+
+- **WHEN** any tracked Rust source outside `reading` tests a marker count for parity — a `matches` on a
+  backtick or asterisk literal whose count is taken modulo two
+- **THEN** the reaction refuses, naming the file and the line, and names the reader whose answer is the spans
+  themselves. Counting is honest and the refusal of an unpaired marker says how many were found; a
+  **parity** of that count is a pairing reached by another route, and it answers *do these markers pair*
+  while its caller reads *is this phrase inside a mark*. Both marker classes the shared reader pairs are
+  read, because a door one character wide is a door
+- **PINNED-BY** `no_source_outside_the_shared_reader_pairs_markers_by_hand`
 
 #### Scenario: A marker is reached through some other primitive — a stated bound
 
-- **WHEN** a source pairs markers using `split_once`, `strip_prefix`, `strip_suffix`, `trim_matches` or
-  `matches` with a backtick literal
-- **THEN** the reaction reports nothing. Those are in live use for reading a *single* delimited value
-  rather than pairing a sequence, and none of their live uses is a pairing — so refusing them would refuse
-  the honest use, and telling the two apart needs the expression's shape rather than the primitive's name
+- **WHEN** a source pairs markers using `split_once`, `strip_prefix`, `strip_suffix` or `trim_matches` with a
+  backtick literal
+- **THEN** the reaction reports nothing. Those four are in live use for reading a *single* delimited value
+  rather than pairing a sequence, and none of their live uses is a pairing — so refusing them by name would
+  refuse the honest use, and telling the two apart needs the expression's shape rather than the primitive's
+  name. Which is what the parity scenario above does for the one shape where the expression settles it: a
+  count modulo two is a pairing whatever primitive produced the count
 - **UNPINNED** `BACKLOG.md` — *the backtick primitives the pairing reader names*
 
 #### Scenario: A code span wraps a line

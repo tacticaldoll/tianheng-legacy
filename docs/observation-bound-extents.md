@@ -782,9 +782,9 @@ Generated from each dimension's `observation_bounds()` by `crates/kanhe/tests/ob
 
 ### `repository-checks/a-marker-is-reached-through-some-other-primitive-a-stated-bound`
 
-> a sequence of backtick-delimited names paired by hand through `split_once`, `strip_prefix`, `strip_suffix`, `trim_matches` or `matches`
+> a sequence of backtick-delimited names paired by hand through `split_once`, `strip_prefix`, `strip_suffix` or `trim_matches`
 
-- **because**: the reaction names two primitives, `split` and `find`, which are the two shapes `reading`'s own doc records replacing. The others are in live use for reading a SINGLE delimited value, where they are correct, and none of their live uses is a pairing -- so refusing them by name would refuse the honest use, and telling the two apart needs the expression's shape rather than the primitive's name
+- **because**: the reaction names the primitives whose shape settles the question: `split` and `find`, which are the two shapes `reading`'s own doc records replacing, and a marker count taken modulo two, which is a pairing whatever produced the count. These four remain because each is in live use for reading a SINGLE delimited value, where they are correct, so refusing them by name would refuse the honest use -- and what tells a pairing from a single read is the expression's shape rather than the primitive's name. Where the expression does settle it, the reaction takes it: that is the ground on which the parity of a `matches` count is refused rather than declared here
 - **its defence must show**: does not react
 - **unpinned**, tracked by: `BACKLOG.md` — *the backtick primitives the pairing reader names*
 
