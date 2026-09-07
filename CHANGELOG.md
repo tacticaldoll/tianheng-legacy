@@ -779,9 +779,17 @@ them.
   `crates/hunyi/src/syn_util.rs` while claiming a property of 渾儀's attribute reading; the crate holds a
   second file that reads attribute names, and it was never in the corpus. The seed that reaches the class is
   the identifier rather than the wording, and the search is `git grep -n 'is_ident(' crates/hunyi/src`. With
-  this change landed it returns **one** site — a `cfg` predicate combinator (`not`), a different grammar
-  that stays as it is — so the command doubles as the check that nothing else compares an attribute name as
-  written.
+  this change landed it returned **one** site — a `cfg` predicate combinator (`not`), a different grammar
+  and one **this sweep did not measure** — so the command doubled as the check that nothing else compares an
+  attribute name as written.
+
+  **That clause once disposed of the remaining site as well as describing it, and the disposing half was
+  reached without measuring.** The describing half is true: a predicate combinator is not an attribute's
+  name, which is why this entry's own completeness claim held with that site untouched. What a corpus
+  argument cannot decide is whether the grammar it excluded may compare a name as written — and the
+  measurement that followed says it may not, the `not` wrapper's own entry in this section carrying it. The
+  sweep returns nothing now. A statement about what a sweep measured survives the next measurement; a
+  disposition resting on a site the sweep did not measure does not, so this one says which of the two it is.
 
   **Why breaking:** an adopter whose source spells a derive or its `cfg_attr` wrapper with a raw identifier
   has a 渾儀 baseline that no longer describes their tree.
