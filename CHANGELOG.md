@@ -76,6 +76,28 @@ them.
   shape today, so this closes a latent false negative rather than a standing one. The shape reader is
   unchanged and the carrier is now the caller's answer.
 
+- **A projected reason and a baseline clause say what holds, not how they came to say it.** `AGENTS.md` puts
+  provenance in a third carrier — a commit message, a dated `CHANGELOG.md` section, `docs/history/` — and
+  requires a boundary's reason in a **forward voice**, because that reason is projected into an agent's
+  context and imitated there. Over a specification the test is sharper still: a baseline is atemporal, so
+  *reproducible now, or not at all*. Twelve passages narrated their own prior wording instead: a bound whose
+  reason said what it used to cover and until when, four more correcting a ground they had once stated, and
+  seven spec clauses recording what a requirement previously required or superseded. Each is restated to the
+  property that holds, keeping every measurement and rejected alternative the passage carried — those are
+  observation sources, and the disposition table says they stay. The two generated projections carrying the
+  reasons are regenerated with them.
+
+  **Swept as a class, and the sweep is not a reaction, which is measured rather than asserted.** The corpus
+  is the projected reasons and the specification clauses — the two carriers the forward-voice rule names —
+  read for a passage narrating its own prior text. A marker list over that corpus (`until`, `previously`,
+  `used to`, `no longer`, `was false`) reports 6 of 58 reasons and some 60 spec lines, and most of those are
+  correct forward voice: a `WHEN` clause saying a baseline entry is *no longer* present names a current
+  condition, and *cannot be published until the path is renamed* is a forward consequence. `AGENTS.md`'s own
+  live text uses *this rule used to carry an exception* load-bearingly, with the invariant the exception
+  violated. So the repair the detector would name depends on reading the sentence, which is what
+  `AGENTS.md` states as the criterion for an appeal rather than a reaction. It stays an appeal, now with the
+  corpus measurement behind it.
+
 ### Static
 
 - **The instrument that says an axis does something was built for one axis, which is the shape the change

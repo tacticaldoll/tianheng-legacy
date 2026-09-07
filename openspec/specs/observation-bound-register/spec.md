@@ -41,13 +41,12 @@ not observe. Where two populations are told apart by a judgement rather than by 
 carried by position and the absence of the rule is what gets declared: otherwise a reader takes the split for
 something a run enforces.
 
-The marking SHALL carry **no qualifier**. The recognizer previously admitted an optional free word before
-"bound", and that slot accumulated many phrasings with no vocabulary governing any of them — one of them,
-`cfg-blind`, used by two capabilities for bounds on **opposite sides** of the false-negative line, where the
-direction is the whole content. A qualifier therefore read as a classification while classifying nothing. What
-kind of stop a bound describes SHALL instead be carried by its typed declaration below, where the value set is
-closed and a contradiction is a compile error. A heading carrying a qualifier SHALL fail, naming the heading and
-the repair.
+The marking SHALL carry **no qualifier**. A free word before "bound" is a slot no vocabulary governs, so it
+reads as a classification while classifying nothing: `cfg-blind` names bounds in two capabilities on
+**opposite sides** of the false-negative line, where the direction is the whole content. What kind of stop a
+bound describes SHALL instead be carried by its typed declaration below, where the value set is closed and a
+contradiction is a compile error. A heading carrying a qualifier SHALL fail, naming the heading and the
+repair.
 
 The bare singular phrases `a stated bound` and `a documented bound` SHALL remain interchangeable. They carry no
 information — some specs use both forms internally — but they mislead no reader, where a qualifier did; and each
@@ -90,7 +89,8 @@ NOT declare a bound.
   judgement over code of the same kind this repository has designed, measured and rejected over prose — and
   unlike a citation that never runs or never bites, there is no reaction here whose gap a fixture could exhibit.
   This is the sibling of *a rationale that contradicts its extent*, one step over: the prose beside an extent is
-  already declared free to disagree with it, and so, until now silently, was the test beneath it
+  declared free to disagree with it, and so is the test beneath it — this bound is what makes the second
+  freedom stated rather than silent
 - **UNPINNED** `BACKLOG.md` — *a pin may defend a direction its bound does not declare*
 
 ### Requirement: A declared bound SHALL carry exactly one citation naming its defence
@@ -1000,12 +1000,10 @@ their own. The owning capability SHALL be the one that already claims the proper
 where such a claim exists; where none does, the reaction SHALL name the capabilities and leave the choice to
 the author, ownership being a judgment a reaction can demand but not compute.
 
-**This supersedes the register's original rule that a shared bound is declared once per capability**, and
-the reason for that rule is recorded so the reversal is not mistaken for drift: declaring once was rejected
-because it would leave the other capabilities' specs silent about a bound they have. The reference form,
-which did not exist when that was settled, keeps the bound visible in every capability that has it while
-leaving one declaration to maintain — so the property the old rule protected is no longer bought at the
-price of restatement.
+**Declaring a shared bound once, in one capability, SHALL NOT satisfy this**: it leaves every other
+capability's spec silent about a bound it has. The reference form is what makes both properties available at
+once — the bound is visible in every capability that has it, and there is one declaration to maintain — so
+visibility is not bought at the price of restatement.
 
 Restatement is the failure this prevents, and it has already cost this repository twice: the
 `#[path]`-remap bound went stale in two capabilities at once, and a sync left a contradicting bound beside

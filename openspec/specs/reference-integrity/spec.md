@@ -284,12 +284,11 @@ declared as a bound below rather than closed, and the reason is measured rather 
   pointer at a moving window, and telling the two apart is a judgement about the sentence, which is the prose
   instrument `AGENTS.md` records as designed, measured three times and rejected. It is the same ground on
   which *the same window* is absent from the declared phrases entirely
-- **AND** the bound previously covered every declared phrase in this corpus, on the reasoning that a reader
-  over text separates none of the groups a widened sweep would report. Three of those groups are separable
-  after all, and each by shape rather than by meaning: a **record** carrier by path and by dated section, a
+- **AND** every other group a widened sweep reports is separable by **shape** rather than by meaning, which
+  is why the bound is one phrase and not the corpus: a **record** carrier by path and by dated section, a
   **marked quotation** — the phrase in backticks or single emphasis, which is how this repository quotes a
   phrase to define it rather than to point with it — and a **generated projection's copy** of either, which
-  is a marked quotation by the same test. What remained was duration, and it is one phrase
+  is a marked quotation by the same test. Duration is what no shape separates
 - **AND** how many fall in each group SHALL NOT be written here, because **this passage is itself in the
   corpus it describes**: a bound about a phrase has to quote the phrase, so stating the breakdown moves it,
   and its two generated projections move it again. The measurement belongs in the record that carries it

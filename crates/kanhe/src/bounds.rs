@@ -15,14 +15,15 @@ pub fn observation_bounds() -> Vec<BoundDecl> {
             "a bare reference to a registered or unregistered constructor's name, where whether it names the \
              constructor taken by value or a local variable sharing its spelling is not decidable from syntax",
             Extent::Reached(Reached::UnderReacts {
-                because: "the register's reader used to be text over Rust and not exhaustive over the \
-                          language, where a byte char literal, a raw string, or a two-line closure parameter \
-                          list could desynchronise a character scan entirely -- invisible to both of its \
-                          readings at once, the unsafe direction this bound named. Reading this repository's \
-                          own Rust with a real parser instead of scanning it closed that floor; what remains \
-                          is not lexical. Whether a bare reference names the constructor taken by value or a \
-                          local sharing its spelling is not written down anywhere a parse tree carries, and \
-                          answering it needs name resolution, which a reader of syntax alone does not have"
+                because: "what remains is not lexical, because the register's reader parses this \
+                          repository's own Rust rather than scanning it. A character scan is the reading \
+                          that leaves a lexical residue -- a byte char literal, a raw string or a two-line \
+                          closure parameter list desynchronises one entirely, invisible to both of its \
+                          readings at once, which is the unsafe direction. A parse carries none of those and \
+                          does not carry this: whether a bare reference names the constructor taken by value \
+                          or a local sharing its spelling is not written down anywhere a parse tree reaches, \
+                          and answering it needs name resolution, which a reader of syntax alone does not \
+                          have"
                     .into(),
                 owner: Owner::Engine,
             }),
@@ -616,13 +617,13 @@ pub fn observation_bounds() -> Vec<BoundDecl> {
                           lasted -- as it is a pointer at a moving window, and telling the two apart is a \
                           judgement about the sentence, which is the prose instrument `AGENTS.md` records \
                           as designed, measured three times and rejected. It is the ground on which `the \
-                          same window` is absent from the declared phrases entirely. This bound covered \
-                          every declared phrase here until three of the groups a widened sweep reports \
-                          were separated by SHAPE rather than by meaning -- a record carrier by path and \
-                          by dated section, a marked quotation in backticks or single emphasis, and a \
-                          generated projection's copy of either, which is a marked quotation by the same \
-                          test. How many fall in each group is not written here: this reason is itself in \
-                          the corpus it describes, and its projection moves the figure again"
+                          same window` is absent from the declared phrases entirely. Every other group a \
+                          widened sweep reports is separable by SHAPE rather than by meaning, which is why \
+                          none of them is here: a record carrier by path and by dated section, a marked \
+                          quotation in backticks or single emphasis, and a generated projection's copy of \
+                          either, which is a marked quotation by the same test. How many fall in each group \
+                          is not written here: this reason is itself in the corpus it describes, and its \
+                          projection moves the figure again"
                     .into(),
                 owner: Owner::Engine,
             }),
@@ -647,10 +648,8 @@ pub fn observation_bounds() -> Vec<BoundDecl> {
                           rather than on the tracked text: the job running this reader checks out full \
                           history, but jobs checking out at the default depth would answer clean over every \
                           citation, so the reader would report clean for a reason unrelated to the content. \
-                          The ground first written here — that CI checks out one commit — was false, and is \
-                          corrected rather than restated. Measured over the live corpus: no span of this \
-                          shape names anything but a commit, so the over-reaction is unrealised rather than \
-                          tolerated"
+                          Measured over the live corpus: no span of this shape names anything but a commit, \
+                          so the over-reaction is unrealised rather than tolerated"
                     .into(),
             }),
             "`BACKLOG.md` — *a code span shaped like an object that names none*",
@@ -671,12 +670,12 @@ pub fn observation_bounds() -> Vec<BoundDecl> {
                           tree actually holds -- a long run of digits written as a figure, and an English \
                           word spelled from the hex alphabet -- and the price is the abbreviations that \
                           carry only one kind of character. Over uniformly random seven-character \
-                          abbreviations that is 3.8%. The direction is deliberate, and its reason is not the \
-                          one first written here: the Core Contract names a **silent** false negative as the \
-                          one forbidden bug, so a miss is not the cheaper direction by default. What makes \
-                          this one admissible is that it is not silent -- it is this declaration, with an \
-                          owner and a tracker -- and the alternative is refusing prose that cites nothing, \
-                          which no declaration would cover"
+                          abbreviations that is 3.8%. The direction is deliberate, and what makes it \
+                          admissible is not that a miss is the cheaper direction: the Core Contract names a \
+                          **silent** false negative as the one forbidden bug, so no miss is cheaper by \
+                          default. This one is not silent -- it is this declaration, with an owner and a \
+                          tracker -- and the alternative is refusing prose that cites nothing, which no \
+                          declaration would cover"
                     .into(),
                 owner: Owner::Engine,
             }),
@@ -805,10 +804,10 @@ pub fn observation_bounds() -> Vec<BoundDecl> {
                           asking the filesystem, since case folding is the volume's rule rather than the \
                           string's — and a release gate whose verdict over one tree differs by the machine \
                           it runs on is worse than a refusal an author can read and argue with. This reader \
-                          is also handed no repository to ask. An earlier wording claimed canonicalizing \
-                          would make `..` resolvable and move three other verdicts: review showed it can be \
-                          confined to the accepted branch, leaving every refusal intact, so that reason was \
-                          false and is not what keeps the bound"
+                          is also handed no repository to ask. What does NOT keep the bound is the cost of \
+                          canonicalizing: confined to the accepted branch it makes `..` resolvable and \
+                          leaves every other verdict, and every refusal, exactly where it was -- measured, \
+                          so the reason is the two above rather than a spread of consequences"
                     .into(),
             }),
             "`BACKLOG.md` — *a pin may defend a direction its bound does not declare*",

@@ -140,9 +140,8 @@ on both readings: reacting on both would make an ordinary bare import of a child
 for a broad false positive. Concretely, an import whose whole path resolves to a module that is a
 single-segment child of the anchored module SHALL additionally react when the anchored module itself
 declares a value-namespace item (`fn`, `const`, `static`) of that same final segment, and SHALL NOT react
-when it declares only the module. This was previously recorded as a live decision on the premise that the
-required observation did not exist in this dimension; the premise was false — the definition observation
-backing the strict-external local-precedence ladder already reads exactly those names, per module, at
+when it declares only the module. The observation this needs exists in this dimension: the definition
+observation backing the strict-external local-precedence ladder reads exactly those names, per module, at
 module top level.
 
 An import whose **form cannot bind a value** SHALL NOT react through the value reading, whatever the
