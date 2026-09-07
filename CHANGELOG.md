@@ -353,6 +353,11 @@ them.
   a baseline entry recorded from it describes a file the governed tree does not have. Run
   `tianheng check --write-baseline <file>` wherever a baseline is kept. A declaration using the built-in
   `cfg_attr` unqualified, raw-spelled or not, is unaffected.
+- **Regenerate any recorded baseline if a module in your tree gates a `pub use` and a same-named child
+  `mod` on `r#not` rather than `not`.** That pair reported nothing before and reacts now, so a tree that
+  was green may report a new exposure: run `tianheng check --write-baseline <file>` wherever a baseline is
+  kept, and re-apply any `owner` / `tracker` annotations onto the newly observed facts. The plain `not`
+  spelling already reacted and is unaffected.
 - **Make every module target readable, or expect exit `2` naming it.** A module file or directory that any
   of the three dimensions cannot open is no longer tolerated as an absent one. Where a `#[cfg]`-gated declaration sat over an
   unreadable subtree, the audit previously reported the seam inside it as unprobed — or passed clean where
@@ -363,6 +368,29 @@ them.
   accepts; it now resolves, and no baseline existed to move.
 
 ### Semantic and runtime
+
+- **BREAKING** — **渾儀 reads the `not` wrapper as the name it spells, where it matched the identifier as
+  written.** The cfg-aware carve-out decides whether a same-named child `mod` genuinely shadows a `pub
+  use`'s bare head: where the two are provably mutually exclusive, the `mod` never wins name resolution
+  for that `pub use`'s own build and must not suppress it. `Path::is_ident` compares an ident as written,
+  so `#[cfg(r#not(unix))]` was not the negation of `#[cfg(unix)]` — while the reader of the predicates
+  that wrapper encloses already stripped the prefix off every segment. One comparison family answered two
+  ways about one grammar.
+
+  The outcome is the forbidden one rather than a noisy one. A negation read as no negation leaves the
+  shadow standing, so the re-export is never resolved against the extern prelude at all and its exposure
+  is dropped. Measured on `#[cfg(unix)] mod serde;` beside `#[cfg(r#not(unix))] pub use serde::Value;`
+  under `must_not_expose("serde")`: the finding set was **empty** where the `not(unix)` spelling emits
+  `serde::Value exposed by pub use crate::api::Value`.
+
+  That the two spellings are one predicate is rustc's answer, not an inference. Measured against rustc
+  1.96.0, edition 2021, `--crate-type lib`, with the module's file absent: `#[cfg(r#not(unix))] pub mod
+  a;` compiles, because the predicate is false on this host and the item is removed;
+  `#[cfg(r#not(windows))] pub mod a;` fails `E0583`, and `#[cfg(not(windows))] pub mod a;` fails it
+  verbatim. A reader that separates the spellings governs a configuration nobody compiles.
+
+  **Why a minor:** this **adds** findings. A recorded baseline that was green over such a pair no longer
+  describes the adopter's tree, and regenerating it is work they did not choose.
 
 - **The owner's own header stated a defect in the present tense, after the defect was gone.** The module
   written to end three spellings of one identity opened with a table of the three and a verdict naming

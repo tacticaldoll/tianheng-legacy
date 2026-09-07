@@ -1442,3 +1442,44 @@ pub(super) fn path_remapped_semantic_module_is_governed_at_its_target_not_the_or
         "the reaction is in the #[path] target weird.rs, never the conventional orphan domain.rs: {file}"
     );
 }
+
+#[test]
+pub(super) fn a_raw_spelled_negation_is_the_negation_and_still_lifts_the_sibling_shadow() {
+    // **`r#not` is `not`, and the carve-out above is a suppression this reader must lift.**
+    // `provably_mutually_exclusive` decides whether a same-named child `mod` genuinely shadows a
+    // `pub use`'s own bare head; when it answers wrongly, the shadow STANDS and the re-export is
+    // never resolved against the extern prelude at all. So a spelling this reader misses does not
+    // over-report — it drops a genuine exposure, which is the one outcome the contract forbids.
+    //
+    // Measured against rustc 1.96.0, edition 2021, `--crate-type lib`, with `a.rs` absent:
+    //
+    //   #[cfg(r#not(unix))]   pub mod a;   compiles          -- the predicate is FALSE on linux
+    //   #[cfg(r#not(windows))] pub mod a;  E0583             -- the predicate is TRUE on linux
+    //   #[cfg(not(windows))]  pub mod a;   E0583, verbatim   -- the control
+    //
+    // The raw spelling and the plain one answer identically, so `r#not(unix)` IS the negation of
+    // `unix` and the pair below never compiles together — exactly the premise the sibling test
+    // above states for the plain spelling.
+    let out = findings_with_deps(
+        "raw-spelled-negation-sibling-childmod-shadow",
+        &[
+            ("lib.rs", "pub mod api;\n"),
+            (
+                "api.rs",
+                "#[cfg(unix)]\nmod serde;\n#[cfg(r#not(unix))]\npub use serde::Value;\n",
+            ),
+            ("api/serde.rs", "pub struct Local;\n"),
+        ],
+        "crate::api",
+        &["serde"],
+        &["serde"],
+    )
+    .unwrap();
+    assert_eq!(
+        out,
+        ["serde::Value exposed by pub use crate::api::Value"],
+        "the r#not(unix) arm's own genuine extern re-export must react, exactly as the not(unix) \
+         spelling does: a raw identifier changes a spelling and not the name it spells, so the \
+         unix-gated mod serde does not shadow it: {out:?}"
+    );
+}

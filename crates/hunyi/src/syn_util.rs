@@ -464,9 +464,22 @@ fn sole_bare_cfg_predicate(attrs: &[syn::Attribute]) -> Option<syn::Meta> {
 /// Whether `b` is the syntactic negation `not(a)` — a literal `not(...)` wrapper only; `all`/`any`
 /// combinators are not analyzed for a decidable negation and stay a stated bound (see
 /// [`provably_mutually_exclusive`]).
+///
+/// **Through [`is_builtin_attribute`], because the wrapper's name is a name and not a spelling.**
+/// `Path::is_ident` compares the ident as written, so `r#not` was not `not` here while
+/// [`meta_path_eq`] — the reader of the very predicates this wrapper encloses — already stripped the
+/// prefix off every segment. One comparison family, two answers about the same grammar.
+///
+/// The outcome is the forbidden one rather than a noisy one. This decides whether a same-named child
+/// `mod` genuinely shadows a `pub use`'s bare head, and a missed negation leaves that shadow
+/// standing, so the re-export is never resolved against the extern prelude and its exposure is
+/// dropped. Measured against rustc 1.96.0, edition 2021, `--crate-type lib`, with the module's file
+/// absent: `#[cfg(r#not(unix))] pub mod a;` compiles and `#[cfg(r#not(windows))] pub mod a;` fails
+/// `E0583` verbatim as `#[cfg(not(windows))]` does — so the two spellings are one predicate to the
+/// build, and a reader that separates them governs a configuration nobody compiles.
 fn meta_is_negation(a: &syn::Meta, b: &syn::Meta) -> bool {
     match b {
-        syn::Meta::List(list) if list.path.is_ident("not") => list
+        syn::Meta::List(list) if is_builtin_attribute(&list.path, "not") => list
             .parse_args::<syn::Meta>()
             .is_ok_and(|inner| meta_eq(a, &inner)),
         _ => false,

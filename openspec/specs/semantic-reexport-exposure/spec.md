@@ -243,7 +243,15 @@ arms of the IDENTICAL `cfg_if!` invocation (its arms are exclusive by constructi
 predicate in the `if`/`else if`/`else` chain is ever true); (2) each carries exactly one bare
 `#[cfg(...)]` attribute and the two predicates are syntactic negations of one another (`#[cfg(P)]`
 on one, `#[cfg(not(P))]` on the other, compared structurally — immune to a whitespace/formatting
-difference, not by source text). When either holds, the `mod`'s name is NOT subtracted from **either**
+difference, not by source text). **The `not` wrapper SHALL be recognized by the name it spells, not
+by its written spelling**: `r#not` is a raw-identifier spelling of `not` and names the same
+predicate, so `#[cfg(r#not(P))]` SHALL be the negation of `#[cfg(P)]` exactly as `#[cfg(not(P))]`
+is. This is the same rule the enclosed predicates already carry — their segments are compared with
+the raw prefix stripped — and the two halves of one comparison SHALL NOT answer differently about
+one grammar. The direction the rule protects is the forbidden one, not a noisy one: this exclusion
+decides whether a same-named child `mod` genuinely shadows a `pub use`'s bare head, so a negation
+read as no negation leaves that shadow standing, the re-export is never resolved against the extern
+prelude, and its exposure is dropped rather than over-reported. When either holds, the `mod`'s name is NOT subtracted from **either**
 the external-crate-name set **or** the crate-root rename map for that specific `pub use`'s own
 resolution, even though both declarations live in the same governed/defining module and the same
 crate-wide-closure pass observes both. The rename-map half is not a cosmetic mirror of the
@@ -379,6 +387,12 @@ governed source** (for a renamed dependency, the in-source name); **no DSL chang
 
 - **WHEN** the governed module declares `#[cfg(unix)] mod serde;` and `#[cfg(not(unix))] pub use serde::Value;`, where `serde` is a declared dependency (and `src/<module>/serde.rs` exists, backing the `unix`-gated `mod`), under `must_not_expose("serde")`
 - **THEN** the system reacts, emitting `serde::Value exposed by pub use <module>::Value`: the `unix`-gated `mod serde` and the `not(unix)`-gated `pub use` are syntactic negations of one another and so provably never compile together, meaning the `mod` never actually shadows this `pub use`'s own build — unlike the unconditional case (no `#[cfg]` on either), where the identical pair genuinely coexists and the `mod` does shadow it
+
+#### Scenario: A raw-identifier spelling of the negation is the same negation
+
+- **WHEN** the governed module declares `#[cfg(unix)] mod serde;` and `#[cfg(r#not(unix))] pub use serde::Value;`, `serde` a declared dependency (and `src/<module>/serde.rs` exists), under `must_not_expose("serde")`
+- **THEN** the system reacts identically to the `not(unix)` spelling, emitting `serde::Value exposed by pub use <module>::Value`: `r#not` names `not`, so the pair is provably mutually exclusive and the `unix`-gated `mod` does not shadow this `pub use`'s own build
+- **AND** the failure this closes is the dropped observation rather than an extra one — read as no negation, the shadow stands and the finding set is **empty**
 
 #### Scenario: A mutually-exclusive cfg_if arm sibling module does not shadow the re-export
 
