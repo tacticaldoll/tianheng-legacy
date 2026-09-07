@@ -465,6 +465,39 @@ consumer for an undemonstrated deduplication.
   change actually needed** — the last being the case where the information is absent rather than merely
   unannounced, which is the failure the price would be worth paying for.
 
+### WATCH
+
+- **A step name in CI can misidentify what failed, and both instruments for it were measured and
+  declined.** *Class:* WATCH — the instance is closed and the class is open with no cheap reaction.
+  *Observed pressure:* the Definition of Done job ran three unrelated gates under
+  *whitespace hygiene across every tracked text file*, so a red rollup named whitespace hygiene when the
+  hermetic-invocation gate refused. `dod_coherence` cannot see it: it holds each Definition-of-Done command
+  against the workflow as a flat line set, and nothing relates a step's `name:` to the commands beneath it.
+  *Observation source:* an adversarial review of the window, filed as a Gate 3 finding.
+
+  *Current reaction or bound:* none for the class. The instance is repaired — each of the three gates has
+  its own named step — and the two instruments that would close the class were both measured and declined:
+
+  **A generated `ci.yml` fragment.** `projection_register` recognizes a generated document by a marker in
+  its **header**, so a partially generated file would either declare the whole file generated, which is
+  false of the rest of `ci.yml`, or need a comment-delimited region — and `region.rs`'s own module doc lists
+  *a comment made a file count as holding a projection* as the first of the six defects it exists to close.
+  Every one of the five live projections is a whole file. A wholly generated **composite action** avoids
+  that and defeats the purpose: a composite action's inner steps report under the calling step's name,
+  which is the finding.
+
+  **A decidable check** — each Definition-of-Done command sits in a step whose `run:` block holds that one
+  command — is decidable and its refusal names a one-step repair. It is declined on cost: it forces
+  `build / test / clippy / fmt / doc` into five steps and the job into one step per command, and every
+  future Definition-of-Done line into a step of its own. That is a permanent authoring tax to close a
+  bounded, visible failure, which this project's own accepted deferral rules refuse, and the grouping that
+  reads well is lost with it. The judgement half — *does this name describe these commands* — is a reading
+  of prose and is not reactable at all.
+
+  *Watch trigger:* a **second** step in any workflow found running gates its name does not describe. One
+  instance is a typo; two is a shape, and the decidable check's cost becomes the cheaper side. *Version
+  class:* patch; workflow and repository checks only. *Authority:* `repository-checks`.
+
 ### READY-PATCH
 
 - **Absence tolerance has no differential, and the spelling that motivated the one we have is its subject

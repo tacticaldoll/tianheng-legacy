@@ -983,6 +983,25 @@ them.
 
 ### Self-governance
 
+- **A red rollup named the wrong gate.** The Definition of Done job ran `whitespace_hygiene`,
+  `repeated_paragraph` and `hermetic_invocations` under one step called *whitespace hygiene across every
+  tracked text file*, so a refusal from either of the other two reported under a name that misidentifies it
+  — the same class as *a refusal says which refusal*, one level out in the workflow. The two gates added
+  alongside them each got their own step; these two were appended to an existing one. Each has its own named
+  step now.
+
+  **`dod_coherence` cannot see this, and the two instruments that would were measured and declined.** It
+  holds each Definition-of-Done command against the workflow as a flat line set, so a gate appended under an
+  unrelated name passes by construction. Generating the job's steps from the `AGENTS.md` list would need a
+  *fragment* projection: `projection_register` recognizes a generated document by a marker in its header, so
+  a partially generated file must either declare the whole of `ci.yml` generated or carry a comment-delimited
+  region — and `region.rs` exists because *a comment made a file count as holding a projection*. A wholly
+  generated composite action avoids that and reports its inner steps under the calling step's name, which is
+  the finding. The decidable check — one Definition-of-Done command per step — is declined on cost: it turns
+  every present and future command into a step of its own, which is a permanent authoring tax against a
+  bounded, visible failure. `BACKLOG.md` carries the class as a `WATCH`, whose trigger is a second instance,
+  because one is a typo and two is a shape.
+
 - **A repair that typed three answers apart left a fold at the `Path::parent` call in front of it.**
   `repository_path` answers `Below`, `Outside` or `NotUtf8` precisely so a consumer cannot read a missing
   value its own way — and the site that asks it about a *member directory* reached `Path::parent` first,

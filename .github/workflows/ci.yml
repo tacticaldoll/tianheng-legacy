@@ -85,7 +85,11 @@ jobs:
       - name: whitespace hygiene across every tracked text file
         run: |
           TIANHENG_WORKSPACE_TESTS=1 cargo test -p kanhe --test whitespace_hygiene
+      - name: no comment paragraph is written twice
+        run: |
           TIANHENG_WORKSPACE_TESTS=1 cargo test -p kanhe --test repeated_paragraph
+      - name: a git this repository constructs is the builder's, or declared
+        run: |
           TIANHENG_WORKSPACE_TESTS=1 cargo test -p kanhe --test hermetic_invocations
       - name: in-repository references resolve
         run: |
