@@ -433,8 +433,8 @@ pub(super) fn a_qualified_path_self_type_off_the_impls_own_generic_param_is_not_
 pub(super) fn a_forbidden_marker_on_an_alias_to_a_foreign_type_is_clean() {
     // A `type` alias defines no new type — coherence sees through it —
     // so a marker impl'd on an alias to a FOREIGN/prelude type governs no subtree type and must NOT
-    // react, exactly like the byte-identical impl on the target itself. Round 2 over-broadened the
-    // acceptance to every local alias name; the landing-type check restores the foreign-self principle.
+    // react, exactly like the byte-identical impl on the target itself. An earlier repair over-broadened
+    // the acceptance to every local alias name; the landing-type check restores the foreign-self principle.
     let out = marker_findings(
         "foreign-alias-self",
         &[
@@ -471,7 +471,7 @@ pub(super) fn a_forbidden_marker_on_an_alias_to_a_foreign_type_is_clean() {
 
 #[test]
 pub(super) fn two_same_leaf_derives_on_one_type_stay_distinct() {
-    // Round-2 fix (derive-form identity): `#[derive(a::Marker, b::Marker)]` — two distinct forbidden
+    // Derive-form identity: `#[derive(a::Marker, b::Marker)]` — two distinct forbidden
     // derives sharing a leaf on one type — stay distinct findings, rendered by their written paths.
     let out = marker_findings(
         "dual-derive",

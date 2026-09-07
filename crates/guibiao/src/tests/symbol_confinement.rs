@@ -980,7 +980,7 @@ pub(super) fn inline_strict_external_runs_the_exit_2_checks() {
 
 #[test]
 pub(super) fn inline_strict_external_cross_module_local_item_does_not_mask() {
-    // Apply-review finding 1 (cardinal false negative): the item-definition set MUST be
+    // The cardinal false negative: the item-definition set MUST be
     // module-qualified. A `fn rand` in `crate::helpers` must NOT suppress a real external
     // `rand::random()` call in the governed `crate::core` (a different module). Pre-fix, the set was
     // crate-flat and this call was silently passed (FN); this guard reacts.
@@ -1013,7 +1013,7 @@ pub(super) fn inline_strict_external_cross_module_local_item_does_not_mask() {
 
 #[test]
 pub(super) fn inline_strict_external_block_local_item_does_not_mask() {
-    // Apply-review finding 1 residual: only MODULE-TOP-LEVEL items shadow a bare head. A block-local
+    // The residual of that same class: only MODULE-TOP-LEVEL items shadow a bare head. A block-local
     // `const log` (brace depth ≥ 1) is NOT reachable as a bare head, so it must NOT suppress a real
     // external `log::logger()` call in the same module. Pre-fix (capture-all depth), the nested name
     // was captured and silently masked the call (a false negative); this guard reacts.
@@ -1449,7 +1449,7 @@ pub(super) fn inline_in_macro_body_alias_is_a_bound() {
 
 #[test]
 pub(super) fn inline_strict_external_inline_submodule_call_is_not_masked() {
-    // Cardinal false-negative guard (apply-review finding 1): a file-top `fn rand` must NOT mask a real external
+    // Cardinal false-negative guard: a file-top `fn rand` must NOT mask a real external
     // `rand::random()` call inside an inline `mod tests { … }`. The call's TRUE module is
     // `crate::core::tests`, so the file-top item `crate::core::rand` cannot claim its head — the
     // external match fires. Pre-fix the call scan tracked no inline-`mod` nesting, so the file-top

@@ -665,7 +665,7 @@ fn an_unconditional_path_attribute_is_followed_to_its_target() {
 
 #[test]
 fn a_semicolon_inside_an_earlier_doc_attributes_string_does_not_hide_a_later_path_attribute() {
-    // Round-9 finding: mod_preamble_attrs found where a mod declaration's own attribute preamble
+    // `mod_preamble_attrs` found where a mod declaration's own attribute preamble
     // begins by scanning BACKWARD from the mod keyword for the nearest raw byte equal to `;`/`{`/`}`
     // -- the only traversal in this file that was not literal/comment-aware (every other walk here
     // routes through skip_literal_or_comment specifically to avoid this class of bug). An EARLIER

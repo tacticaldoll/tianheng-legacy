@@ -1733,7 +1733,7 @@ pub(super) fn trait_impl_exposure_reacts_at_a_const_generic_param_type() {
 #[test]
 pub(super) fn trait_impl_exposure_unrenderable_where_bound_fails_loud_without_positional_identity()
 {
-    // Round-2 adversarial-review finding, reproduced and fixed: an unrenderable where-clause
+    // An unrenderable where-clause
     // bounded type (a complex const-generic argument the ordinary renderer cannot stringify) must
     // not fall back to the bare literal `_` — two SUCH bounds in one impl block would then share
     // that key, and their facts (identical kind, subject, and seam) would collapse to one,
@@ -1852,7 +1852,7 @@ pub(super) fn trait_impl_exposure_reacts_at_a_refined_rpitit_return() {
 
 #[test]
 pub(super) fn a_trait_impl_generic_param_shadowing_an_alias_is_not_exposed() {
-    // Round-2 fix (parallel to fix #6): an impl generic parameter named identically to a same-module
+    // An impl generic parameter named identically to a same-module
     // `use … as <param>` alias is a parameter use, not the aliased type — the trait-impl-exposure
     // collector now shadows the impl's params, so it must NOT resolve `T` through `as T` to the
     // forbidden type (a false positive the inherent-impl collector already avoids).
@@ -1945,7 +1945,7 @@ pub(super) fn a_bare_boundary_ignores_trait_impls() {
 
 #[test]
 pub(super) fn two_where_bounds_exposing_the_same_type_stay_distinct() {
-    // F2 false-negative guard: distinct bounds keyed by their bounded type never collapse.
+    // False-negative guard: distinct bounds keyed by their bounded type never collapse.
     let out = findings_including_trait_impls(
         "ti-where-distinct",
         &[
@@ -2020,7 +2020,7 @@ pub(super) fn a_reexported_type_in_a_trait_impl_position_resolves_and_reacts() {
 
 #[test]
 pub(super) fn a_bare_name_in_a_trait_impl_position_is_not_a_false_positive() {
-    // F6: BareFallback::Ignore parity — a bare local name is not resolved against the current
+    // `BareFallback::Ignore` parity — a bare local name is not resolved against the current
     // module, so a boundary forbidding the module's own path does not fire on it.
     let out = findings_including_trait_impls(
         "ti-bare-name",

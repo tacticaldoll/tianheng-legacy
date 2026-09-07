@@ -744,7 +744,7 @@ pub(super) fn cfg_mixed_plain_and_path_remapped_file_form_siblings_are_both_gove
 #[test]
 pub(super) fn a_cfg_mixed_single_module_violation_names_the_offending_sibling_not_the_first_branch()
 {
-    // Round-5 finding: resolve_module_root unions every surviving branch's ITEMS (fixed above —
+    // `resolve_module_root` unions every surviving branch's ITEMS (fixed above —
     // the violation still fires) but used to always report `branches[0]`'s FILE regardless of
     // which branch actually produced the finding. Here the plain, clean `platform;` arm is
     // declared FIRST (branches[0]) and the offending #[path]-remapped `win_platform.rs` arm is
@@ -789,7 +789,7 @@ pub(super) fn a_cfg_mixed_single_module_violation_names_the_offending_sibling_no
 
 #[test]
 pub(super) fn a_cfg_split_module_does_not_let_one_arms_use_alias_shadow_the_others() {
-    // Round-6 finding: module_findings called collect_uses ONCE over the flattened union of every
+    // `module_findings` called `collect_uses` ONCE over the flattened union of every
     // #[cfg] branch's items, so two mutually-exclusive branches each declaring `use <different
     // path> as Handle;` collided in one shared use-map -- the branch unioned LAST silently
     // overwrote the earlier branch's mapping, misresolving the FIRST branch's own bare `Handle`
@@ -935,7 +935,7 @@ pub(super) fn a_cfg_split_module_with_two_inline_siblings_child_module_does_not_
 
 #[test]
 pub(super) fn a_bare_cfg_negated_sibling_child_module_does_not_shadow_the_others_extern_reexport() {
-    // Round-9 finding, in `build_file_scopes` of `crates/hunyi/src/exposure.rs`: rounds 6-8 fixed child_mods
+    // In `build_file_scopes` of `crates/hunyi/src/exposure.rs`. Earlier repairs fixed child_mods
     // being computed once over the UNION of every #[cfg]-*branch*'s items (a branch = a distinct
     // candidate resolution of the governed MODULE ITSELF, produced by `descend()`'s per-occurrence
     // splitting). This finding is one level finer: `#[cfg(unix)] mod serde;` and

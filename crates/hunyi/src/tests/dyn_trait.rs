@@ -83,9 +83,9 @@ pub(super) fn a_dyn_in_a_supertrait_or_assoc_type_bound_is_observed() {
 
 #[test]
 pub(super) fn a_dyn_in_an_inherent_impl_generic_bound_is_observed() {
-    // Round-2 fix: a `dyn` in an inherent impl's own generic-param bound is exposed on the inherent
+    // A `dyn` in an inherent impl's own generic-param bound is exposed on the inherent
     // API; the dyn collector's inherent-impl arm now walks the impl generics (parity with the path
-    // collector's fix #9 and with the struct/enum/trait arms).
+    // collector's own generics walk and with the struct/enum/trait arms).
     let out = dyn_mod(
         "dyn-impl-generics",
         "pub struct Foo<T>(T);\nimpl<T: AsRef<Box<dyn crate::ports::Port>>> Foo<T> { pub fn m(&self) {} }\n",
@@ -239,7 +239,7 @@ pub(super) fn a_cfg_sibling_child_module_does_not_shadow_a_different_branchs_own
 #[test]
 pub(super) fn a_cfg_split_module_with_two_inline_siblings_child_module_does_not_shadow_the_others_own_extern_principal()
  {
-    // Round-8 finding, the operand-scoped (`shape_scan.rs`/`crate_scope.rs`) analogue of
+    // The operand-scoped (`shape_scan.rs`/`crate_scope.rs`) analogue of
     // `a_cfg_split_module_with_two_inline_siblings_child_module_does_not_shadow_the_others_extern_reexport`
     // above: `operand_module_findings` groups its per-branch `FileExternScope` (and `uses_by_branch`)
     // by branch index too, not just by file — two INLINE `#[cfg]` siblings share the identical

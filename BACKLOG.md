@@ -467,6 +467,33 @@ consumer for an undemonstrated deduplication.
 
 ### WATCH
 
+- **A codename index for a defect lives in the half of the corpus `doc_provenance` declares out of scope,
+  and the token that would find it is shared with a measurement that must stay.** *Class:* WATCH — the
+  class is emptied and the emptying has no reaction behind it. *Observed pressure:* swept over every
+  comment line in every tracked `.rs`: `Round-N finding:`, `Round-N fix:`, `F2`, `F6`, `fix #6`, `fix #9`,
+  `Apply-review finding 1` and `propose-review` stood at twenty-three sites across nine files, every one of
+  them an ordinary `//` comment — which is `doc_provenance`'s own declared stop, stated in its header. The
+  sweep is
+  `git ls-files '*.rs' | xargs grep -inE '^\s*//' | grep -E 'Round[- ]?[0-9]+|\bF[0-9]+[: ]|fix #[0-9]+|[Aa]pply-review finding|propose-review'`,
+  excluding the reader's own file, and it now answers nothing.
+
+  *Why the reaction stops where it does.* Widening the corpus to every comment line is one line of the
+  reader and needs no new shape — the `round` token reader already separates `round 9` from `rounds to 3
+  decimals`. What it cannot separate is the **index** from a **count that is the observation**: *four rounds
+  of findings in this file were one cause* is what says a positional reading cannot close the class, and
+  *three rounds of widening each added the variable someone had just measured* is what says a name list is
+  not a defence. Both are load-bearing falsifiers for the invariant written beside them, and the widened
+  corpus reports them. An allowlist of the measurement sites is two lists that must agree; narrowing the
+  shape to a comment that *opens* with a codename covers seventeen of the twenty-three found and reads as
+  though it covered the class, which is the narrow-instrument shape this repository has already withdrawn
+  once. So `AGENTS.md`'s table carries the split and the criterion is the instrument.
+
+  *Reopening condition, as a property rather than as availability:* **no comment in the tree carries a round
+  count.** The moment the measurement half is absent from code comments — by decision, or because the
+  arguments it backs get restated as properties — the bare token is decidable over the whole corpus and
+  `doc_provenance`'s corpus widens with no allowlist and no new shape. Until then a reappearing index is
+  caught by a reader applying the table, and the cost of that is one sweep per review.
+
 - **An axis was added without its instruments three times in one window, and a uniform fix would fight the
   asymmetry the corpus deliberately has.** *Class:* WATCH — the discipline is written where an author reads
   it and the class has no reaction. *Observed pressure:* three instances, each caught by review rather than
