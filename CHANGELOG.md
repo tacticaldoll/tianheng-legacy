@@ -177,6 +177,29 @@ them.
 
 ### Release
 
+- **A refusal an operator reads before an irreversible act carried twenty-six spaces mid-sentence.** The
+  message for a member manifest with no parent directory read *there is no member&nbsp;… directory to
+  enumerate*. `AGENTS.md`'s carrier table records this shape as one with **no reaction** deliberately —
+  measured across every `violation_at`/`cannot_judge_at` message in the tree, the only remaining run was
+  column alignment a reader wants — so nothing was going to catch it. The tooling that produced it is worth
+  naming: a Rust `\`-continued string literal written through a Python heredoc collapses, because Python
+  treats the same backslash as its own line continuation and keeps the following indentation.
+
+- **The reader that enumerates crate manifests told absent from unreadable, and its twin in the same file
+  did not.** `require_example_pins` was given `std::fs::metadata` with `NotFound` separated from every other
+  answer, and a comment saying why: *absent is not unreadable; skipping both alike let the remaining
+  readable examples satisfy the counters below*. `workspace_manifests` kept `manifest.is_file()`, which
+  answers one `false` for a manifest that is not there, one that cannot be stat'd, and a directory named
+  `Cargo.toml` — so a member whose manifest could not be read left the enumeration silently. The repair for
+  the class landed without a sweep for its sibling.
+
+  It is one construction with three reasons now, because the register holds a site identity to exactly one
+  branch and three arms reaching three calls would be one identity vouching for branches no direction
+  reached. The direction puts a directory where a crate manifest was, and the negative run shows what the
+  fold produced: not a clean verdict but a refusal blaming the **declaration form** for a manifest nothing
+  opened. Whether a silent clean is reachable instead depends on whether every judgement standing on the
+  enumeration would notice a missing member, which is not established here and is not claimed.
+
 - **This release line is `0.6.0`, decided from what the window's changes do.** It carries `**BREAKING**`
   markings — false-negative closures, a rule-key identity change, a module-resolution widening — and this
   repository's rule past `0.1.0` is that breaking earns a **minor**. What decides the number is that any such
