@@ -276,24 +276,35 @@ covering the rest. `BACKLOG.md`, `AGENTS.md` and the specifications carry no dat
 later by design, so the rule stated for prose generally reaches them and no reaction does. That residue is
 declared as a bound below rather than closed, and the reason is measured rather than asserted.
 
-#### Scenario: A relative phrase in non-record Markdown is not observed — a stated bound
+#### Scenario: The duration phrase in non-record Markdown is not observed — a stated bound
 
-- **WHEN** a tracked Markdown document outside the record set writes one of the declared phrases without
-  anchoring it
-- **THEN** nothing reacts. Extending the sweep to whole-document prose was measured against the tree it would
-  judge, and most of what it would report is not an offence: some occurrences are `AGENTS.md`'s own row
-  **declaring** the phrases, some are duration rather than pointer — *admitted it for a window*, which
-  narrates how long something lasted — some are a generated projection's copy of either, and some are already
-  anchored, by a commit or by naming the release. A reader over text separates none of those groups: telling
-  a phrase that points at a moving window from one that measures a span is a judgement about the sentence,
-  which is the prose instrument `AGENTS.md` records as designed, measured three times and rejected
+- **WHEN** a tracked Markdown document outside the record set writes *for a window* without anchoring it
+- **THEN** nothing reacts, because that phrase alone is the group a reader over text cannot separate: it is
+  as often **duration** — *admitted it for a window*, narrating how long something lasted — as it is a
+  pointer at a moving window, and telling the two apart is a judgement about the sentence, which is the prose
+  instrument `AGENTS.md` records as designed, measured three times and rejected. It is the same ground on
+  which *the same window* is absent from the declared phrases entirely
+- **AND** the bound previously covered every declared phrase in this corpus, on the reasoning that a reader
+  over text separates none of the groups a widened sweep would report. Three of those groups are separable
+  after all, and each by shape rather than by meaning: a **record** carrier by path and by dated section, a
+  **marked quotation** — the phrase in backticks or single emphasis, which is how this repository quotes a
+  phrase to define it rather than to point with it — and a **generated projection's copy** of either, which
+  is a marked quotation by the same test. What remained was duration, and it is one phrase
 - **AND** how many fall in each group SHALL NOT be written here, because **this passage is itself in the
   corpus it describes**: a bound about a phrase has to quote the phrase, so stating the breakdown moves it,
-  and its two generated projections move it again. The measurement belongs in the tracker's *Observation
-  source*, where it is dated by the entry that carries it
-- **AND** the rule is wider than its reaction and SHALL stay so rather than being narrowed to fit: a comment
-  format is where the reaction can decide, and prose is where a reviewer must
-- **UNPINNED** `BACKLOG.md` — *a relative phrase in non-record Markdown*
+  and its two generated projections move it again. The measurement belongs in the record that carries it
+- **UNPINNED** `BACKLOG.md` — *the duration phrase in non-record Markdown*
+
+#### Scenario: Markdown prose anchors to a moving reference
+
+- **WHEN** a tracked Markdown document outside the record set carries a declared phrase other than the
+  duration one, unanchored and not marked as a quotation
+- **THEN** the reaction fails, naming the file, the line the phrase ends on, and the phrase. The corpus is
+  every tracked Markdown document less `docs/history/` and less the dated sections of `CHANGELOG.md`, which
+  are the record carriers `AGENTS.md` enumerates; a commit message is the third and is not a file
+- **AND** paragraphs SHALL be joined before matching, for the reason the comment sweep joins comment runs: a
+  phrase whose words fall either side of a line break is one phrase, and a per-line reader sees neither half
+- **PINNED-BY** `no_markdown_prose_names_a_relative_anchor`
 
 #### Scenario: A comment anchors to a moving reference
 

@@ -603,27 +603,27 @@ pub fn observation_bounds() -> Vec<BoundDecl> {
         // reaction and the uncovered half rested on a reason that did not carry it.
         BoundDecl::unpinned(
             BoundId::new(
-                "reference-integrity/a-relative-phrase-in-non-record-markdown-is-not-observed-a-stated-bound",
+                "reference-integrity/the-duration-phrase-in-non-record-markdown-is-not-observed-a-stated-bound",
             ),
-            "one of the declared relative phrases, unanchored, in a tracked Markdown document outside the \
+            "the duration phrase `for a window`, unanchored, in a tracked Markdown document outside the \
              record set",
             Extent::Reached(Reached::UnderReacts {
-                because: "extending the sweep to whole-document prose was measured against the tree it \
-                          would judge, and most of what it would report is not an offence: some \
-                          occurrences are `AGENTS.md`'s own row DECLARING the phrases, some are duration \
-                          rather than pointer -- `admitted it for a window` narrates how long something \
-                          lasted -- some are a generated projection's copy of either, and some are already \
-                          anchored, by a commit or by naming the release. A reader over text separates \
-                          none of those groups: telling a phrase that points at a moving window from one \
-                          measuring a span is a judgement about the sentence, which is the prose \
-                          instrument `AGENTS.md` records as designed, measured three times and rejected. \
-                          How many fall in each group is not written here: this reason is itself in the \
-                          corpus it describes, since a bound about a phrase has to quote the phrase, and \
-                          its projection moves the figure again"
+                because: "that phrase alone is the group a reader over text cannot separate: it is as \
+                          often duration -- `admitted it for a window`, narrating how long something \
+                          lasted -- as it is a pointer at a moving window, and telling the two apart is a \
+                          judgement about the sentence, which is the prose instrument `AGENTS.md` records \
+                          as designed, measured three times and rejected. It is the ground on which `the \
+                          same window` is absent from the declared phrases entirely. This bound covered \
+                          every declared phrase here until three of the groups a widened sweep reports \
+                          were separated by SHAPE rather than by meaning -- a record carrier by path and \
+                          by dated section, a marked quotation in backticks or single emphasis, and a \
+                          generated projection's copy of either, which is a marked quotation by the same \
+                          test. How many fall in each group is not written here: this reason is itself in \
+                          the corpus it describes, and its projection moves the figure again"
                     .into(),
                 owner: Owner::Engine,
             }),
-            "`BACKLOG.md` — *a relative phrase in non-record Markdown*",
+            "`BACKLOG.md` — *the duration phrase in non-record Markdown*",
         ),
         // The reader decides by shape, so a code span that merely HAS the shape is refused. Resolving each
         // token against the object database was measured and declined: `actions/checkout` fetches one commit

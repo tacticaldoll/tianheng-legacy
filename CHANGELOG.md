@@ -366,8 +366,11 @@ them.
     carried.
   - **Carriers went from prose to every tracked live file.** Three relative anchors — `this window` — stand
     in live `BACKLOG.md` sections, one of them in a line this window's own version sweep edited and left.
-    Named instead. The remaining hits are the rule quoting the forbidden phrase to define it, and one inside
-    a record section, which is exempt.
+    Named instead. **The claim about the remainder was wrong and is corrected below**: it said the remaining
+    hits were the rule quoting the phrase to define it *and one inside a record section, which is exempt* —
+    and `AGENTS.md` grants no record exemption in the relative-anchor row, whose whole disposition is *anchor
+    it to the moment, or name the item*. The three carriers it does enumerate, one section over, are a commit
+    message, a dated `CHANGELOG.md` section and `docs/history/`; a `BACKLOG.md` section is not one of them.
 
   **What connects them is not carelessness but shape**: a rule widened in the same change that repairs its
   old corpus leaves the new corpus unread, because the sweep was written before the widening. `AGENTS.md`
@@ -1079,6 +1082,34 @@ them.
   and the compiled behaviour is the `0.5.0` behaviour.
 
 ### Self-governance
+
+- **A rule whose subject is every tracked live file had a reader over comment lines, so Markdown was
+  unread — and it is read now.** `prose_of` classifies Markdown as `Prose::Whole` and the relative-anchor
+  sweep filtered to `Prose::LineComment`, so `AGENTS.md`, `BACKLOG.md`, `PROJECT.md` and every specification
+  sat outside the corpus entirely. Four review rounds found anchors there one at a time, by hand, and a fifth
+  found the one this entry's own predecessor had claimed exempt.
+
+  **The bound that covered the gap was already declared, and it narrows rather than retires.** Its reason was
+  that a widened sweep would report four groups a reader over text cannot separate: the rule's own declaring
+  row, duration rather than pointer, a generated projection's copy of either, and phrases already anchored.
+  Three of those are separable **by shape**: a record carrier by path and by dated section; a marked
+  quotation — the phrase in backticks or single emphasis, which is how this repository quotes a phrase to
+  define it; and a projection's copy of either, which is a marked quotation by the same test. What is left is
+  duration, and it is one phrase — so the bound is now *for a window* alone, and the clause saying the rule
+  must stay wider than its reaction because *prose is where a reviewer must* is gone, being false for the
+  other three.
+
+  **The reader found the class in a shape a hand sweep could not, which is the argument for building it.** A
+  per-line measurement of the same corpus reported one offence; the paragraph-joining reader reported three,
+  because two had `this window` wrapped across a line break — verbatim the failure `AGENTS.md` records for
+  the comment sweep before it was line-joined. All three are named now: two by restating the mechanism as a
+  property, one by naming the rule it points at.
+
+  **The measurement that shaped this was written three times wrong before it was right**, which is why the
+  reaction earns its place over another round of reading. A `startswith("## ")` boundary matched `### `
+  subheadings; an `elif` that reopened a dated span without closing the previous one left the largest section
+  unexempted and reported 144 offences in a file holding three; and the per-line pass above missed two of
+  three. The reader's own span logic is the fourth spelling, and its doc says so.
 
 - **The merge wrapper's repository-identity guard was defeated by three environment variables, and the
   wrapper ran to completion.** `GIT_DIR`, `GIT_WORK_TREE` and `GIT_INDEX_FILE` move which repository a git
@@ -10503,7 +10534,7 @@ no adopter runs. They are here rather than under the adopter headings above beca
   would report six non-offences to catch two.
 
   So the requirement's reason is narrowed to the record set it holds for, the residue is declared as
-  `reference-integrity/a-relative-phrase-in-non-record-markdown-is-not-observed-a-stated-bound` with
+  `reference-integrity/the-duration-phrase-in-non-record-markdown-is-not-observed-a-stated-bound` with
   `BACKLOG.md` as its tracker, and the rule is left wider than its reaction on purpose — a comment format is
   where the reaction can decide, and prose is where a reviewer must. The two genuine instances are anchored
   to `0.5.0`, the form the two correct neighbours in the same file already use.

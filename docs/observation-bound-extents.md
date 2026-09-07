@@ -25,9 +25,9 @@ Where each declared **observation bound** stops the measure — not how far a sc
 - `publish-source-integrity/the-tree-changing-after-the-gate-passed-is-not-observed-a-stated-bound` — owner: engine
 - `publish-source-integrity/whether-the-tag-s-signer-is-authorized-is-not-observed-a-stated-bound` — owner: inherited from the verification environment
 - `reference-integrity/a-path-already-wrong-when-a-dated-record-was-written-is-not-observed-a-stated-bound` — owner: engine
-- `reference-integrity/a-relative-phrase-in-non-record-markdown-is-not-observed-a-stated-bound` — owner: engine
 - `reference-integrity/a-rust-identifier-named-in-prose-is-not-resolved-a-stated-bound` — owner: engine
 - `reference-integrity/an-abbreviation-carrying-no-letter-or-no-digit-is-not-observed-a-stated-bound` — owner: engine
+- `reference-integrity/the-duration-phrase-in-non-record-markdown-is-not-observed-a-stated-bound` — owner: engine
 - `release-coherence/a-dated-release-section-names-a-gate-a-stated-bound` — owner: engine
 - `release-coherence/a-directory-named-without-its-trailing-slash-a-stated-bound` — owner: engine
 - `release-coherence/a-name-reached-only-through-a-url-a-stated-bound` — owner: engine
@@ -635,14 +635,6 @@ Generated from each dimension's `observation_bounds()` by `crates/kanhe/tests/ob
 - **its defence must show**: does not react
 - **pinned by**: `a_dated_changelog_section_keeps_its_paths_and_an_undated_one_does_not`
 
-### `reference-integrity/a-relative-phrase-in-non-record-markdown-is-not-observed-a-stated-bound`
-
-> one of the declared relative phrases, unanchored, in a tracked Markdown document outside the record set
-
-- **because**: extending the sweep to whole-document prose was measured against the tree it would judge, and most of what it would report is not an offence: some occurrences are `AGENTS.md`'s own row DECLARING the phrases, some are duration rather than pointer -- `admitted it for a window` narrates how long something lasted -- some are a generated projection's copy of either, and some are already anchored, by a commit or by naming the release. A reader over text separates none of those groups: telling a phrase that points at a moving window from one measuring a span is a judgement about the sentence, which is the prose instrument `AGENTS.md` records as designed, measured three times and rejected. How many fall in each group is not written here: this reason is itself in the corpus it describes, since a bound about a phrase has to quote the phrase, and its projection moves the figure again
-- **its defence must show**: does not react
-- **unpinned**, tracked by: `BACKLOG.md` — *a relative phrase in non-record Markdown*
-
 ### `reference-integrity/a-rust-identifier-named-in-prose-is-not-resolved-a-stated-bound`
 
 > a backticked snake_case name written in a doc comment's prose rather than as an intra-doc link
@@ -658,6 +650,14 @@ Generated from each dimension's `observation_bounds()` by `crates/kanhe/tests/ob
 - **because**: requiring both a letter and a digit is what keeps the reader off two shapes this tree actually holds -- a long run of digits written as a figure, and an English word spelled from the hex alphabet -- and the price is the abbreviations that carry only one kind of character. Over uniformly random seven-character abbreviations that is 3.8%. The direction is deliberate, and its reason is not the one first written here: the Core Contract names a **silent** false negative as the one forbidden bug, so a miss is not the cheaper direction by default. What makes this one admissible is that it is not silent -- it is this declaration, with an owner and a tracker -- and the alternative is refusing prose that cites nothing, which no declaration would cover
 - **its defence must show**: does not react
 - **unpinned**, tracked by: `BACKLOG.md` — *an abbreviation carrying no letter or no digit*
+
+### `reference-integrity/the-duration-phrase-in-non-record-markdown-is-not-observed-a-stated-bound`
+
+> the duration phrase `for a window`, unanchored, in a tracked Markdown document outside the record set
+
+- **because**: that phrase alone is the group a reader over text cannot separate: it is as often duration -- `admitted it for a window`, narrating how long something lasted -- as it is a pointer at a moving window, and telling the two apart is a judgement about the sentence, which is the prose instrument `AGENTS.md` records as designed, measured three times and rejected. It is the ground on which `the same window` is absent from the declared phrases entirely. This bound covered every declared phrase here until three of the groups a widened sweep reports were separated by SHAPE rather than by meaning -- a record carrier by path and by dated section, a marked quotation in backticks or single emphasis, and a generated projection's copy of either, which is a marked quotation by the same test. How many fall in each group is not written here: this reason is itself in the corpus it describes, and its projection moves the figure again
+- **its defence must show**: does not react
+- **unpinned**, tracked by: `BACKLOG.md` — *the duration phrase in non-record Markdown*
 
 ### `release-coherence/a-dated-release-section-names-a-gate-a-stated-bound`
 

@@ -1640,6 +1640,179 @@ fn no_tracked_source_names_a_relative_anchor() {
     );
 }
 
+/// The relative anchors read in **Markdown prose**: every phrase `RELATIVE_ANCHORS` declares except the
+/// duration one, and the exclusion is measured rather than assumed.
+///
+/// **The excluded phrase is the one that narrates a span.** Over the corpus below, every occurrence of it
+/// measures how long something held rather than pointing at a moving reference, so admitting it here would
+/// refuse only legitimate sentences. Telling the two readings apart is a judgement about the sentence, which
+/// is the prose instrument `RELATIVE_ANCHORS`'s own doc records refusing for the phrase it leaves out of the
+/// declared set entirely. The gap is declared as an observation bound rather than left as a narrower list
+/// nobody wrote down.
+///
+/// **Neither the excluded phrase nor any admitted one is spelled in this comment**, and the omission is the
+/// point: this file is inside the corpus its sibling sweep reads, and that sweep has no quotation
+/// discriminator — the phrases live in the arrays, where a reader of comment lines cannot reach them.
+/// `RELATIVE_ANCHORS`'s own doc solves it the same way.
+const MARKDOWN_ANCHORS: [&str; 3] = ["this window", "one commit ago", "the previous round"];
+
+/// The `## [X.Y.Z] - YYYY-MM-DD` spans of a changelog, which are record carriers.
+///
+/// **A dated section is a measurement of the moment it was taken**, so holding one to `HEAD` would demand
+/// that the record change every time the tree does — `AGENTS.md` names exactly three such carriers, and this
+/// is the one that lives inside a file the rest of which is live. `docs/history/` and commit messages are
+/// the other two: the first is skipped by path and the second is not a file.
+///
+/// **A span closes on any level-2 heading and reopens only if the new one is dated.** Written as an `elif`
+/// that reopened without closing, one dated section following another left the earlier one unexempted — and
+/// the measurement that shaped this function reported 144 offences in a file that holds 1. That is the third
+/// spelling of this span logic; the first two are in the changelog entry that records them.
+fn dated_record_lines(text: &str) -> BTreeSet<usize> {
+    let mut lines = BTreeSet::new();
+    let all: Vec<&str> = text.lines().collect();
+    let mut start: Option<usize> = None;
+    let close = |start: &mut Option<usize>, end: usize, lines: &mut BTreeSet<usize>| {
+        if let Some(from) = start.take() {
+            lines.extend(from..end);
+        }
+    };
+    for (index, line) in all.iter().enumerate() {
+        if line.starts_with("## ") && !line.starts_with("### ") {
+            close(&mut start, index, &mut lines);
+            let dated = line
+                .strip_prefix("## [")
+                .and_then(|rest| rest.split_once("] - "))
+                .is_some_and(|(_, date)| kanhe::release_coherence_gate::is_iso_date(date.trim()));
+            if dated {
+                start = Some(index);
+            }
+        }
+    }
+    close(&mut start, all.len(), &mut lines);
+    lines
+}
+
+/// Whether the anchor at `at` in `passage` is a **marked quotation** rather than an assertion.
+///
+/// The rule this reader answers to says a sweep whose hits are all quoted is the finished state: the finding
+/// is an assertion, never a quotation. Backticks and **single** asterisks are how this repository marks a
+/// phrase it is defining rather than pointing with. Double asterisks are not — bold emphasises a whole
+/// sentence that happens to contain the phrase, which is an assertion — so the pairs are removed before the
+/// single ones are counted. Both counts are taken over the joined paragraph, because neither mark spans one.
+///
+/// Spelled with no example, for the reason `MARKDOWN_ANCHORS` gives: an example would have to carry a phrase
+/// this file's sibling sweep reads out of comment lines.
+fn marked_quotation(passage: &str, at: usize) -> bool {
+    let before = &passage[..at];
+    before.matches('`').count() % 2 == 1 || before.replace("**", "").matches('*').count() % 2 == 1
+}
+
+/// Every relative anchor the **prose** of `corpus` carries, in `corpus_root`.
+///
+/// **Paragraph-joined, for the reason the comment sweep is line-joined.** A phrase wrapped across two lines
+/// of Markdown is one phrase, and a per-line reader sees neither half. A blank line ends a paragraph, so a
+/// phrase does not cross one — the same boundary the sibling draws at a non-comment line.
+fn markdown_anchor_offences_in(corpus_root: &Path, corpus: &[String]) -> BTreeSet<String> {
+    let mut offences = BTreeSet::new();
+    let mut read = 0usize;
+    for path in corpus.iter() {
+        if !matches!(prose_of(path), Some(Prose::Whole)) || !path.ends_with(".md") {
+            continue;
+        }
+        // A record carrier by path, which is the cheaper half of the same exemption.
+        if path.starts_with("docs/history/") {
+            continue;
+        }
+        let text = std::fs::read_to_string(corpus_root.join(path)).unwrap_or_else(|error| {
+            panic!(
+                "cannot read tracked file '{path}' — a file this check claims to have inspected must have \
+                 been read: {error}"
+            )
+        });
+        read += 1;
+        let exempt = dated_record_lines(&text);
+        let mut passage = String::new();
+        let mut origins: Vec<(usize, usize)> = Vec::new();
+        let flush = |passage: &mut String,
+                     origins: &mut Vec<(usize, usize)>,
+                     offences: &mut BTreeSet<String>| {
+            for anchor in MARKDOWN_ANCHORS {
+                let mut from = 0usize;
+                while let Some(at) = passage[from..].find(anchor) {
+                    let start = from + at;
+                    let end = start + anchor.len();
+                    if !marked_quotation(passage, start) {
+                        let line = origins
+                            .iter()
+                            .take_while(|(offset, _)| *offset < end)
+                            .last()
+                            .map_or(0, |(_, line)| *line);
+                        offences.insert(format!(
+                            "  {path}:{line} writes `{anchor}`, which names a moving reference — it is \
+                             stale the moment that reference moves, and nothing can check it. Anchor it to \
+                             the moment (a version, a date, a commit) or name the item"
+                        ));
+                    }
+                    from = end;
+                }
+            }
+            passage.clear();
+            origins.clear();
+        };
+        for (index, line) in text.lines().enumerate() {
+            if exempt.contains(&index) || line.trim().is_empty() {
+                flush(&mut passage, &mut origins, &mut offences);
+                continue;
+            }
+            let normalised = line.split_whitespace().collect::<Vec<_>>().join(" ");
+            passage.push(' ');
+            origins.push((passage.len(), index + 1));
+            passage.push_str(&normalised);
+        }
+        flush(&mut passage, &mut origins, &mut offences);
+    }
+    assert!(
+        read > 0,
+        "no tracked Markdown was read, so this sweep would report clean over a corpus it never opened"
+    );
+    offences
+}
+
+/// A relative anchor in Markdown prose is read, which is where a continuation reads from.
+///
+/// **The rule's subject is every tracked live file and its reader was comment lines.** `prose_of` classifies
+/// Markdown as `Prose::Whole`, and the sibling sweep filters to `Prose::LineComment` — so `AGENTS.md`,
+/// `BACKLOG.md`, `PROJECT.md` and every spec sat outside the corpus entirely, and four review rounds found
+/// anchors there one at a time by hand. Measured before this existed: live offences in `BACKLOG.md`, and the
+/// admitted phrases report them with no false positive anywhere in the corpus.
+///
+/// Negative runs, the second being the one a hand sweep cannot reach:
+///
+/// ```text
+/// 1 relative anchor(s) in Markdown prose:
+///   BACKLOG.md:3213 writes `…`, which names a moving reference — …
+///
+/// 1 relative anchor(s) in Markdown prose:
+///   BACKLOG.md:3214 writes `…`, which names a moving reference — …
+/// ```
+///
+/// The second put the phrase's two words on either side of a line break and is reported at the line it
+/// **ends** on, which is the paragraph join doing the work. A per-line measurement of this same corpus found
+/// one of the offences that were there; this reader found all of them.
+#[test]
+fn no_markdown_prose_names_a_relative_anchor() {
+    let Some(root) = workspace_root() else {
+        return;
+    };
+    let offences = markdown_anchor_offences_in(&root, &tracked(&root));
+    assert!(
+        offences.is_empty(),
+        "{} relative anchor(s) in Markdown prose:\n{}",
+        offences.len(),
+        offences.iter().cloned().collect::<Vec<_>>().join("\n")
+    );
+}
+
 /// Every positional reference the comment lines of `corpus` carry, in `corpus_root`.
 ///
 /// Split from the check so a negative fixture can call it, for the reason the sibling sweep states: a check
