@@ -595,3 +595,60 @@ fn an_unreadable_tracked_rust_file_is_refused_rather_than_skipped() {
     );
     assert_eq!(inspected, 0);
 }
+
+/// A file the lexer refuses is undecided, not a file that repeats a paragraph.
+///
+/// **The two answers this separates are a refusal and an accusation.** Without the lex question,
+/// `shadowed_by_a_literal` yields an empty shadow map for such a file — a lexer that could not run
+/// shadows nothing — so every comment-shaped line inside its string literals is read as a comment and
+/// a doubled one is reported as an offence. That is loud rather than silent, which is the safe
+/// direction in general; here *more* means reporting a file's own literal text back at its author as a
+/// repetition they did not write. The honest answer is that the question was not decided.
+///
+/// The fixture is an unterminated string literal wrapping a doubled comment-shaped paragraph, so it
+/// reaches both halves at once: `proc_macro2` refuses it, and the paragraph inside it is exactly what
+/// the empty shadow map would let through.
+#[test]
+fn a_tracked_rust_file_that_does_not_lex_is_undecided_rather_than_accused() {
+    let scratch = std::env::temp_dir().join(format!(
+        "tianheng-repeated-paragraph-does-not-lex-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&scratch);
+    xingbiao::claim_scratch(&scratch).expect("the scratch root is writable");
+
+    // The control first: the identical paragraph with the literal TERMINATED is a genuine repetition
+    // inside a string, which the shadow map keeps out — so the assertion below is about the lexer
+    // having refused this file, not about the paragraph being unreachable either way.
+    let terminated = "fn f() {\n    let s = \"\n    // a note\n    // a note\n    \";\n}\n";
+    std::fs::write(scratch.join("terminated.rs"), terminated).expect("write the control");
+    let (control, inspected) = offences(&scratch, &["terminated.rs".to_string()]);
+    assert!(
+        control.is_empty(),
+        "a comment-shaped line inside a terminated literal is not a comment: {control:?}"
+    );
+    assert_eq!(inspected, 1, "the control file was read");
+
+    let unterminated = "fn f() {\n    let s = \"\n    // a note\n    // a note\n}\n";
+    std::fs::write(scratch.join("unterminated.rs"), unterminated).expect("write the probe");
+    let (offences, inspected) = offences(&scratch, &["unterminated.rs".to_string()]);
+    let _ = std::fs::remove_dir_all(&scratch);
+
+    assert_eq!(offences.len(), 1, "{offences:?}");
+    assert_eq!(
+        offences[0].kind,
+        Kind::CannotJudge,
+        "a file whose comments could not be told from its literals is undecided, never an offence: {:?}",
+        offences[0]
+    );
+    assert!(
+        offences[0].message.contains("unterminated.rs")
+            && offences[0].message.contains("does not lex"),
+        "the refusal names the file and what it could not decide, got {:?}",
+        offences[0].message
+    );
+    assert_eq!(
+        inspected, 0,
+        "an undecided file is not an inspected one, so it must not count toward the vacuity floor"
+    );
+}

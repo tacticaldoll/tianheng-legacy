@@ -26,6 +26,23 @@ them.
 
 ### Governance
 
+- **A scenario stated a refusal and nothing reached it.** `repository-checks` declares that a tracked Rust
+  file the lexer refuses is a cannot-judge naming the path, and the reaction was there — but the
+  repeated-paragraph target's twelve directions covered an unreadable file and a path that is not UTF-8 and
+  never a file that does not lex. A reaction no direction reaches is a clause with the shape of evidence and
+  none of the substance, which is the seam `AGENTS.md` asks a scenario to close in the direction it was not
+  looked at.
+
+  It was reachable the whole time: the target's own unreadable-file direction calls `offences` with a
+  hand-built listing, so the probe is a file written into a scratch tree. **The fixture is chosen so the
+  guard's absence accuses rather than merely skips.** An unterminated string literal wrapping a doubled
+  comment-shaped paragraph reaches both halves at once — `proc_macro2` refuses it, and a lexer that could
+  not run shadows nothing, so every comment-shaped line inside the literal is read as a comment. Measured
+  with the lex question removed and the fixture untouched: `Violation — unterminated.rs:4: a 1-line comment
+  paragraph is written twice in a row`, a file's own literal text reported back at its author as a
+  repetition nobody wrote. The terminated spelling is the control and answers clean in both runs, so the
+  direction is about the refusal and not about the paragraph being out of reach either way.
+
 - **`xingbiao`'s charter says what it carries, and states the criterion instead of a list.** Its module doc
   enumerated the path-identity primitives it holds *beside* the metadata reader — an enumeration that stopped
   covering the module when the filesystem-answer policy was added to it this window, for the ordinary reason
