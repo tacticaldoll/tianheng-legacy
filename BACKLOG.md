@@ -474,7 +474,10 @@ consumer for an undemonstrated deduplication.
   `Position` only; the repair floored both and added a distinctness assertion for `Value` only; the next
   repair added `Position`'s. Each time the missing instrument was the one for the axis added *beside* the
   one being fixed. *Observation source:* two consecutive adversarial reviews of the same file, the second
-  reporting a defect introduced by the repair for the first.
+  reporting a defect introduced by the repair for the first. A **third** instance arrived in the round after
+  this entry was filed and is the reason its trigger is now two: the rule stating the obligations was itself
+  attached to one axis while governing both, so the shape reached the doc dimension as well as the
+  assertions.
 
   *Current reaction or bound:* the three obligations an axis owes — set agreement, per-variant coverage,
   variant distinctness — are stated on the axis definitions rather than in a commit body, since the next
@@ -491,10 +494,24 @@ consumer for an undemonstrated deduplication.
   asymmetry the sum-over-positions structure exists to express and which a uniform `output` per variant
   would flatten. Designing for the union here builds one instrument and fights the shape.
 
-  *Watch trigger:* a **third** axis added to this corpus, or a second corpus in the tree that grows axes the
-  same way. Two axes cannot answer whether the asymmetry generalises; three can, and at three the trait's
-  cost is paid against evidence rather than against a guess. *Version class:* patch; test targets only.
-  *Authority:* the `attribute-spelling-differential` subject in `repository-checks`.
+  **Two triggers, because the first draft had one and it could not fire on the shape that recurred.** It read
+  *a third axis added to this corpus*, which is the predicate for the trait question — and the shape that
+  actually recurred is **something owed to both axes supplied to one**, which a new axis is not. Written that
+  way the entry would have sat here through a fourth instance reporting *not fired*, which is the corpus
+  defect this file's own trigger discipline names. So:
+
+  *Watch trigger — the recurring shape:* a **fourth** instance of something owed to both axes being supplied
+  to one, counting the doc dimension as the third already did. This is an occasion rather than an instrument:
+  deciding whether a thing is owed to both axes is a reading of what the thing is for, which is the
+  judgement-over-meaning this repository has measured and declined. At four the question stops being *did
+  the author slip* and becomes *does this file's shape invite it*.
+
+  *Watch trigger — the trait question:* a **third** axis added to this corpus, or a second corpus in the tree
+  that grows axes the same way. Two axes cannot answer whether the asymmetry generalises; three can, and at
+  three the trait's cost is paid against evidence rather than against a guess.
+
+  *Version class:* patch; test targets only. *Authority:* the `attribute-spelling-differential` subject in
+  `repository-checks`.
 
 - **A step name in CI can misidentify what failed, and both instruments for it were measured and
   declined.** *Class:* WATCH — the instance is closed and the class is open with no cheap reaction.
