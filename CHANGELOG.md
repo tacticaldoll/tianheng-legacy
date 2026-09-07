@@ -100,6 +100,24 @@ them.
 
 ### Static
 
+- **A `#` at an attribute's name position reaches the attribute it opens, and a direction now holds that.**
+  `attr_name_start` skips the opening `#`, the `[` and the whitespace and stops, so it can answer a position
+  that is itself a `#` — `#[#[path = "x.rs"]` answers the inner one, and the remap lies inside the attribute
+  that `#` opens. The scanner reaches it because a name it did not match is left for the loop head to read as
+  an opener, and nothing pinned that: measured, stepping over an unmatched name passes every other row of the
+  fixture table and loses this candidate, which is a false negative in a scanner whose whole construction is
+  the false-negative-safe union. The row is added, and it fails against the tree without the property.
+
+- **The attribute scanner's termination is provable where a reader is looking.** The two matching branches
+  advance the cursor themselves — `j` from `i + 4` past the name and its whitespace, and eight bytes for a
+  matched `cfg_attr`, with `starts_with` guaranteeing no `#` among the bytes either steps over, which is what
+  makes them identical to the single-byte walk they replace. They terminated before this too, by the loop
+  head: the cursor sits on an attribute's *name* from that point and never on the `#` that opened it, so the
+  next iteration stepped it forward. That invariant is true and it is not visible at the `continue` — four
+  independent readings of these three lines called the scanner non-terminating, each reading the `continue`
+  and not the loop head. The unmatched-name case keeps the loop head as its owner, deliberately, for the
+  reason the entry above gives.
+
 - **The instrument that says an axis does something was built for one axis, which is the shape the change
   before it repaired.** A `Value` spelling collapsed onto its sibling had been closed by asserting the two
   spellings differ; `Position` was owed the same and did not have it. A shape's `position` comes from the

@@ -400,6 +400,16 @@ fn attr_prefix_remap(bytes: &[u8]) -> Option<Remap> {
             continue;
         };
         i = name;
+        // **The two matching branches advance the cursor themselves, and the miss deliberately does not.**
+        // All three terminated before this, but by the loop head rather than locally: the cursor sits on
+        // the attribute's *name* from here rather than on the `#` that opened it, so `bytes[i] != b'#'`
+        // stepped it forward on the next iteration and no branch could re-enter for the same attribute.
+        // That invariant is true and it is not visible at the `continue` — four independent readings of
+        // these lines called this scanner non-terminating, each reading the `continue` and not the loop
+        // head. So where an advance is provable at the branch it is written there: `j` starts at `i + 4`
+        // and a matched `cfg_attr` is eight bytes, and `starts_with` guarantees no `#` among the bytes
+        // either one steps over, which is what makes the two identical to the walk they replace. The miss
+        // is the one case where that does not hold, and the comment below it says why.
         if bytes[i..].starts_with(b"path")
             && bytes.get(i + 4).is_none_or(|byte| !is_ident_byte(*byte))
         {
@@ -421,7 +431,9 @@ fn attr_prefix_remap(bytes: &[u8]) -> Option<Remap> {
             // A bare `#[path]`/`#[path(...)]` is not valid remap syntax, and measured against rustc it is
             // not valid Rust either — `error: malformed 'path' attribute input` for both spellings. So it
             // contributes no candidate, and the scan continues rather than returning, because a later
-            // unconditional `#[path = "…"]` on the same item still wins.
+            // unconditional `#[path = "…"]` on the same item still wins. `j` is the first byte that is
+            // not whitespace after the name, so resuming there both advances and re-reads nothing.
+            i = j;
             continue;
         }
         // The combined `#[cfg_attr(<pred>, …, path = "…")]` spelling (equivalent to
@@ -432,8 +444,14 @@ fn attr_prefix_remap(bytes: &[u8]) -> Option<Remap> {
             && bytes.get(i + 8).is_none_or(|byte| !is_ident_byte(*byte))
         {
             cfg_attr_prefix_collect_path_eqs(&bytes[i + 8..], i + 8, &mut conditional_eqs);
+            i += 8;
             continue;
         }
+        // No advance here, and it is not an omission. The name position can itself be a `#` —
+        // `attr_name_start` skips `[` and whitespace and stops, so `#[#[path = "x.rs"]` answers the inner
+        // `#` — and the loop head reads it as an attribute opener and reaches the remap inside. Stepping
+        // over it would skip that attribute, which is a false negative in a scanner whose whole
+        // construction is the false-negative-safe union. A direction holds this shape.
     }
     match (direct, conditional_eqs) {
         (Some(at), conditional) => Some(Remap::Direct { at, conditional }),
@@ -643,6 +661,12 @@ mod tests {
             (&b"#[r#]"[..], Some(2), false, false),
             // The `#` that opens nothing is stepped over, and the one after it is read.
             (&b"##[path = \"x.rs\"]"[..], Some(3), true, false),
+            // A `#` at the NAME position, which is the one case where the scan must not step off a name
+            // it did not match. `attr_name_start` skips `[` and whitespace and stops, so it answers the
+            // inner `#` here — and the remap is inside the attribute that `#` opens. The union is
+            // false-negative-safe by construction, so a candidate physically written in the source counts
+            // whether or not any configuration compiles this spelling.
+            (&b"#[#[path = \"x.rs\"]"[..], Some(2), true, false),
         ] {
             let spelling = String::from_utf8_lossy(prefix).into_owned();
             let hash = prefix
