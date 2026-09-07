@@ -75,6 +75,9 @@ struct Shape {
     /// coverage floor below reads it, and a floor that matched on label text would be a reader over
     /// prose where an axis value was available.
     position: Position,
+    /// How this shape spells its value literal, carried for the same reason `position` is: the floor reads
+    /// the axis value, and an axis added beside a floored one is an axis nothing floors.
+    value: Value,
     /// Whether the predicate holds on this host, and so whether rustc can be asked which file the build
     /// contains rather than only whether the source is legal.
     live_predicate: bool,
@@ -185,6 +188,7 @@ fn corpus() -> Vec<Shape> {
                         attribute: format!("#[{meta}]"),
                         answer: Answer::Governed,
                         position,
+                        value,
                         // No predicate stands between a direct attribute and the build, so the remap always
                         // applies and rustc can always be asked which file the build contains.
                         live_predicate: true,
@@ -200,6 +204,7 @@ fn corpus() -> Vec<Shape> {
                                     ),
                                     answer: Answer::Governed,
                                     position,
+                                    value,
                                     live_predicate: live,
                                 });
                             }
@@ -226,6 +231,7 @@ fn corpus() -> Vec<Shape> {
                 attribute: format!("#[cfg_attr(any(), {meta})]"),
                 answer: Answer::Decoy,
                 position: Position::CfgAttrWrapped,
+                value,
                 live_predicate: false,
             });
         }
@@ -254,6 +260,9 @@ fn corpus() -> Vec<Shape> {
             attribute: attribute.to_string(),
             answer: Answer::Decoy,
             position: Position::CfgAttrWrapped,
+            // These carry the value inside a literal attribute string rather than through the axis, so
+            // they are the ordinary spelling by construction.
+            value: Value::Ordinary,
             live_predicate: false,
         });
     }
@@ -430,20 +439,69 @@ fn every_generated_spelling_is_answered_the_same_way_by_every_dimension() {
         corpus.len(),
         offences.join("\n  ")
     );
-    // **Every declared position produced a shape.** Without this the direction reports clean over whatever
-    // the builder happens to emit: a branch that stops emitting is a corpus that shrank, and a shrinking
-    // corpus passes. Read off the axis value rather than the label, so a renamed label cannot satisfy it.
+    // **Every declared variant of every axis produced a shape**, and the axes are held against a set this
+    // direction declares for itself.
     //
-    // Measured by making the direct branch emit nothing:
+    // Two holes, and the second is why the declared arrays are here. A branch that stops emitting is a
+    // corpus that shrank, and a shrinking corpus passes — measured by making the direct branch emit
+    // nothing: *no generated shape occupies Direct*. But a floor iterating the same `ALL` the corpus
+    // iterates cannot see that array **trimmed**: measured, `Value::ALL` cut to `[Ordinary]` drops 43 of
+    // 90 shapes and every assertion here passes, because the floor asks about the set the corpus was built
+    // from rather than about the set the corpus is supposed to cover. So the expectation is *declared*
+    // and held to each enumerator both ways, which is what gives a trimmed enumerator something to
+    // disagree with — the shape `AGENTS.md` records for a claim something downstream filters on.
+    //
+    // Negative runs, each against the assertion built for it:
+    //   the value axis is declared here and enumerated by the corpus … neither may be trimmed alone
+    //     left: "[Ordinary, Raw]"   right: "[Ordinary]"
+    //   the two value spellings are the whole of this axis …
+    //     left: "\"target.rs\""    right: "\"target.rs\""
     //   no generated shape occupies Direct, so this direction would report clean over a corpus that no
     //   longer covers every declared position
-    for position in Position::ALL {
+    const EXPECTED_POSITIONS: [Position; 2] = [Position::Direct, Position::CfgAttrWrapped];
+    const EXPECTED_VALUES: [Value; 2] = [Value::Ordinary, Value::Raw];
+    for (axis, declared, enumerated) in [
+        (
+            "position",
+            format!("{EXPECTED_POSITIONS:?}"),
+            format!("{:?}", Position::ALL),
+        ),
+        (
+            "value",
+            format!("{EXPECTED_VALUES:?}"),
+            format!("{:?}", Value::ALL),
+        ),
+    ] {
+        assert_eq!(
+            declared, enumerated,
+            "the {axis} axis is declared here and enumerated by the corpus, and these are two statements \
+             of one set held in both directions: neither may be trimmed alone"
+        );
+    }
+    for position in EXPECTED_POSITIONS {
         assert!(
             corpus.iter().any(|shape| shape.position == position),
             "no generated shape occupies {position:?}, so this direction would report clean over a corpus \
              that no longer covers every declared position"
         );
     }
+    for value in EXPECTED_VALUES {
+        assert!(
+            corpus.iter().any(|shape| shape.value == value),
+            "no generated shape spells its value as {value:?}, so this direction would report clean over a \
+             corpus that no longer covers every declared value spelling"
+        );
+    }
+    // **An axis whose variants coincide is not an axis.** The floors above read the value each shape was
+    // *labelled* with, so a `spell` that stopped distinguishing the two would satisfy every one of them
+    // while generating one spelling twice. This is the assertion that says the axis does something, and it
+    // is independent of both arrays above.
+    assert_ne!(
+        Value::Ordinary.spell("target.rs"),
+        Value::Raw.spell("target.rs"),
+        "the two value spellings are the whole of this axis, so a spelling that answers both the same way \
+         leaves the corpus generating one form twice under two labels"
+    );
     let (governed, decoys) = corpus
         .iter()
         .fold((0, 0), |(g, d), shape| match shape.answer {
