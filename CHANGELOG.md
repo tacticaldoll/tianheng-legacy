@@ -50,6 +50,34 @@ them.
 
 ### Static
 
+- **A generated corpus claimed the language and enumerated a cross-product.** The attribute-spelling
+  differential's doc read *the corpus is every lexical form Rust admits, which no inspection enumerates* over
+  a flat `wrapper × predicate × meta` product — a claim no cross-product can make, and one that was false
+  along three axes at once. Every shape was `cfg_attr`-headed, so the **direct** attribute position had no
+  row; every value was an ordinary literal, so `path = r#"target.rs"#` had none; and the bare-`cfg` spelling
+  the doc names as the defect that motivated the whole file had none either.
+
+  Two of the three are axes now, `Position` and `Value`, each with its variants beside it, and the corpus is
+  a **sum over positions** rather than one product — because the axes are not orthogonal, which measuring
+  them is what showed. A direct attribute carries no wrapper and no predicate; and it admits no look-alike,
+  since `#[foo::path = "target.rs"] mod m;` is `error[E0433]: cannot find module or crate 'foo'` with no
+  false predicate to keep the qualified path from resolving. A decoy has to compile while naming nothing, so
+  decoys live only where a predicate carries them. The count is printed on every clean run — 90 spellings,
+  80 governed and 10 look-alikes — rather than written into the prose that describes it.
+
+  **The third is a different question and is filed as one.** A bare `#[cfg(pred)]` removes the whole item
+  when `pred` is false, where `#[cfg_attr(pred, …)]` never removes the item, so what a reader does with a
+  bare `cfg` is *absence tolerance* — whether a missing backing file is an error — and its probe is a file
+  that does not exist rather than an item that resolves. `Answer` has no value for it. Rows added to the
+  existing corpus would have declared an answer the corpus cannot check; `BACKLOG.md` carries it as a
+  second corpus with the shape it needs.
+
+  **Widening found no disagreement**, which is worth saying plainly rather than leaving to be inferred: all
+  three dimensions already answer the direct position and the raw value correctly. What the window bought is
+  that the corpus now covers them and a floor keeps it covering them — every declared position must produce
+  a shape, read off the axis value rather than a label, because a branch that stops emitting is a corpus that
+  shrank and a shrinking corpus passes.
+
 - **A variant whose doc and behaviour disagreed, beside a remap that could remap nothing.**
   `PathAttrKind` held `None`, `Remaps { direct: Option, conditional: Vec }` and `Excluded`. Its sole
   consumption folded `Excluded` into the same arm as `None`, so the variant was behaviourally identical to
