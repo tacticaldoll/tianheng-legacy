@@ -197,6 +197,18 @@ derived id, per `observation-bound-model`.
   closes it — giving CI an allowed-signers file is what would
 - **PINNED-BY** `a_valid_signature_from_an_unauthorized_key_is_accepted`
 
+#### Scenario: Whether a worktree holding an undecodable path is clean is not observed — a stated bound
+
+- **WHEN** the worktree under judgement holds a path that is a legal filename and not UTF-8 — `ls-files -z
+  --others` and `status -z` both answer it as its own bytes, verbatim and unquoted
+- **THEN** the cleanliness judgement is never reached: the worktree read refuses as a cannot-judge, so the
+  gate answers neither *clean* nor *dirty* for that tree. The stop is the reader's representation and not a
+  choice this gate makes over the path — a verdict is not owed on an input it cannot represent, and every
+  comparison the judgement would make downstream would be against a name the repository does not hold. What
+  it costs is that such a repository cannot be published through the wrapper until the path is renamed or
+  removed, which is a refusal in front of an irreversible act rather than a pass over one
+- **PINNED-BY** `a_worktree_holding_an_undecodable_path_is_not_judged_clean_or_dirty`
+
 ### Requirement: A path the gate classifies SHALL be the path it was given
 
 Every path the cleanliness judgement reads, compares, or asks git about SHALL be carried as raw bytes, using

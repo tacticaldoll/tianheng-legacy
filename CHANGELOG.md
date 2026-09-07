@@ -932,6 +932,25 @@ them.
 
 ### Self-governance
 
+- **A deliberate stop was argued in a doc comment and declared nowhere.** The publish gate refuses rather
+  than judging the cleanliness of a worktree holding a path that is a legal filename and not UTF-8, and the
+  reason for that — `xingbiao::path_identity` keeps two identities for two paths differing only in
+  undecodable bytes, so collapsing them here would contradict the product's own rule — sat in a `///` where
+  no register could see it. Two independent reviews read the same code and reached opposite conclusions
+  about whether it was policy or a defect, which is what an undeclared stop costs.
+
+  It is an observation bound now, pinned by a direction that builds the tree rather than reasoning about it:
+  measured, `git ls-files -z --others` answers a `stray\xff` file as `stray\377\0`, verbatim, so the worktree
+  read stops before any cleanliness question is asked. Its declared mutation makes that read swallow the
+  failure instead, and the gate then reports `ok publish source` over a tree it never read — a clean pass in
+  front of an act that cannot be undone, reached by a legal filename.
+
+  It is also this family's **first** `Reached::RefusesToJudge` bound. The variant was declared for the
+  distinction it draws — a fail-loud refusal is not the silent false negative a backlog entry once predicted
+  for it — and until now nothing in the tree held it. It is not a declared false negative and the projection
+  counts it as neither: `docs/observation-bounds.md` moves to 105 declared bounds with the false-negative and
+  unpinned figures unchanged.
+
 - **One gate read git's answer under two policies.** The publish gate's exclusion classifier spelled its own
   `from_utf8_lossy` while every other read in the same gate refused an undecodable answer through the shared
   runner — and the strict one is the policy `hermetic_git::answered` states, from `xingbiao::path_identity`.

@@ -46,6 +46,11 @@ fn git(repo: &Path, args: &[&str]) -> Result<String, crate::hermetic_git::Failur
 ///
 /// Keeping the read and its error mapping together gives the focused failure matrix one observable source for
 /// this diagnostic; the caller supplies only what it was reading.
+///
+/// **This is where the cleanliness judgement stops for a path this reader cannot represent**, and the stop is
+/// declared: `whether-a-worktree-holding-an-undecodable-path-is-clean-is-not-observed-a-stated-bound`. The
+/// reason lives with the bound rather than here, because what a reader refuses is this function's business
+/// and what the *gate* therefore does not answer is the capability's.
 fn read_worktree(repo: &Path, args: &[&str], what: &str) -> Result<String, Refusal> {
     git(repo, args).map_err(|err| {
         cannot_judge_at(

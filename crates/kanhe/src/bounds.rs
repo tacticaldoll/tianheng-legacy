@@ -92,6 +92,25 @@ pub fn observation_bounds() -> Vec<BoundDecl> {
             }),
             "a_refused_flag_cannot_sit_in_an_admitted_arguments_value_position",
         ),
+        BoundDecl::pinned(
+            BoundId::new(
+                "publish-source-integrity/whether-a-worktree-holding-an-undecodable-path-is-clean-is-not-observed-a-stated-bound",
+            ),
+            "a worktree holding a path that is a legal filename and not UTF-8, which `ls-files -z --others` \
+             and `status -z` both answer as its own bytes",
+            Extent::Reached(Reached::RefusesToJudge {
+                because: "a verdict is not owed on an input this reader cannot represent, and the \
+                          alternative is worse than a refusal: collapsing the undecodable bytes to U+FFFD \
+                          would make every comparison downstream against a name the repository does not \
+                          hold, which is the property `xingbiao::path_identity` exists to keep. So the \
+                          worktree read stops and the cleanliness judgement is never reached -- neither \
+                          `clean` nor `dirty` for that tree. What it costs is that such a repository cannot \
+                          be published through the wrapper until the path is renamed or removed, which is a \
+                          refusal standing in front of an irreversible act rather than a pass over one"
+                    .into(),
+            }),
+            "a_worktree_holding_an_undecodable_path_is_not_judged_clean_or_dirty",
+        ),
         BoundDecl::unpinned(
             BoundId::new(
                 "publish-source-integrity/the-tree-changing-after-the-gate-passed-is-not-observed-a-stated-bound",
