@@ -50,6 +50,25 @@ them.
 
 ### Static
 
+- **Two axes were added and one was floored.** The coverage floor that arrived with `Position` and `Value`
+  iterated `Position::ALL` and asserted nothing about the axis added beside it, in the same commit whose own
+  comment says *a branch that stops emitting is a corpus that shrank, and a shrinking corpus passes*. Both
+  axes are floored now, and `Shape` carries its value spelling for the same reason it carries its position:
+  the floor reads the axis value rather than the label.
+
+  **A floor iterating the array the corpus was built from cannot see that array trimmed**, which is the
+  wider hole and the reason the expectation is now declared. Measured: `Value::ALL` cut to `[Ordinary]`
+  dropped 43 of 90 shapes and every assertion passed, because the floor asked about the set the corpus was
+  built from rather than the set the corpus is supposed to cover. The expectation is declared here and held
+  to each enumerator **both ways**, which is the shape `AGENTS.md` prescribes for a claim something
+  downstream filters on — and the precedent it cites is exactly this: a coverage assertion filtering on a
+  literal stayed green when a dimension was removed from the list it filtered against.
+
+  **And an axis whose variants coincide is not an axis.** A `spell` that stopped distinguishing the two
+  would satisfy every coverage floor while generating one form twice under two labels, because a floor reads
+  the value a shape was *labelled* with. The assertion that the two spellings differ is independent of both
+  arrays, and is what says the axis does something.
+
 - **A generated corpus claimed the language and enumerated a cross-product.** The attribute-spelling
   differential's doc read *the corpus is every lexical form Rust admits, which no inspection enumerates* over
   a flat `wrapper × predicate × meta` product — a claim no cross-product can make, and one that was false
