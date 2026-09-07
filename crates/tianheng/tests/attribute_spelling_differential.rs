@@ -4,8 +4,13 @@
 //! found by a person reading one more spelling, and each repair was correct and followed by another shape.
 //! `BACKLOG.md`'s `path_meta_values` entry states the cost — nine wrong answers across two crates, every one
 //! a clean verdict over source no build compiles or a violation against source the governed tree does not
-//! have — and states what the null option cannot buy: *any statement about what remains*. The corpus is
-//! every lexical form Rust admits, which no inspection enumerates.
+//! have — and states what the null option cannot buy: *any statement about what remains*.
+//!
+//! **What the corpus is, stated as what it is.** It is the cross-product of the axes `corpus()` declares,
+//! summed over attribute positions, plus the look-alikes declared beside them — and the count is printed
+//! on every clean run rather than written here. It is **not** every lexical form Rust admits: no
+//! cross-product can be, and this one said so while being false along three axes at once. Two of the
+//! three are axes now; the third answers a different question and `BACKLOG.md` carries it.
 //!
 //! **Three parties, because two are not enough.** A differential over the three dimensions alone answers
 //! *do they agree*, and agreement is not correctness: the raw bare-`cfg` spelling was missed by all three at
@@ -66,75 +71,171 @@ struct Shape {
     label: String,
     attribute: String,
     answer: Answer,
+    /// Which position this shape occupies, carried as the value rather than left in the label — the
+    /// coverage floor below reads it, and a floor that matched on label text would be a reader over
+    /// prose where an axis value was available.
+    position: Position,
     /// Whether the predicate holds on this host, and so whether rustc can be asked which file the build
     /// contains rather than only whether the source is legal.
     live_predicate: bool,
 }
 
-/// The generated corpus: wrapper × predicate for the governed half, and the look-alikes for the other.
+/// Where the `#[path]` attribute sits — the axis every reader has an arm for and the corpus had none.
+///
+/// **Not orthogonal to the rest, which is why the corpus is a sum over positions rather than one product.**
+/// A direct attribute is resolved unconditionally, so it carries no wrapper and no predicate; and it admits
+/// no look-alike either — measured, `#[foo::path = "target.rs"] mod m;` is `error[E0433]: cannot find module
+/// or crate 'foo'`, because there is no false predicate to keep the qualified path from being resolved. A
+/// decoy has to compile while naming nothing, so decoys live only where a predicate carries them.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Position {
+    /// `#[path = "…"]` written on the declaration itself.
+    Direct,
+    /// `#[cfg_attr(<pred>, path = "…")]`, where the attribute is applied conditionally.
+    CfgAttrWrapped,
+}
+
+impl Position {
+    const ALL: [Self; 2] = [Self::Direct, Self::CfgAttrWrapped];
+}
+
+/// How the value literal is spelled. Both decode to the same path, and a reader comparing renderings
+/// rather than values answers differently for the two.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Value {
+    Ordinary,
+    Raw,
+}
+
+impl Value {
+    const ALL: [Self; 2] = [Self::Ordinary, Self::Raw];
+
+    fn label(self) -> &'static str {
+        match self {
+            Value::Ordinary => "ordinary value",
+            Value::Raw => "raw value",
+        }
+    }
+
+    fn spell(self, path: &str) -> String {
+        match self {
+            Value::Ordinary => format!("\"{path}\""),
+            Value::Raw => format!("r#\"{path}\"#"),
+        }
+    }
+}
+
+/// How the `path` key and its `=` are written, holding the raw-identifier and trivia spellings.
+const METAS: [(&str, &str); 4] = [
+    ("path", "path = {value}"),
+    ("raw path", "r#path = {value}"),
+    ("comment before name", "/*c*/ path = {value}"),
+    ("comment before eq", "path /*c*/ = {value}"),
+];
+
+/// The `cfg_attr` nestings a wrapped attribute can arrive through.
+const WRAPPERS: [(&str, &str); 3] = [
+    ("plain", "cfg_attr({pred}, {meta})"),
+    ("nested", "cfg_attr({pred}, cfg_attr({pred}, {meta}))"),
+    (
+        "raw wrapper",
+        "cfg_attr({pred}, r#cfg_attr({pred}, {meta}))",
+    ),
+];
+
+/// Predicates, with whether each holds on this host — which decides whether rustc can be asked *which file
+/// the build contains* rather than only whether the source is legal.
+const PREDICATES: [(&str, &str, bool); 3] = [
+    ("unix", "unix", cfg!(unix)),
+    (
+        "compound",
+        "all(unix, not(target_os = \"none\"))",
+        cfg!(unix),
+    ),
+    ("false", "any()", false),
+];
+
+/// The generated corpus: a **sum over positions**, each position's own product, plus the declared decoys.
+///
+/// **The count is `len()`, and the claim above it names these axes rather than the language.** This function
+/// used to be a flat `wrapper × predicate × meta` product under a module doc reading *the corpus is every
+/// lexical form Rust admits, which no inspection enumerates* — a claim no cross-product can make, and one
+/// that was false along three axes at once: every shape was `cfg_attr`-headed, so the direct attribute
+/// position had no row; every value was an ordinary literal; and the bare-`cfg` spelling the doc names as
+/// the defect that motivated the whole file had nothing either.
+///
+/// **Two of those three are axes here and the third is not**, because it answers a different question. A
+/// bare `#[cfg(pred)]` removes the whole item when `pred` is false, where `#[cfg_attr(pred, …)]` never
+/// removes the item — so what a reader does with a bare `cfg` is *absence tolerance*, whether a missing
+/// backing file is an error, and its probe is a file that does not exist rather than an item that resolves.
+/// `Answer` has no value for it. It is a second subject, and `BACKLOG.md` carries it as one.
 ///
 /// A decoy is paired with a **false** predicate deliberately. `foo::path` under a live predicate is a path
 /// rustc resolves and rejects, so the pairing is what makes the shape legal source at all — and the
 /// compile step below is what would catch the pairing being wrong.
 fn corpus() -> Vec<Shape> {
-    let wrappers: [(&str, &str); 3] = [
-        ("plain", "cfg_attr({pred}, {meta})"),
-        ("nested", "cfg_attr({pred}, cfg_attr({pred}, {meta}))"),
-        (
-            "raw wrapper",
-            "cfg_attr({pred}, r#cfg_attr({pred}, {meta}))",
-        ),
-    ];
-    let predicates: [(&str, &str, bool); 3] = [
-        ("unix", "unix", cfg!(unix)),
-        (
-            "compound",
-            "all(unix, not(target_os = \"none\"))",
-            cfg!(unix),
-        ),
-        ("false", "any()", false),
-    ];
-    let metas: [(&str, &str); 4] = [
-        ("path", "path = \"target.rs\""),
-        ("raw path", "r#path = \"target.rs\""),
-        ("comment before name", "/*c*/ path = \"target.rs\""),
-        ("comment before eq", "path /*c*/ = \"target.rs\""),
-    ];
-
     let mut out = Vec::new();
-    for (wl, wrapper) in wrappers {
-        for (pl, pred, live) in predicates {
-            for (ml, meta) in metas {
-                out.push(Shape {
-                    label: format!("{wl} · {pl} · {ml}"),
-                    attribute: format!(
-                        "#[{}]",
-                        wrapper.replace("{pred}", pred).replace("{meta}", meta)
-                    ),
-                    answer: Answer::Governed,
-                    live_predicate: live,
-                });
+    for position in Position::ALL {
+        for value in Value::ALL {
+            for (ml, meta) in METAS {
+                let meta = meta.replace("{value}", &value.spell("target.rs"));
+                match position {
+                    Position::Direct => out.push(Shape {
+                        label: format!("direct · {ml} · {}", value.label()),
+                        attribute: format!("#[{meta}]"),
+                        answer: Answer::Governed,
+                        position,
+                        // No predicate stands between a direct attribute and the build, so the remap always
+                        // applies and rustc can always be asked which file the build contains.
+                        live_predicate: true,
+                    }),
+                    Position::CfgAttrWrapped => {
+                        for (wl, wrapper) in WRAPPERS {
+                            for (pl, pred, live) in PREDICATES {
+                                out.push(Shape {
+                                    label: format!("{wl} · {pl} · {ml} · {}", value.label()),
+                                    attribute: format!(
+                                        "#[{}]",
+                                        wrapper.replace("{pred}", pred).replace("{meta}", &meta)
+                                    ),
+                                    answer: Answer::Governed,
+                                    position,
+                                    live_predicate: live,
+                                });
+                            }
+                        }
+                    }
+                }
             }
         }
     }
-    // The look-alikes. Each names `target.rs` in a position no build compiles it from.
-    for (label, meta) in [
-        ("qualified path", "foo::path = \"target.rs\""),
-        ("raw qualified path", "foo::r#path = \"target.rs\""),
-        ("path in a non-cfg_attr group", "foo(path = \"target.rs\")"),
-        (
-            "path inside a string literal",
-            "doc = \"path = \\\"target.rs\\\"\"",
-        ),
-    ] {
-        out.push(Shape {
-            label: format!("decoy · {label}"),
-            attribute: format!("#[cfg_attr(any(), {meta})]"),
-            answer: Answer::Decoy,
-            live_predicate: false,
-        });
+    // The look-alikes. Each names `target.rs` in a position no build compiles it from, and each takes the
+    // value axis too — a reader comparing renderings rather than values answers differently for the two.
+    for value in Value::ALL {
+        let spelled = value.spell("target.rs");
+        for (label, meta) in [
+            ("qualified path", format!("foo::path = {spelled}")),
+            ("raw qualified path", format!("foo::r#path = {spelled}")),
+            (
+                "path in a non-cfg_attr group",
+                format!("foo(path = {spelled})"),
+            ),
+        ] {
+            out.push(Shape {
+                label: format!("decoy · {label} · {}", value.label()),
+                attribute: format!("#[cfg_attr(any(), {meta})]"),
+                answer: Answer::Decoy,
+                position: Position::CfgAttrWrapped,
+                live_predicate: false,
+            });
+        }
     }
     for (label, attribute) in [
+        (
+            // Literal text rather than a path value, so the value axis does not reach it.
+            "path inside a string literal",
+            "#[cfg_attr(any(), doc = \"path = \\\"target.rs\\\"\")]",
+        ),
         (
             "qualified wrapper",
             "#[cfg_attr(any(), foo::cfg_attr(unix, path = \"target.rs\"))]",
@@ -152,6 +253,7 @@ fn corpus() -> Vec<Shape> {
             label: format!("decoy · {label}"),
             attribute: attribute.to_string(),
             answer: Answer::Decoy,
+            position: Position::CfgAttrWrapped,
             live_predicate: false,
         });
     }
@@ -328,6 +430,20 @@ fn every_generated_spelling_is_answered_the_same_way_by_every_dimension() {
         corpus.len(),
         offences.join("\n  ")
     );
+    // **Every declared position produced a shape.** Without this the direction reports clean over whatever
+    // the builder happens to emit: a branch that stops emitting is a corpus that shrank, and a shrinking
+    // corpus passes. Read off the axis value rather than the label, so a renamed label cannot satisfy it.
+    //
+    // Measured by making the direct branch emit nothing:
+    //   no generated shape occupies Direct, so this direction would report clean over a corpus that no
+    //   longer covers every declared position
+    for position in Position::ALL {
+        assert!(
+            corpus.iter().any(|shape| shape.position == position),
+            "no generated shape occupies {position:?}, so this direction would report clean over a corpus \
+             that no longer covers every declared position"
+        );
+    }
     let (governed, decoys) = corpus
         .iter()
         .fold((0, 0), |(g, d), shape| match shape.answer {
