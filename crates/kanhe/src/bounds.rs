@@ -186,16 +186,19 @@ pub fn observation_bounds() -> Vec<BoundDecl> {
             BoundId::new(
                 "repository-checks/an-input-edited-inside-its-own-post-gate-re-read-a-stated-bound",
             ),
-            "a pull request title, base branch or head branch changing between the wrapper's post-gate \
-             re-read of it and `gh pr merge`",
+            "an input the wrapper re-reads after the gate changing between that re-read and \
+             `gh pr merge`",
             Extent::Reached(Reached::UnderReacts {
                 because: "the wrapper pins what the merge RECORDS by construction -- the body travels as the \
                           value the gate judged, and the commit set is pinned through `--match-head-commit`, \
                           which the server decides atomically. What the merge is JUDGED AGAINST has to be \
-                          re-read instead, and `gh` offers no equivalent precondition for the title, the base \
-                          or the head branch's name, so a re-read shrinks the exposure from a whole `cargo test` to one API \
-                          call rather than closing it. One bound rather than one per input: the stop is a \
-                          property of a client-side re-read not being atomic with the act it precedes"
+                          re-read instead, and `gh` offers no equivalent precondition for any of it, so a \
+                          re-read shrinks the exposure rather than closing it. One bound rather than one per \
+                          input: the stop is a property of a client-side re-read not being atomic with the \
+                          act it precedes, so it is reached through whichever inputs are read that way -- \
+                          which is why neither this subject nor this reason names them. It read as three \
+                          while the reason said the count is not written, and a fourth was added to the \
+                          re-read set with the enumeration left standing"
                     .into(),
                 owner: Owner::Engine,
             }),

@@ -1780,13 +1780,16 @@ so both are judged and both are re-read.
 
 #### Scenario: An input edited inside its own post-gate re-read — a stated bound
 
-- **WHEN** the pull request's title, base branch or head branch changes between the wrapper's post-gate
-  re-read of it and `gh pr merge`
+- **WHEN** an input the wrapper re-reads after the gate changes between that re-read and `gh pr merge`
 - **THEN** nothing observes it, and the merge proceeds against the value the gate approved. What the merge
   records is pinned by construction — the body travels as the value the gate judged, and the commit set
-  through `--match-head-commit`, which GitHub decides atomically. `gh` offers no equivalent for the title,
-  the base or the head branch's name, so each can only be re-read, which shrinks the exposure from a whole
-  `cargo test` to one API call rather than closing it. Closing it needs a server-decided precondition this tool does not offer
+  through `--match-head-commit`, which GitHub decides atomically. What it is judged against can only be
+  re-read, `gh` offering no equivalent precondition for any of it, which shrinks the exposure rather than
+  closing it. Closing it needs a server-decided precondition this tool does not offer
+- **AND** the WHEN names the class rather than the inputs, because the clause below says the count is not
+  written and this one used to write it: it read *title, base branch or head branch* while a fourth input —
+  what CI said — was added to the re-read set, leaving the enumeration short by one and the two halves of
+  one bound disagreeing about their own subject
 - **AND** this is one bound rather than one per input. The stop is a property of a **client-side re-read** —
   it cannot be atomic with the act it precedes — so it is reached through whichever inputs are re-read, and
   declaring it per input would be one record of one fact for each, which must then all agree. The count is

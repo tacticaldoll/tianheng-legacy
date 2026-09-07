@@ -315,39 +315,40 @@ pub fn run_with_stdin(
     // it — `check-ignore` writes there only to be fatal, in about a hundred and sixty bytes — so what
     // stands in place of a negative run is the property: with both readers running, no caller can be left
     // betting that its subcommand's stderr is small.
-    let mut stdout = child
-        .stdout
-        .take()
-        .ok_or_else(|| Failure::Spawn(format!("git {args:?} gave no stdout")))?;
+    // **All three handles are taken before any reader exists, and one arm answers for all three.** They
+    // were taken one at a time, each with a refusal of its own, and each refusal had to unwind whatever the
+    // ones before it had started: the second joined a reader while stdin was still held, which would wait
+    // on a stdout that cannot reach EOF until the child sees one. Unreachable — `Stdio::piped()` two lines
+    // up makes all three `Some`, so no arm ran and nothing hung — but three dead recovery paths, one of
+    // them holding a hang, are what a reader has to work out is dead. Taken together there is nothing
+    // started to unwind, and *the child did not give the pipes it was built with* is one fact rather than
+    // three.
+    //
+    // A refusal rather than an `expect`: this module answers in `Failure` everywhere and carries no panic
+    // outside the fixture side, and a construction invariant is not a reason to add the first one.
+    let (mut stdout, mut stderr, stdin) =
+        match (child.stdout.take(), child.stderr.take(), child.stdin.take()) {
+            (Some(stdout), Some(stderr), Some(stdin)) => (stdout, stderr, stdin),
+            _ => {
+                let _ = child.wait();
+                return Err(Failure::Spawn(format!(
+                    "git {args:?} did not give the three pipes it was built with"
+                )));
+            }
+        };
     let drain = std::thread::spawn(move || {
         let mut answer = Vec::new();
         stdout.read_to_end(&mut answer).map(|_| answer)
     });
-    let mut stderr = match child.stderr.take() {
-        Some(stderr) => stderr,
-        None => {
-            let _ = drain.join();
-            let _ = child.wait();
-            return Err(Failure::Spawn(format!("git {args:?} gave no stderr")));
-        }
-    };
     let complaint = std::thread::spawn(move || {
         let mut said = Vec::new();
         stderr.read_to_end(&mut said).map(|_| said)
     });
 
-    // Taken rather than borrowed: the write ends by DROPPING stdin, and the child cannot finish until it
-    // sees that EOF. Left in place until the end of the call it would keep the pipe open past the read below.
+    // Moved into this block rather than held to the end: the write ends by DROPPING stdin, and the child
+    // cannot finish until it sees that EOF. Alive past the block it would keep the pipe open past the reads.
     let delivered = {
-        let mut stdin = match child.stdin.take() {
-            Some(stdin) => stdin,
-            None => {
-                let _ = drain.join();
-                let _ = complaint.join();
-                let _ = child.wait();
-                return Err(Failure::Spawn(format!("git {args:?} took no stdin")));
-            }
-        };
+        let mut stdin = stdin;
         let mut delivered = Ok(());
         for record in records {
             delivered = stdin
