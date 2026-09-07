@@ -269,6 +269,20 @@ outside the split that repair made.
 - **THEN** the gate refuses as a cannot-judge naming the paths it could not classify, rather than treating an
   unusable classifier as one that found nothing
 
+#### Scenario: The exclusion classifier refuses part-way through the conversation
+
+- **WHEN** `check-ignore` is fatal about a record and exits while the gate is still delivering the rest, so
+  the delivery reaches a pipe the child has already closed
+- **THEN** the answer is git's — an exit class carrying git's own words — and not this process's failed
+  write. The two are different facts about different processes, which is the rule this capability states
+  over its verifier read from the exit **code** rather than from a process status, met one layer down in
+  the runner that holds the conversation
+- **AND** the reading is possible because that runner drains **both** of the child's output pipes while the
+  delivery runs, rather than one: the stdout half was a measured deadlock and was closed with a reader of
+  its own, and stderr was left to a collection that happens after the delivery — the same shape one pipe
+  over, in the one runner standing in front of `cargo publish`
+- **PINNED-BY** `a_refusal_during_the_conversation_is_reported_as_the_refusal_it_is`
+
 #### Scenario: The exclusion classifier's answer is not text
 
 - **WHEN** `check-ignore` runs, exits `0`, and answers a pattern carrying bytes no `String` holds — a

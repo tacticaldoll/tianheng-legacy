@@ -307,6 +307,14 @@ pub fn run_with_stdin(
         .spawn()
         .map_err(|err| Failure::Spawn(format!("cannot run git {args:?}: {err}")))?;
 
+    // **Both pipes are drained while the conversation runs, not one.** The header above records the
+    // measured deadlock on stdout and closed it with the thread below; `stderr` was left piped and read
+    // only by `wait_with_output`, which runs *after* the write loop. That is the same shape one pipe over:
+    // a child that fills the stderr buffer mid-conversation stops reading stdin, the parent blocks on a
+    // full stdin, and neither moves. No arm of the current argument set writes enough to stderr to reach
+    // it — `check-ignore` writes there only to be fatal, in about a hundred and sixty bytes — so what
+    // stands in place of a negative run is the property: with both readers running, no caller can be left
+    // betting that its subcommand's stderr is small.
     let mut stdout = child
         .stdout
         .take()
@@ -314,6 +322,18 @@ pub fn run_with_stdin(
     let drain = std::thread::spawn(move || {
         let mut answer = Vec::new();
         stdout.read_to_end(&mut answer).map(|_| answer)
+    });
+    let mut stderr = match child.stderr.take() {
+        Some(stderr) => stderr,
+        None => {
+            let _ = drain.join();
+            let _ = child.wait();
+            return Err(Failure::Spawn(format!("git {args:?} gave no stderr")));
+        }
+    };
+    let complaint = std::thread::spawn(move || {
+        let mut said = Vec::new();
+        stderr.read_to_end(&mut said).map(|_| said)
     });
 
     // Taken rather than borrowed: the write ends by DROPPING stdin, and the child cannot finish until it
@@ -323,6 +343,7 @@ pub fn run_with_stdin(
             Some(stdin) => stdin,
             None => {
                 let _ = drain.join();
+                let _ = complaint.join();
                 let _ = child.wait();
                 return Err(Failure::Spawn(format!("git {args:?} took no stdin")));
             }
@@ -340,27 +361,43 @@ pub fn run_with_stdin(
     };
 
     // Reaped on every path, including the failed write — the child is drained and waited on before any
-    // outcome is consulted, so no arm below can leave a `git` behind holding a pipe.
-    let out = child.wait_with_output();
+    // outcome is consulted, so no arm below can leave a `git` behind holding a pipe. `wait` rather than
+    // `wait_with_output`, because both pipes are held by the readers above and that call would collect
+    // nothing from either.
+    let waited = child.wait();
     let answer = drain.join();
+    let said = complaint.join();
 
-    delivered
-        .map_err(|err| Failure::Spawn(format!("cannot write records to git {args:?}: {err}")))?;
-    let out = out.map_err(|err| Failure::Spawn(format!("git {args:?} did not finish: {err}")))?;
-    let answer = match answer {
-        Ok(Ok(answer)) => answer,
-        Ok(Err(err)) => {
-            return Err(Failure::Spawn(format!(
-                "cannot read git {args:?}'s answer: {err}"
-            )));
-        }
-        Err(_) => {
-            return Err(Failure::Spawn(format!(
-                "the reader of git {args:?}'s answer panicked"
-            )));
-        }
+    let read = |joined: std::thread::Result<std::io::Result<Vec<u8>>>, which: &str| match joined {
+        Ok(Ok(bytes)) => Ok(bytes),
+        Ok(Err(err)) => Err(Failure::Spawn(format!(
+            "cannot read git {args:?}'s {which}: {err}"
+        ))),
+        Err(_) => Err(Failure::Spawn(format!(
+            "the reader of git {args:?}'s {which} panicked"
+        ))),
     };
-    answered(out.status, answer, &out.stderr, args)
+    let answer = read(answer, "answer")?;
+    let said = read(said, "complaint")?;
+    let status =
+        waited.map_err(|err| Failure::Spawn(format!("git {args:?} did not finish: {err}")))?;
+
+    // **A write that failed because the child had already refused is the child's refusal.** Reported as a
+    // write failure it read *cannot write records to git […]: Broken pipe*, a sentence about this process
+    // for a fact about git's — the fold this module's own `Failure` doc records paying for one level up.
+    // Measured through this runner, with a record `check-ignore` is fatal about first and fifty thousand
+    // ordinary ones behind it: the broken pipe was all the caller got, and git's `fatal:` and its exit
+    // status were both discarded. So where the child answered with a status of its own, that status is the
+    // answer; the write error stands only where git did not refuse.
+    if let Err(err) = delivered {
+        if !status.success() {
+            return answered(status, answer, &said, args);
+        }
+        return Err(Failure::Spawn(format!(
+            "cannot write records to git {args:?}: {err}"
+        )));
+    }
+    answered(status, answer, &said, args)
 }
 
 /// Every record `git ls-files` answers under `pathspec`, NUL-separated, through [`run_exact`].

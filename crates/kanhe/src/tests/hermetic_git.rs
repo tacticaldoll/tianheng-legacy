@@ -795,3 +795,66 @@ fn git_output_that_is_not_utf8_is_refused_rather_than_replaced() {
         ),
     }
 }
+
+/// A write that failed because the child had already refused reports the child's refusal.
+///
+/// **Two facts were folded, and the fold is one this module's own [`Failure`] doc records paying for.**
+/// `run_with_stdin` writes records into a pipe the child may already have closed: `check-ignore` is fatal
+/// about a path outside the repository, and it exits on the first one. The parent then keeps writing until
+/// the write fails, and the failure reported was *cannot write records to git […]: Broken pipe* — a
+/// sentence about this process, for a fact about git's. The exit status and git's own `fatal:` were both
+/// discarded on that path, so a caller could not tell a git that refused from a pipe that broke for any
+/// other reason.
+///
+/// The direction feeds the fatal record first and enough ordinary records behind it that the write reaches
+/// a closed pipe rather than fitting in the buffer, then asserts the answer is git's: an exit class, with
+/// git's own words in it.
+///
+/// [`Failure`]: crate::hermetic_git::Failure
+#[test]
+#[cfg(unix)]
+fn a_refusal_during_the_conversation_is_reported_as_the_refusal_it_is() {
+    let root = std::env::temp_dir().join(format!("kanhe-git-stdin-refusal-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    xingbiao::claim_scratch(&root).expect("create the fixture root");
+    for args in [
+        &["init", "-q", "."][..],
+        &["config", "user.email", "fixture@example.invalid"][..],
+        &["config", "user.name", "fixture"][..],
+    ] {
+        crate::hermetic_git::run(&root, &[], args).expect("the fixture repository is built");
+    }
+
+    // The fatal first, then more records than a pipe buffer holds, so the write is still running when the
+    // child is already gone. A short conversation would fit and never fail, which is why the count is the
+    // fixture rather than a detail of it.
+    let mut records = vec!["/etc/passwd".to_string()];
+    records.extend((0..50_000).map(|i| format!("p{i}.log")));
+    let refs: Vec<&str> = records.iter().map(String::as_str).collect();
+
+    let answered = crate::hermetic_git::run_with_stdin(
+        &root,
+        &[],
+        &["check-ignore", "-z", "-v", "--no-index", "--stdin"],
+        &refs,
+    );
+    let _ = std::fs::remove_dir_all(&root);
+
+    match answered {
+        Err(crate::hermetic_git::Failure::Exit { code, stderr }) => {
+            assert_eq!(
+                code,
+                Some(128),
+                "git refused, so the answer carries git's own exit class: {stderr}"
+            );
+            assert!(
+                stderr.contains("outside repository"),
+                "the refusal carries git's own words rather than this process's: {stderr}"
+            );
+        }
+        other => panic!(
+            "a refusal during the conversation must be reported as the refusal, not as a broken pipe; \
+             got {other:?}"
+        ),
+    }
+}

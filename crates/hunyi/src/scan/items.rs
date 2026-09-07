@@ -985,7 +985,7 @@ fn push_type_def(
 /// attributes (the latter read cfg-agnostically). A `derive` whose arguments fail to parse is
 /// a scan error (exit 2) — "cannot judge" is never a silent skip.
 ///
-/// **Both names are read through [`crate::syn_util::is_builtin_attribute`]**, so a raw-identifier
+/// **Both names are read through [`crate::syn_util::is_builtin_name`]**, so a raw-identifier
 /// spelling is the built-in it spells. Measured against rustc 1.96.0, edition 2021,
 /// `--crate-type lib`: `#[r#derive(Clone)]`, `#[r#cfg_attr(unix, derive(Clone))]` and
 /// `#[cfg_attr(unix, r#derive(Clone))]` each apply the derive. Compared as written, all three
@@ -996,9 +996,9 @@ fn push_type_def(
 fn extract_derives(attrs: &[syn::Attribute]) -> Result<Vec<syn::Path>, String> {
     let mut out = Vec::new();
     for attr in attrs {
-        if crate::syn_util::is_builtin_attribute(attr.path(), "derive") {
+        if crate::syn_util::is_builtin_name(attr.path(), "derive") {
             out.extend(parse_derive_paths(&attr.meta)?);
-        } else if crate::syn_util::is_builtin_attribute(attr.path(), "cfg_attr") {
+        } else if crate::syn_util::is_builtin_name(attr.path(), "cfg_attr") {
             let metas = attr
                 .parse_args_with(meta_list_parser())
                 .map_err(|e| format!("cannot parse #[cfg_attr(...)]: {e}"))?;
@@ -1036,9 +1036,9 @@ fn extract_derives_from_cfg_metas(
 ) -> Result<(), String> {
     for meta in metas.iter().skip(1) {
         if let syn::Meta::List(list) = meta {
-            if crate::syn_util::is_builtin_attribute(&list.path, "derive") {
+            if crate::syn_util::is_builtin_name(&list.path, "derive") {
                 out.extend(parse_derive_paths(meta)?);
-            } else if crate::syn_util::is_builtin_attribute(&list.path, "cfg_attr") {
+            } else if crate::syn_util::is_builtin_name(&list.path, "cfg_attr") {
                 let inner = list
                     .parse_args_with(meta_list_parser())
                     .map_err(|e| format!("cannot parse nested #[cfg_attr(...)]: {e}"))?;
