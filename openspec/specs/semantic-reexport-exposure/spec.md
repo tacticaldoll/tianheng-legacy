@@ -247,8 +247,11 @@ difference, not by source text). **The `not` wrapper SHALL be recognized by the 
 by its written spelling**: `r#not` is a raw-identifier spelling of `not` and names the same
 predicate, so `#[cfg(r#not(P))]` SHALL be the negation of `#[cfg(P)]` exactly as `#[cfg(not(P))]`
 is. This is the same rule the enclosed predicates already carry — their segments are compared with
-the raw prefix stripped — and the two halves of one comparison SHALL NOT answer differently about
-one grammar. The direction the rule protects is the forbidden one, not a noisy one: this exclusion
+the raw prefix stripped, so what the wrapper's own comparison had been doing is answering differently
+about one grammar from the halves it encloses. That is written as the reason and not as a further
+SHALL: what reacts is the `not` wrapper's recognition, and a clause reaching every comparison in that
+family would assert structure nothing observes.
+The direction the rule protects is the forbidden one, not a noisy one: this exclusion
 decides whether a same-named child `mod` genuinely shadows a `pub use`'s bare head, so a negation
 read as no negation leaves that shadow standing, the re-export is never resolved against the extern
 prelude, and its exposure is dropped rather than over-reported. When either holds, the `mod`'s name is NOT subtracted from **either**
