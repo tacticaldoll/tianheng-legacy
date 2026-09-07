@@ -177,6 +177,27 @@ them.
 
 ### Release
 
+- **A path handed to git as a pathspec was read as an instruction.** `--` separates revisions from paths
+  and nothing else: git parses pathspec *magic* after the separator too. Measured on this machine's git with
+  a directory literally named `:(exclude)odd` tracked in a fixture, `ls-files -- ':(exclude)odd'` answers the
+  **whole** repository — the pathspec stopped restricting and became an exclusion of something else, so the
+  machinery corpus for an unpublished member was an answer to a different question.
+
+  **Two wider fixes were measured and rejected, and the third is where the knowledge is.**
+  `GIT_LITERAL_PATHSPECS=1` on the shared builder makes `check-ignore` fail outright — `fatal: pathspec
+  magic not supported by this command: 'literal'`, exit 128 — so the exclusion classifier cannot take it.
+  `--literal-pathspecs` on the shared `tracked_records` breaks the callers whose pathspec **is** a pattern:
+  `capability_subjects` asks for `openspec/specs/*/spec.md` and `law_restatement` for `*.md`, and the flag
+  disables glob magic with the rest. That premise — *this accessor never takes a caller's glob* — was
+  asserted and then falsified by running the suite, which is why the literalization sits on
+  `repository_path`, the owner of how this repository spells a path.
+
+  The direction carries its own control: without the un-literalized listing beside the literal one, the
+  assertion would pass on any git that never parsed magic there and report clean for an unrelated reason.
+  What is **not** held is the choice to use the owner at each call site — dropping it compiles and nothing
+  goes red, because the type that knew the value was a path is gone by then, and a reader deciding which
+  `&str` came from a path is the judgement over source this repository declines.
+
 - **A refusal an operator reads before an irreversible act carried twenty-six spaces mid-sentence.** The
   message for a member manifest with no parent directory read *there is no member&nbsp;… directory to
   enumerate*. `AGENTS.md`'s carrier table records this shape as one with **no reaction** deliberately —
