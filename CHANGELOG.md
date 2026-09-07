@@ -26,6 +26,37 @@ them.
 
 ### Governance
 
+- **The file that records what a pin proves carried a hand-written count of its own subject.** Its header
+  named how many bounds the window had declared and how many bounds one target holds. Both were true when
+  typed and both were understatements of the same sets before the window closed — a new bound and two more
+  bounds arrived after the figures did — in the one file whose whole argument is that a citation proves a
+  name resolves and only a record proves a pin bites.
+
+  A census belongs where something enumerates it, and something already does: `pin_bites` prints
+  `N declared mutation(s) covering N of M cited test(s)` on every clean run. So the figures are gone and
+  neither is replaced by another figure — what stands in their place is the property they were standing in
+  for. **What a window owes is its own bounds, not the standing set**: paying a record for every citation
+  the repository already carries is not affordable and paying one per bound a window declares is, so the
+  obligation rides the act that creates the debt. And the target with unrecorded bounds names them instead
+  of counting them, since a denominator there is a count that moves while the sentence does not.
+
+- **A scenario stated a refusal and nothing reached it.** `repository-checks` declares that a tracked Rust
+  file the lexer refuses is a cannot-judge naming the path, and the reaction was there — but the
+  repeated-paragraph target's twelve directions covered an unreadable file and a path that is not UTF-8 and
+  never a file that does not lex. A reaction no direction reaches is a clause with the shape of evidence and
+  none of the substance, which is the seam `AGENTS.md` asks a scenario to close in the direction it was not
+  looked at.
+
+  It was reachable the whole time: the target's own unreadable-file direction calls `offences` with a
+  hand-built listing, so the probe is a file written into a scratch tree. **The fixture is chosen so the
+  guard's absence accuses rather than merely skips.** An unterminated string literal wrapping a doubled
+  comment-shaped paragraph reaches both halves at once — `proc_macro2` refuses it, and a lexer that could
+  not run shadows nothing, so every comment-shaped line inside the literal is read as a comment. Measured
+  with the lex question removed and the fixture untouched: `Violation — unterminated.rs:4: a 1-line comment
+  paragraph is written twice in a row`, a file's own literal text reported back at its author as a
+  repetition nobody wrote. The terminated spelling is the control and answers clean in both runs, so the
+  direction is about the refusal and not about the paragraph being out of reach either way.
+
 - **`xingbiao`'s charter says what it carries, and states the criterion instead of a list.** Its module doc
   enumerated the path-identity primitives it holds *beside* the metadata reader — an enumeration that stopped
   covering the module when the filesystem-answer policy was added to it this window, for the ordinary reason
