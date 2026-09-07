@@ -422,6 +422,12 @@ them.
 
 ### Semantic and runtime
 
+- **渾儀's built-in-name predicate is named for its reach.** It was named for attributes alone while one call
+  site asks it about `not`, which is a `cfg` predicate's combinator and not an attribute at all — a name
+  wider than the thing it names, in the family that holds every other name to that standard. `pub(crate)`,
+  so no published surface moves. Found by the same review.
+
+
 - **BREAKING** — **渾儀 reads the `not` wrapper as the name it spells, where it matched the identifier as
   written.** The cfg-aware carve-out decides whether a same-named child `mod` genuinely shadows a `pub
   use`'s bare head: where the two are provably mutually exclusive, the `mod` never wins name resolution
@@ -1270,6 +1276,34 @@ them.
   and the compiled behaviour is the `0.5.0` behaviour.
 
 ### Self-governance
+
+- **The runner that holds a conversation with `git` drained one of its two output pipes, and the other was
+  the same hazard it had already paid for.** `run_with_stdin` gives stdout a reader of its own because the
+  header above it records the measurement: 73,670 excluded paths, 9.1 MB in and 11.0 MB out against a 64 KB
+  pipe, `git check-ignore` in `pipe_wait`, and `scripts/publish.sh` hung indefinitely. `stderr` was piped
+  too and read only by the collection that runs *after* the delivery loop — so a child that fills the stderr
+  buffer mid-conversation stops reading stdin, the parent blocks on a full stdin, and neither moves. One pipe
+  over, in the one runner standing in front of `cargo publish`, and left to each caller to bet its
+  subcommand's stderr is small.
+
+  Both pipes now have a reader running with the delivery. **No negative run stands behind that half, and the
+  reason is the argument set rather than an omission**: measured, `check-ignore` writes to stderr only to be
+  fatal, in about a hundred and sixty bytes, and it exits there — so the buffer is not reachable through the
+  one production call site. What stands in its place is the property. With both readers running, the shape is
+  not writable at the runner level, which is what the header's own argument asks for: a list of what is safe
+  is as complete as the last person's memory, and the case is the defence.
+
+  **The other half of the repair is reachable, and it was measured.** A delivery that fails because the child
+  has already refused is the child's refusal. Reported as a write failure it read *cannot write records to
+  git […]: Broken pipe*, a sentence about this process for a fact about git's — the fold this module's own
+  `Failure` doc records paying for one level up, where a machine without git was told something about the
+  repository. Measured through the runner, with a record `check-ignore` is fatal about first and fifty
+  thousand ordinary ones behind it: `Err(Spawn("cannot write records to git […]: Broken pipe (os error
+  32)"))`, git's `fatal:` and its exit status both discarded. The answer is now
+  `Err(Exit { code: Some(128), stderr: "fatal: … is outside repository at …" })`, and
+  `publish-source-integrity` gains the scenario with a direction pinning it.
+
+  Found by an independent review of this window, which named the pipe and the line.
 
 - **A rule whose subject is every tracked live file had a reader over comment lines, so Markdown was
   unread — and it is read now.** `prose_of` classifies Markdown as `Prose::Whole` and the relative-anchor

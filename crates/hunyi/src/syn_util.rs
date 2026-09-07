@@ -7,7 +7,12 @@ use std::collections::{HashMap, HashSet};
 
 use crate::resolve::strip_raw;
 
-/// Whether `path` is the single-segment built-in attribute named `name`, **in either spelling**.
+/// Whether `path` is the single-segment built-in `name`, **in either spelling** — an attribute's own name,
+/// or a `cfg` predicate's combinator.
+///
+/// **Named for its reach rather than for its first caller.** It was named for attributes alone while one
+/// call site asks it about `not`, which is a `cfg` predicate's combinator and not an attribute at all — a
+/// name wider than the thing it names, which is the standard this family holds every other name to.
 ///
 /// **`Path::is_ident` compares the ident as written.** proc-macro2's `PartialEq<str>` requires the
 /// compared string to carry `r#` when the ident is raw, so `r#path` is not equal to `"path"` for it and
@@ -24,7 +29,7 @@ use crate::resolve::strip_raw;
 ///
 /// Single-segment, like `is_ident`: the built-in is the unqualified path, so `foo::cfg_attr` is somebody
 /// else's attribute and `get_ident` declines it — the same narrowing both sibling dimensions state.
-pub(crate) fn is_builtin_attribute(path: &syn::Path, name: &str) -> bool {
+pub(crate) fn is_builtin_name(path: &syn::Path, name: &str) -> bool {
     path.get_ident()
         .is_some_and(|ident| strip_raw(&ident.to_string()) == name)
 }
@@ -38,7 +43,7 @@ pub(crate) fn is_builtin_attribute(path: &syn::Path, name: &str) -> bool {
 /// most one applied unconditional `#[path]`, so the first match is the value.
 pub(crate) fn direct_path_value(attrs: &[syn::Attribute]) -> Option<String> {
     attrs.iter().find_map(|attr| {
-        if !is_builtin_attribute(attr.path(), "path") {
+        if !is_builtin_name(attr.path(), "path") {
             return None;
         }
         match &attr.meta {
@@ -68,9 +73,7 @@ pub(crate) fn direct_path_value(attrs: &[syn::Attribute]) -> Option<String> {
 /// 漏刻's CI-audit scanner independently hand-rolls the identical bare-`cfg`-only distinction for
 /// the same reason (`louke::audit::scan::mod_preamble_attrs`).
 pub(crate) fn has_cfg_attr(attrs: &[syn::Attribute]) -> bool {
-    attrs
-        .iter()
-        .any(|attr| is_builtin_attribute(attr.path(), "cfg"))
+    attrs.iter().any(|attr| is_builtin_name(attr.path(), "cfg"))
 }
 
 /// The one macro whose body this dimension reads as ordinary code: `cfg_if!`. See
@@ -453,7 +456,7 @@ fn bare_cfg_negates(attrs_a: &[syn::Attribute], attrs_b: &[syn::Attribute]) -> b
 fn sole_bare_cfg_predicate(attrs: &[syn::Attribute]) -> Option<syn::Meta> {
     let cfg_attrs: Vec<&syn::Attribute> = attrs
         .iter()
-        .filter(|attr| is_builtin_attribute(attr.path(), "cfg"))
+        .filter(|attr| is_builtin_name(attr.path(), "cfg"))
         .collect();
     match cfg_attrs.as_slice() {
         [one] => one.parse_args::<syn::Meta>().ok(),
@@ -465,7 +468,7 @@ fn sole_bare_cfg_predicate(attrs: &[syn::Attribute]) -> Option<syn::Meta> {
 /// combinators are not analyzed for a decidable negation and stay a stated bound (see
 /// [`provably_mutually_exclusive`]).
 ///
-/// **Through [`is_builtin_attribute`], because the wrapper's name is a name and not a spelling.**
+/// **Through [`is_builtin_name`], because the wrapper's name is a name and not a spelling.**
 /// `Path::is_ident` compares the ident as written, so `r#not` was not `not` here while
 /// [`meta_path_eq`] — the reader of the very predicates this wrapper encloses — already stripped the
 /// prefix off every segment. One comparison family, two answers about the same grammar.
@@ -479,7 +482,7 @@ fn sole_bare_cfg_predicate(attrs: &[syn::Attribute]) -> Option<syn::Meta> {
 /// build, and a reader that separates them governs a configuration nobody compiles.
 fn meta_is_negation(a: &syn::Meta, b: &syn::Meta) -> bool {
     match b {
-        syn::Meta::List(list) if is_builtin_attribute(&list.path, "not") => list
+        syn::Meta::List(list) if is_builtin_name(&list.path, "not") => list
             .parse_args::<syn::Meta>()
             .is_ok_and(|inner| meta_eq(a, &inner)),
         _ => false,
@@ -559,7 +562,7 @@ fn cfg_attr_metas(input: syn::parse::ParseStream) -> syn::Result<MetaList> {
 pub(crate) fn cfg_attr_path_values(attrs: &[syn::Attribute]) -> Vec<String> {
     attrs
         .iter()
-        .filter(|attr| is_builtin_attribute(attr.path(), "cfg_attr"))
+        .filter(|attr| is_builtin_name(attr.path(), "cfg_attr"))
         .filter_map(|attr| {
             attr.parse_args_with(cfg_attr_metas)
                 .ok()
@@ -592,8 +595,8 @@ fn meta_path_values(meta: &syn::Meta) -> Vec<String> {
                     ..
                 }),
             ..
-        }) if is_builtin_attribute(path, "path") => vec![s.value()],
-        syn::Meta::List(list) if is_builtin_attribute(&list.path, "cfg_attr") => list
+        }) if is_builtin_name(path, "path") => vec![s.value()],
+        syn::Meta::List(list) if is_builtin_name(&list.path, "cfg_attr") => list
             .parse_args_with(cfg_attr_metas)
             .ok()
             .map(|metas| applied_metas_path_values(&metas))
