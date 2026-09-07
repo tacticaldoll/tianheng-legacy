@@ -374,13 +374,14 @@ and SHALL NOT perform a version bump, commit, merge, tag, or publish action.
   volume's rule and not the string's — and a release gate whose verdict over one tree differs by the machine
   it runs on is worse than a refusal an author can read and argue with. This reader is also handed no
   repository to ask
-- **AND** an earlier wording of this clause claimed that canonicalizing would make `..` resolvable and move
-  three other verdicts with it. Review showed otherwise: canonicalization can be confined to the branch that
-  already produced a directory, after the rooted, traversal and no-directory refusals have been returned, so
-  every one of them survives. That reason was false and is not what keeps the bound
+- **AND** what does *not* keep the bound is the cost of canonicalizing. Confined to the branch that already
+  produced a directory — after the rooted, traversal and no-directory refusals have been returned — it makes
+  `..` resolvable and leaves every one of those refusals surviving, so the reach is kept on the two grounds
+  above and not on a spread of consequences
 - **AND** the direction that observes this shape runs where the refusal is **correct**, so it demonstrates a
-  real violation rather than the over-reaction declared here — which is why this bound is unpinned. It was
-  declared pinned for one round, and that was the second instance of the tracked class below
+  real violation rather than the over-reaction declared here — which is why this bound is unpinned. A
+  direction demonstrating a correct refusal is an instance of the tracked class below rather than this
+  bound's defence
 - **UNPINNED** `BACKLOG.md` — *a pin may defend a direction its bound does not declare*
 
 #### Scenario: An internal dependency this reader cannot resolve is not one it may skip
