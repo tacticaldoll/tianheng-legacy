@@ -2364,10 +2364,28 @@ law itself did not change, and nothing refused them.
 ### Requirement: The merge wrapper reads what CI said, not only what ran locally
 
 The wrapper standing in front of `gh pr merge` SHALL read the pull request's check conclusions and refuse to
-reach the tool unless every check agrees. It SHALL separate four states: a check that disagreed, a check that
+reach the tool unless every check agrees. **That read SHALL be the last guard before the merge**, after every
+other local and API check the wrapper makes. A rollup is one end of a relation whose other end is the moment
+the merge happens, and the wrapper records nothing from it — so a read placed among the recorded values
+leaves a window in which a required check re-run on the **same head** turns the rollup red while every later
+guard still passes: the head object has not moved, so `--match-head-commit` is satisfied, and the title, base
+and head branch have not moved either. It SHALL be read once and last rather than twice, there being no value
+to record from an earlier read. What remains is the post-gate re-read bound this capability already declares
+— a client-side read cannot be atomic with the act it precedes, and that stop is reached through whichever
+inputs are read that way rather than through any one of them. It SHALL separate four states: a check that disagreed, a check that
 has not finished, a check that finished and produced **no evidence**, and a head no workflow has claimed — an
 unfinished run is not a failed one, and merging on *not success* would refuse a pull request nobody has
 answered yet.
+
+#### Scenario: What CI said is read after every other guard
+
+- **WHEN** the wrapper reaches the merge
+- **THEN** the rollup read is the last of its API reads — after the title, the base, the head branch, the
+  head object and the changed-file count — so the window between *every check agrees* and the act is this
+  wrapper's own remaining calls rather than those plus a whole `cargo test`
+- **AND** the order is what is held, not the presence of the call: the call was always made, and it was made
+  among the values the merge records rather than among the relations it is judged against
+- **PINNED-BY** `what_ci_said_is_read_last_before_the_merge`
 
 **A check that did not run agreed with nothing.** `NEUTRAL` and `SKIPPED` classified as agreement, beside
 `SUCCESS`, with no measurement — while the `EXPECTED` classification was reasoned onto the unfinished side because
