@@ -65,6 +65,14 @@ them.
   it was tried. A principle in a commit body is not a principle an axis inherits, so it sits on the axis
   definitions.
 
+  **And it was attached to one axis while governing both**, which is the annexed doc this repository names
+  elsewhere — a passage describing one thing hanging off its neighbour. Fifteen lines of *both axes owe all
+  three* sat at the head of `Position`'s item doc, displacing `Position`'s own summary line out of first
+  position, while `Value` said nothing about the obligations. That inverts the reason for writing them down:
+  a third axis modelled on `Value` — the per-variant shape, which is the one that generalises — would be
+  read beside the sibling that carried no rule. It is a `//` region comment above both definitions now, so
+  it is not an item doc at all and neither axis owns a rule that governs the pair.
+
   **Three instances of one discipline failure, and the class is filed rather than closed.** Each time the
   missing instrument was the one for the axis added *beside* the one being fixed. A trait demanding all
   three pieces per axis would make the compiler ask for them, and it misdescribes what is there:

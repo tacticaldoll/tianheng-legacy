@@ -83,22 +83,30 @@ struct Shape {
     live_predicate: bool,
 }
 
-/// **What an axis owes, stated here because the next axis inherits this and not a commit body.** Three
-/// instruments, and each catches a shrink the other two cannot:
-///
-/// 1. **Set agreement** — the direction declares the axis's membership and holds it against this
-///    enumerator both ways, so a trimmed enumerator has something independent to disagree with. A floor
-///    iterating the array the corpus was built from cannot see that array shrink.
-/// 2. **Per-variant coverage** — every declared variant produced at least one shape, read off a field on
-///    `Shape` rather than off its label.
-/// 3. **Variant distinctness** — the variants actually produce different source. Coverage cannot see this:
-///    a shape is labelled from the loop variable, not from what the axis *did*, so a variant collapsed onto
-///    its sibling satisfies every coverage assertion while generating one form twice under two names.
-///
-/// Both axes owe all three. Measured, twice, that the third is the one that gets missed: a `Value::Raw`
-/// spelling collapsed to the ordinary form, and a `Position::Direct` arm emitting a `cfg_attr`-wrapped
-/// attribute, each passed every assertion that existed when it was tried.
-///
+// --- the axes, and what each one owes ---------------------------------------------------------------------
+//
+// **Three instruments per axis, and each catches a shrink the other two cannot.** A `//` comment rather than
+// an item doc, and above both definitions rather than on one: this rule governs the pair, and attached to
+// either item it becomes the annexed doc this repository names elsewhere — a passage describing one thing,
+// hanging off its neighbour, where both read plausibly enough that nobody re-attributes it. It displaced
+// `Position`'s own summary line out of first position while `Value` carried no statement of the rule at all,
+// which inverts the reason it was written down: a third axis modelled on `Value` — the per-variant shape,
+// which is the one that generalises — would have been read beside the sibling that said nothing.
+//
+//   1. **Set agreement** — the direction declares the axis's membership and holds it against the enumerator
+//      both ways, so a trimmed enumerator has something independent to disagree with. A floor iterating the
+//      array the corpus was built from cannot see that array shrink.
+//   2. **Per-variant coverage** — every declared variant produced at least one shape, read off a field on
+//      `Shape` rather than off its label.
+//   3. **Variant distinctness** — the variants actually produce different source. Coverage cannot see this:
+//      a shape is labelled from the loop variable, not from what the axis *did*, so a variant collapsed onto
+//      its sibling satisfies every coverage assertion while generating one form twice under two names.
+//
+// Both axes owe all three. Measured, twice, that the third is the one that gets missed: a `Value::Raw`
+// spelling collapsed to the ordinary form, and a `Position::Direct` arm emitting a `cfg_attr`-wrapped
+// attribute, each passed every assertion that existed when it was tried. `BACKLOG.md` carries the class as a
+// `WATCH` whose trigger is a third axis.
+
 /// Where the `#[path]` attribute sits — the axis every reader has an arm for and the corpus had none.
 ///
 /// **Not orthogonal to the rest, which is why the corpus is a sum over positions rather than one product.**
