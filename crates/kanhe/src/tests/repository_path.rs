@@ -154,3 +154,58 @@ fn a_path_with_no_parent_has_no_directory_rather_than_being_outside_the_root() {
         DirectoryOf::HasNoDirectory
     );
 }
+
+/// A pathspec from this owner means the path, and the un-literalized form is the control.
+///
+/// **`--` separates revisions from paths and nothing else.** Measured on this machine's git before this
+/// direction existed, with a directory literally named `:(exclude)odd` tracked in a fixture:
+///
+/// ```text
+/// $ git ls-files -- ':(exclude)odd'
+/// .gitignore
+/// :(exclude)odd/x.txt
+/// b.txt
+/// keep/a.txt
+/// ```
+///
+/// The pathspec stopped restricting and became an exclusion of something else, so a caller asking *what
+/// does this repository track under this path* was answered about a different question. The control is in
+/// this direction rather than in prose: without it, the literal assertion passes on any git that never
+/// parsed magic there, and this would report clean for a reason unrelated to the flag.
+#[test]
+#[cfg(unix)]
+fn a_pathspec_from_this_owner_means_the_path_and_not_an_instruction() {
+    use crate::repository_path::pathspec;
+
+    let root = std::env::temp_dir().join(format!("kanhe-pathspec-magic-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    xingbiao::claim_scratch(&root).expect("create the fixture root");
+    for args in [
+        &["init", "-q", "."][..],
+        &["config", "user.email", "fixture@example.invalid"][..],
+        &["config", "user.name", "fixture"][..],
+    ] {
+        crate::hermetic_git::run(&root, &[], args).expect("the fixture repository is built");
+    }
+    let odd = ":(exclude)odd";
+    std::fs::create_dir(root.join(odd)).expect("a directory may be named that");
+    std::fs::write(root.join(odd).join("x.txt"), b"x").expect("write");
+    std::fs::write(root.join("elsewhere.txt"), b"e").expect("write");
+    crate::hermetic_git::run(&root, &[], &["add", "-A"]).expect("git stages what is there");
+
+    let bare = crate::hermetic_git::tracked_paths(&root, &[odd]).expect("git answers");
+    let literal =
+        crate::hermetic_git::tracked_paths(&root, &[&pathspec(odd)]).expect("git answers");
+    let _ = std::fs::remove_dir_all(&root);
+
+    assert!(
+        bare.iter().any(|path| path == "elsewhere.txt"),
+        "the control: handed over bare, the name is read as exclude magic and the listing is not about \
+         that directory — got {bare:?}"
+    );
+    assert_eq!(
+        literal,
+        vec![format!("{odd}/x.txt")],
+        "a pathspec from this owner restricts to the path it names"
+    );
+}

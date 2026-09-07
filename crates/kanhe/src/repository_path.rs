@@ -109,3 +109,31 @@ pub fn repository_directory(root: &Path, path: &Path) -> DirectoryOf {
         None => DirectoryOf::HasNoDirectory,
     }
 }
+
+/// `path` spelled as a Git **pathspec** that means exactly that path.
+///
+/// **`--` separates revisions from paths and nothing else.** Git parses pathspec *magic* after the
+/// separator too, so a path this repository computed and handed over was read as an instruction wherever it
+/// happened to begin with one. Measured on this machine's git, with a directory literally named
+/// `:(exclude)odd` tracked in a fixture: `ls-files -- ':(exclude)odd'` answers the **whole** repository,
+/// because the pathspec stopped restricting and became an exclusion of something else. A caller asking
+/// *what does this repository track under this path* got an answer about a different question.
+///
+/// **On the owner of the spelling, and the two wider fixes were measured and rejected.**
+/// `GIT_LITERAL_PATHSPECS=1` on the shared builder makes `check-ignore` fail outright — `fatal: pathspec
+/// magic not supported by this command: 'literal'`, exit 128 — so the exclusion classifier cannot take it.
+/// `--literal-pathspecs` on `hermetic_git::tracked_records` breaks the callers whose pathspec **is** a
+/// pattern: `capability_subjects` asks for `openspec/specs/*/spec.md` and `law_restatement` for `*.md`, and
+/// the flag disables glob magic with the rest. So the literalization belongs where the knowledge is — at
+/// the point that produced a path rather than a pattern — which is here.
+///
+/// **What this owns and what it does not.** The spelling is held by a direction with its own control. The
+/// *choice* to use it at each call site is not: measured, dropping the call in `machinery_names` compiles
+/// and no direction goes red, because by then the directory is a `String` and the type that knew it was a
+/// path is gone. Holding that would need a reader over code deciding which `&str` came from a path, which
+/// is the judgement-over-source this repository has measured and declined. One owner is what is available;
+/// the residual is that a future call site can hand git a bare derived path, and it is stated here rather
+/// than left for the next reader to find.
+pub fn pathspec(path: &str) -> String {
+    format!(":(literal){path}")
+}

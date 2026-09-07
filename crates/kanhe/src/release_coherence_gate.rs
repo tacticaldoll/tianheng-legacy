@@ -2037,7 +2037,10 @@ pub(crate) fn machinery_names(repo: &Path) -> Result<BTreeSet<String>, Refusal> 
         // `adopter_cited_machinery` cannot recognise a record citing that file, a false negative in the
         // release gate. Latent today (no tracked path needs quoting) and the sibling capability already
         // raises the class to a SHALL, which is why it is closed rather than declared.
-        let listing = crate::hermetic_git::tracked_paths(repo, &[&directory]).map_err(|err| {
+        // Literalized by the owner of the spelling: this is a path cargo reported, not a pattern, and
+        // `--` alone does not stop git from reading it as one. See `crate::repository_path::pathspec`.
+        let spec = crate::repository_path::pathspec(&directory);
+        let listing = crate::hermetic_git::tracked_paths(repo, &[&spec]).map_err(|err| {
             cannot_judge_at(
                 "release-coherence#directory-listing-unreadable",
                 format!("could not enumerate {directory}: {err:?}"),
