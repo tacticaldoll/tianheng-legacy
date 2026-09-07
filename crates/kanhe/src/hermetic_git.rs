@@ -202,30 +202,45 @@ pub fn run_exact(repo: &Path, flags: &[&str], args: &[&str]) -> Result<String, F
         .current_dir(repo)
         .output()
         .map_err(|err| Failure::Spawn(format!("cannot run git {args:?}: {err}")))?;
-    if out.status.success() {
-        // **Refused, never mangled.** `from_utf8_lossy` replaces each undecodable byte with U+FFFD, and what
-        // this runner mostly carries is **paths**: `ls-files -z` avoids git's own quoting and promises
-        // nothing about encoding, so a tracked path that is not UTF-8 arrived here as a different path than
-        // the one on disk, and every comparison downstream was made against that. `xingbiao::path_identity`
-        // exists for the opposite property — two paths differing only in undecodable bytes keep two
-        // identities — so a reader in this repository that silently collapses them contradicts the product's
-        // own rule. A verdict is not owed on an input this reader cannot represent; saying so is.
-        //
-        // stderr below stays lossy, deliberately: it is a sentence for an operator, not a value anything
-        // compares.
-        String::from_utf8(out.stdout).map_err(|err| {
-            Failure::Unreadable(format!(
-                "git {args:?} answered bytes this reader cannot represent as text — {err}; a path that is \
-                 not UTF-8 keeps its own identity, and reporting a replaced one would compare something the \
-                 repository does not hold"
-            ))
-        })
-    } else {
-        Err(Failure::Exit {
-            code: out.status.code(),
-            stderr: String::from_utf8_lossy(&out.stderr).trim_end().to_string(),
-        })
+    answered(out.status, out.stdout, &out.stderr, args)
+}
+
+/// One disposition of a finished `git`, so every accessor in this module answers the same fact in the same
+/// words.
+///
+/// **Refused, never mangled.** `from_utf8_lossy` replaces each undecodable byte with U+FFFD, and what these
+/// runners mostly carry is **paths**: `ls-files -z` avoids git's own quoting and promises nothing about
+/// encoding, so a tracked path that is not UTF-8 arrives as a different path than the one on disk, and every
+/// comparison downstream is then made against that. `xingbiao::path_identity` exists for the opposite
+/// property — two paths differing only in undecodable bytes keep two identities — so a reader in this
+/// repository that silently collapses them contradicts the product's own rule. A verdict is not owed on an
+/// input this reader cannot represent; saying so is.
+///
+/// `stderr` stays lossy, deliberately: it is a sentence for an operator, not a value anything compares.
+///
+/// **The status and the answer arrive separately rather than as one [`Output`](std::process::Output).**
+/// [`run_with_stdin`] takes stdout for a draining thread, so it reaches `wait_with_output` with an empty
+/// `stdout` field and its answer in hand from elsewhere; passing the bytes is what lets both accessors reach
+/// one decision instead of two that must agree.
+fn answered(
+    status: std::process::ExitStatus,
+    stdout: Vec<u8>,
+    stderr: &[u8],
+    args: &[&str],
+) -> Result<String, Failure> {
+    if !status.success() {
+        return Err(Failure::Exit {
+            code: status.code(),
+            stderr: String::from_utf8_lossy(stderr).trim_end().to_string(),
+        });
     }
+    String::from_utf8(stdout).map_err(|err| {
+        Failure::Unreadable(format!(
+            "git {args:?} answered bytes this reader cannot represent as text — {err}; a path that is \
+             not UTF-8 keeps its own identity, and reporting a replaced one would compare something the \
+             repository does not hold"
+        ))
+    })
 }
 
 /// [`run_exact`] with git's trailing whitespace trimmed off, which is what a caller reading a **value**
@@ -245,6 +260,107 @@ pub fn run_exact(repo: &Path, flags: &[&str], args: &[&str]) -> Result<String, F
 /// `both_accessors_report_an_undecodable_answer_in_the_same_words` holds that the two cannot part again.
 pub fn run(repo: &Path, flags: &[&str], args: &[&str]) -> Result<String, Failure> {
     run_exact(repo, flags, args).map(|text| text.trim_end().to_string())
+}
+
+/// [`run_exact`] over a *conversation*: NUL-separated records are fed on stdin, and the answer is drained
+/// while the question is still being asked.
+///
+/// **This is the third accessor, and it is here for the decode rather than for the pipes.** It lived in
+/// `publish_source_gate::classify`, which spelled its own `from_utf8_lossy` — so one gate read git's answer
+/// under two policies, strict through [`run_exact`] and lossy in its own classifier, and the strict one is
+/// the policy this module's own `answered` states. Nothing downstream could tell: the classifier's
+/// paths are handed to it already strict-decoded, so the lossy call had no reachable effect and no direction
+/// could have shown one. A policy that is right by accident at every site it is reached from is still two
+/// policies. `answered` is now the only place either question is decided.
+///
+/// **The answer is drained while the question is still being asked.** Writing every record and only then
+/// reading works while the conversation fits in the kernel's pipe buffers and deadlocks the moment it does
+/// not: the child fills its 64 KB stdout and blocks, so it stops reading stdin, so the parent blocks on a
+/// full 64 KB stdin, and neither can move. Measured on this repository — 73,670 excluded paths, 9.1 MB in,
+/// 11.0 MB out, against a 64 KB pipe — the gate standing in front of `cargo publish` never reached a verdict
+/// at all: `git check-ignore` sat in `pipe_wait` and `scripts/publish.sh` hung indefinitely.
+///
+/// What made that survive review is worth naming: every fixture in the failure matrix hides a handful of
+/// files, so the premise *the excluded set is small* held everywhere it was ever exercised and failed only on
+/// the repository this gate exists to judge. A green suite is no evidence about a corpus it never saw.
+/// `a_repository_whose_ignored_set_outgrows_a_pipe_is_still_answered` is what holds the property, and it
+/// stays where it is: it exercises this body through the gate that calls it.
+///
+/// Each record is followed by a NUL, which is what git's `--stdin` reads under `-z`. There is no
+/// line-oriented spelling of this accessor because no caller in this repository wants one — and a `-z`
+/// conversation is the same decision [`tracked_records`] makes, for the same reason.
+pub fn run_with_stdin(
+    repo: &Path,
+    flags: &[&str],
+    args: &[&str],
+    records: &[&str],
+) -> Result<String, Failure> {
+    use std::io::{Read, Write};
+
+    let mut child = hermetic("git")
+        .args(flags)
+        .args(args)
+        .current_dir(repo)
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|err| Failure::Spawn(format!("cannot run git {args:?}: {err}")))?;
+
+    let mut stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| Failure::Spawn(format!("git {args:?} gave no stdout")))?;
+    let drain = std::thread::spawn(move || {
+        let mut answer = Vec::new();
+        stdout.read_to_end(&mut answer).map(|_| answer)
+    });
+
+    // Taken rather than borrowed: the write ends by DROPPING stdin, and the child cannot finish until it
+    // sees that EOF. Left in place until the end of the call it would keep the pipe open past the read below.
+    let delivered = {
+        let mut stdin = match child.stdin.take() {
+            Some(stdin) => stdin,
+            None => {
+                let _ = drain.join();
+                let _ = child.wait();
+                return Err(Failure::Spawn(format!("git {args:?} took no stdin")));
+            }
+        };
+        let mut delivered = Ok(());
+        for record in records {
+            delivered = stdin
+                .write_all(record.as_bytes())
+                .and_then(|()| stdin.write_all(b"\0"));
+            if delivered.is_err() {
+                break;
+            }
+        }
+        delivered
+    };
+
+    // Reaped on every path, including the failed write — the child is drained and waited on before any
+    // outcome is consulted, so no arm below can leave a `git` behind holding a pipe.
+    let out = child.wait_with_output();
+    let answer = drain.join();
+
+    delivered
+        .map_err(|err| Failure::Spawn(format!("cannot write records to git {args:?}: {err}")))?;
+    let out = out.map_err(|err| Failure::Spawn(format!("git {args:?} did not finish: {err}")))?;
+    let answer = match answer {
+        Ok(Ok(answer)) => answer,
+        Ok(Err(err)) => {
+            return Err(Failure::Spawn(format!(
+                "cannot read git {args:?}'s answer: {err}"
+            )));
+        }
+        Err(_) => {
+            return Err(Failure::Spawn(format!(
+                "the reader of git {args:?}'s answer panicked"
+            )));
+        }
+    };
+    answered(out.status, answer, &out.stderr, args)
 }
 
 /// Every record `git ls-files` answers under `pathspec`, NUL-separated, through [`run_exact`].
@@ -397,7 +513,20 @@ pub enum Failure {
     /// no `String` holds without changing it. Folding the two would report a working repository as a broken
     /// command, and folding this into success would compare a path against a replaced copy of itself.
     Unreadable(String),
-    /// The process could not be started: git is absent, or `repo` is not a directory this process can enter.
+    /// No answer was obtained from git, for a reason that is not git's own exit status.
+    ///
+    /// The process could not be started — git is absent, or `repo` is not a directory this process can
+    /// enter — or, for [`run_with_stdin`], the conversation with a process that *did* start could not be
+    /// completed: a pipe handle the child never provided, a write to its stdin that failed, a read of its
+    /// answer that failed, or a draining thread that panicked.
+    ///
+    /// **Those are one fact, and the widening is stated rather than assumed.** This doc said only *could not
+    /// be started* while a second accessor reached the variant for five further states, which would have made
+    /// the sentence false at the site an operator reads it. They are one fact because of what a caller does
+    /// with them: every one means *this reader never got an answer, and git's status is not the reason*, and
+    /// the publish gate maps all of them to the single refusal whose message is that an unusable classifier
+    /// is not one that found nothing. A variant per state would be a distinction no caller in this
+    /// repository makes.
     Spawn(String),
     /// git ran and exited non-zero. Carries its status and its stderr.
     ///

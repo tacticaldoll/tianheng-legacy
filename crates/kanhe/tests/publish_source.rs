@@ -1210,3 +1210,52 @@ fn a_manifest_declaring_no_workspace_version_stops_the_publish() {
         refusal.message
     );
 }
+
+/// An exclusion source that is not text refuses, rather than naming a pattern the repository does not hold.
+///
+/// **The question is all text and the answer is not**, which is the shape that separates this from the
+/// classifier-cannot-run sibling. Every path the gate asks about has come back through the tracked-path
+/// reader's strict decode, so none can carry undecodable bytes — but `check-ignore -v` answers with the
+/// pattern that matched, and a `.gitignore` is arbitrary bytes. Measured on this machine's git: `.gitignore`
+/// holding `f[o\xff]o` against an untracked `foo` exits `0` and answers
+/// `.gitignore\01\0f[o\xff]o\0foo\0`.
+///
+/// Negative run, with the runner's `Failure::Unreadable` folded into `NoClassification::Failed`:
+///
+/// ```text
+/// assertion `left == right` failed: this direction cites a site the refusal it observed did not come from:
+/// could not classify which exclusion hides 1 untracked path(s): git ["check-ignore", "-z", "-v",
+/// "--no-index", "--stdin"] answered bytes this reader cannot represent as text — invalid utf-8 sequence of
+/// 1 bytes from index 16; … . An unusable classifier is not one that found nothing
+///   left: Registered("publish-source-integrity#exclusion-classifier-cannot-run")
+///  right: Registered("publish-source-integrity#exclusion-source-not-utf8")
+/// ```
+///
+/// *An unusable classifier is not one that found nothing* is what the fold says about a classifier that ran,
+/// answered, and exited `0`. Both sites are cannot-judge, so the exit class does not move and no test bound
+/// to it could have told them apart; the fact that moves is which subject the operator is sent to — a
+/// machine without git, or a `.gitignore` in this repository.
+#[test]
+#[cfg(unix)]
+fn an_exclusion_source_that_is_not_text_refuses_rather_than_naming_a_replaced_pattern() {
+    let (root, repo) = hiding("ignored-bytes", &[("kept.txt", "k\n")], "foo");
+    std::fs::write(repo.join(".gitignore"), b"f[o\xFF]o\n").expect("a gitignore is bytes");
+    let refusal =
+        hidden_by_the_checkout(&repo).expect_err("an answer that is not text must refuse");
+    let _ = std::fs::remove_dir_all(&root);
+    refusal::expect(
+        "publish-source-integrity#exclusion-source-not-utf8",
+        &refusal,
+    );
+    assert_eq!(
+        refusal.kind,
+        Kind::CannotJudge,
+        "a pattern this reader cannot represent is an unread fact, not a disagreement: {}",
+        refusal.message
+    );
+    assert!(
+        refusal.message.contains("could not read the answer"),
+        "the refusal must say the answer went unread rather than that the classifier never ran, got: {}",
+        refusal.message
+    );
+}

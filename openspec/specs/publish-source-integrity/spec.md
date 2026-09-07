@@ -215,6 +215,15 @@ A classification that could not be produced SHALL be a cannot-judge naming what 
 empty classification. `check-ignore` exiting non-zero because it could not run is not the same fact as
 `check-ignore` matching nothing, and treating them alike lets a failed classifier read as an answer.
 
+**Three facts, not two, and the third is reachable while every path the gate asks about is text.** A
+classifier that ran, exited `0`, and answered bytes no `String` holds is a third state: `check-ignore -v`
+answers with the **pattern** that matched, and a `.gitignore` is arbitrary bytes, so an undecodable answer
+needs no undecodable question. Reproducible now: a `.gitignore` holding `f[o\xff]o` against an untracked
+`foo` answers `.gitignore\01\0f[o\xff]o\0foo\0` at exit `0`. The gate SHALL name that state as its own
+cannot-judge rather than as the classifier having failed to run — both are cannot-judge, so no exit class
+separates them, and what separates them is which subject an operator is sent to: a machine, or a
+`.gitignore` in the repository under judgement.
+
 That rule is about **every git read this gate makes whose answer is an exit status**, not about
 `check-ignore` alone. Where a subcommand answers with a status, the gate SHALL read the status that is the
 answer and treat every other non-zero as a refusal to answer. Stated over the class because it arrived
@@ -246,6 +255,14 @@ outside the split that repair made.
 - **WHEN** `check-ignore` fails rather than reporting no match
 - **THEN** the gate refuses as a cannot-judge naming the paths it could not classify, rather than treating an
   unusable classifier as one that found nothing
+
+#### Scenario: The exclusion classifier's answer is not text
+
+- **WHEN** `check-ignore` runs, exits `0`, and answers a pattern carrying bytes no `String` holds — a
+  `.gitignore` spelling one, with every path the gate asked about already decoded as text
+- **THEN** the gate refuses as its own cannot-judge, saying it could not read the answer rather than that the
+  classifier could not run, and never naming the replaced pattern the repository does not hold
+- **PINNED-BY** `an_exclusion_source_that_is_not_text_refuses_rather_than_naming_a_replaced_pattern`
 
 #### Scenario: The tracking read cannot be made
 

@@ -569,6 +569,72 @@ fn the_builder_writes_the_config_count_and_takes_index_zero() {
     );
 }
 
+/// The conversation accessor refuses an undecodable answer, and the question that produced it was all text.
+///
+/// **This is the reachable instance behind the third accessor's strict decode**, and it is not the one the
+/// repair was reasoned from. `records: &[&str]` makes an undecodable *question* unconstructible, so the
+/// channel is the answer: `check-ignore -v` echoes the **pattern** that matched, and a `.gitignore` is
+/// arbitrary bytes. Measured on this machine's git before this direction existed — `.gitignore` holding
+/// `f[o\xff]o` against an untracked `foo`:
+///
+/// ```text
+/// exit=0
+/// 0000000   .   g   i   t   i   g   n   o   r   e  \0   1  \0   f   [   o
+/// 0000020 377   ]   o  \0   f   o   o  \0
+/// ```
+///
+/// So the byte reaches stdout with nothing undecodable ever having been sent, which is what makes the strict
+/// decode load-bearing here rather than a precaution inherited from the tracked-path reader.
+///
+/// Negative run, with `from_utf8_lossy` in place of the shared strict decode:
+///
+/// ```text
+/// thread '…::a_pattern_that_is_not_text_is_refused_rather_than_replaced' panicked at
+/// crates/kanhe/src/tests/hermetic_git.rs:623:18:
+/// git answered a pattern that is not text; got Ok(".gitignore\01\0f[o�]o\0foo\0")
+/// ```
+///
+/// The replacement character is what the fold produces and the whole reason this reader refuses: the pattern
+/// the repository holds is four bytes and the one that reached the caller is three characters, neither of
+/// which any `.gitignore` contains.
+#[test]
+#[cfg(unix)]
+fn a_pattern_that_is_not_text_is_refused_rather_than_replaced() {
+    let root = std::env::temp_dir().join(format!("kanhe-git-stdin-bytes-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    xingbiao::claim_scratch(&root).expect("create the fixture root");
+    for args in [
+        &["init", "-q", "."][..],
+        &["config", "user.email", "fixture@example.invalid"][..],
+        &["config", "user.name", "fixture"][..],
+    ] {
+        crate::hermetic_git::run(&root, &[], args).expect("the fixture repository is built");
+    }
+    std::fs::write(root.join(".gitignore"), b"f[o\xFF]o\n").expect("a gitignore is bytes");
+    std::fs::write(root.join("foo"), b"x").expect("the file the pattern hides");
+
+    // No `-c` for the excludes setting: [`hermetic`] already names it through `GIT_CONFIG_COUNT`, so the
+    // per-command flag the gate's two older call sites keep as their narrower statement would add nothing
+    // here — and `gate_exit_classes` reads a file that *spells* the setting as having closed the channel
+    // itself, which this file must not do. The fixture's exclusion is a `.gitignore`, which no excludes
+    // setting reaches either way.
+    let answered = crate::hermetic_git::run_with_stdin(
+        &root,
+        &[],
+        &["check-ignore", "-z", "-v", "--no-index", "--stdin"],
+        &["foo"],
+    );
+    let _ = std::fs::remove_dir_all(&root);
+
+    match answered {
+        Err(crate::hermetic_git::Failure::Unreadable(why)) => assert!(
+            why.contains("bytes this reader cannot represent as text"),
+            "the refusal says what it could not do, in the shared decoder's words: {why}"
+        ),
+        other => panic!("git answered a pattern that is not text; got {other:?}"),
+    }
+}
+
 /// Both accessors report the undecodable answer as the same fact, in the same words.
 ///
 /// **The two are one operation with one difference — a trailing-whitespace trim — and they were spelled

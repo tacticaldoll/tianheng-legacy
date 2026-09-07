@@ -467,6 +467,34 @@ consumer for an undemonstrated deduplication.
 
 ### READY-PATCH
 
+- **The ambient-ignore guard reads files where its property belongs to call sites, and says something false
+  when one file holds both kinds.** *Class:* READY-PATCH — measured, and the correction touches no published
+  surface. *Observed pressure:* `no_judgement_reads_an_ambient_ignore_file` decides per **file**: a file
+  carrying an `AMBIENT_IGNORE_READS` marker is skipped the moment any line in it spells `NEUTRALISER`, and
+  `CHANNEL_CONTROL` must reach the branch past that skip for its exception to be held as still needed. Adding
+  an unrelated direction that spells the setting to the control file therefore short-circuits the whole file,
+  and the guard refuses with *it no longer runs an ignore-sensitive read through a `Command` of its own* —
+  which is **false**: `an_ignore_file_outside_the_repository_cannot_reach_a_hermetic_command` is still there
+  and still runs one. *Observation source:* met while converging the publish gate's decode policy, where a
+  new direction in that file passed `-c core.excludesFile=/dev/null` for fidelity with the caller it mirrors.
+
+  *Current reaction or bound:* none, and the call site was moved rather than the reader — the new direction
+  passes no flag, because the builder already names the setting and the fixture's exclusion is a `.gitignore`
+  that no excludes setting reaches. The reason is recorded in the direction so the next author does not
+  rediscover it by the same refusal. *Risk:* it fails **closed** rather than open, so this is noise and not a
+  false negative — but the repair its own message names is *remove the exception*, and removing it would take
+  out a live control. A guard whose diagnosis inverts the fix is worse than a silent one.
+
+  *Promotion trigger:* a second file needing both a neutralised and a non-neutralised ignore-sensitive read,
+  or any further direction in the control file that has cause to spell the setting. *Version class:* patch;
+  `crates/kanhe` is `publish = false`. *Authority:* `repository-checks`.
+
+  **Shape.** The unit that pairs is the call site and the unit iterated is the file. The reader already has a
+  line-level view — it collects `lines` and asks `opens(line, "Command::new(")` per line — so the skip is the
+  only step that leaves it: decide neutralisation for the read rather than for the file, by asking whether
+  the setting is spelled within the construction whose marker matched, and the control's two commands become
+  two answers instead of one.
+
 - **A version this repository never released is written into tracked prose, and nothing resolves it.**
   *Class:* READY-PATCH — the pressure is measured and the correction touches no published surface. *Observed
   pressure:* release class is decided from what a window's changes **do**, so a window's number is not
