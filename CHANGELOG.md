@@ -932,6 +932,27 @@ them.
 
 ### Self-governance
 
+- **One gate read git's answer under two policies.** The publish gate's exclusion classifier spelled its own
+  `from_utf8_lossy` while every other read in the same gate refused an undecodable answer through the shared
+  runner — and the strict one is the policy `hermetic_git::answered` states, from `xingbiao::path_identity`.
+  Nothing downstream could tell, which is why no direction caught it: the classifier's paths arrive
+  already strict-decoded, so the lossy call had no reachable effect at the site it was reached from. A policy
+  that is right by accident everywhere it is reached from is still two policies.
+
+  The conversation — NUL-separated records fed on stdin, the answer drained while the question is still being
+  asked — now sits in `hermetic_git` beside the other two accessors, and one internal `answered` decides both
+  the exit-status disposition and the decode for all three. The deadlock property that shaped that
+  orchestration is unchanged, and its direction is what guards the move rather than a new test written for it.
+
+  **Converging them found a third fact the gate had been folding.** The strict decode is reachable through the
+  classifier with an all-text question, which the fold's reasoning had ruled out: `check-ignore -v` answers
+  with the *pattern* that matched, and a `.gitignore` is arbitrary bytes. Measured — a `.gitignore` holding
+  `f[o\xff]o` against an untracked `foo` answers `.gitignore\01\0f[o\xff]o\0foo\0` at exit `0`. Read as *the
+  classifier could not run*, that told an operator `An unusable classifier is not one that found nothing`
+  about a classifier that ran, answered, and exited `0`. It has its own cannot-judge site now. Both states
+  are cannot-judge, so no exit class ever separated them; what separates them is the subject an operator is
+  sent to — a machine, or a `.gitignore` in the repository under judgement.
+
 - **Two refusals shared one message, and two output streams shared one line.** Neither makes a gate report
   clean; both make it name the wrong fact when it does not, which is the class this repository refuses in
   its own words.

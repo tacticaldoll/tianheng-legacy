@@ -246,6 +246,22 @@ pub fn hidden_by_the_checkout_with(
                 ),
             ));
         }
+        // Its own site, because its repair is its own. The sibling above says the classifier did not run and
+        // the operator looks at the machine; this says it ran and answered with a pattern that is not text,
+        // so the exclusion hiding a path cannot be named and the operator looks at a `.gitignore`. Both are
+        // cannot-judge, and a cannot-judge that names the wrong subject is the silence this register exists
+        // to refuse.
+        Err(NoClassification::Unreadable(err)) => {
+            return Err(cannot_judge_at(
+                "publish-source-integrity#exclusion-source-not-utf8",
+                format!(
+                    "classified {} untracked path(s) and could not read the answer: {err}. A pattern that \
+                     is not UTF-8 keeps its own identity, and naming a replaced one would report an \
+                     exclusion the repository does not hold",
+                    excluded.len()
+                ),
+            ));
+        }
     };
 
     let mut sources: std::collections::BTreeMap<&str, &str> = std::collections::BTreeMap::new();
@@ -310,105 +326,57 @@ pub fn hidden_by_the_checkout_with(
     Ok(hidden)
 }
 
-/// Why `check-ignore` produced no classification: it matched nothing, or it could not run.
+/// Why `check-ignore` produced no classification: it matched nothing, it could not run, or its answer
+/// carries bytes no `String` holds.
 pub enum NoClassification {
     /// It ran and matched nothing.
     MatchedNothing,
     /// It could not run, which is not the same fact.
     Failed(String),
+    /// It ran, answered, and the answer is not text.
+    ///
+    /// **Reachable with an all-UTF-8 question**, which is why it is a state rather than a fold into
+    /// [`NoClassification::Failed`]. Every path fed to the classifier has already come back through the
+    /// tracked-path reader's strict decode, so the question cannot carry undecodable bytes — but
+    /// `check-ignore -v` answers with the **pattern** that matched, and a `.gitignore` is arbitrary bytes.
+    /// Measured on this machine's git: a `.gitignore` holding `f[o\xff]o` and an untracked `foo` answers
+    /// `.gitignore\01\0f[o\xff]o\0foo\0` at exit `0`.
+    ///
+    /// The two facts repair in different places. `Failed` is the environment — git absent, a pipe that
+    /// broke — and the operator fixes the machine. This one says the repository's own exclusion source
+    /// carries bytes, and what the gate cannot do is name *which* exclusion hides a path; the operator
+    /// fixes a `.gitignore`. Reporting the second as the first sends them to the wrong tree.
+    Unreadable(String),
 }
 
 /// Ask `check-ignore` which exclusion hides each path, feeding the paths as raw bytes on stdin.
 ///
-/// **The answer is drained while the question is still being asked.** Writing every path and only then
-/// reading works while the conversation fits in the kernel's pipe buffers and deadlocks the moment it does
-/// not: the child fills its 64 KB stdout and blocks, so it stops reading stdin, so the parent blocks on a
-/// full 64 KB stdin, and neither can move. Measured on this repository — 73,670 excluded paths, 9.1 MB in,
-/// 11.0 MB out, against a 64 KB pipe — the gate standing in front of `cargo publish` never reached a verdict
-/// at all: `git check-ignore` sat in `pipe_wait` and `scripts/publish.sh` hung indefinitely.
+/// **The conversation is the shared runner's**, so this gate reads git's answer under one policy rather than
+/// two. The pipe orchestration and the strict decode both live in [`crate::hermetic_git::run_with_stdin`],
+/// whose header carries the deadlock measurement that shaped them; what stays here is the only part that is
+/// this gate's own — which exit status means *matched nothing* rather than *could not run*.
 ///
-/// What made it survive review is worth naming: every fixture in the failure matrix hides a handful of
-/// files, so the premise "the excluded set is small" held everywhere it was ever exercised and failed only
-/// on the repository this gate exists to judge. A green suite is no evidence about a corpus it never saw.
-///
-/// `stderr` is drained by `wait_with_output` below, which is why stdout is the only handle taken here.
+/// **Three answers, because the runner's strictness gave this reader a third fact to carry.** An exit of `1`
+/// is *matched nothing*; an undecodable answer is the repository's own exclusion source carrying bytes; and
+/// everything else is the classifier not having run. [`NoClassification::Unreadable`] records what separates
+/// the last two, with the measurement that shows the middle one is reachable while every path fed here is
+/// already strict-decoded text.
 pub fn classify(repo: &Path, paths: &[&str]) -> Result<String, NoClassification> {
-    use std::io::{Read, Write};
-    let mut child = hermetic("git")
-        .args(["-c", "core.excludesFile=/dev/null"])
-        .args(["check-ignore", "-z", "-v", "--no-index", "--stdin"])
-        .current_dir(repo)
-        .stdin(std::process::Stdio::piped())
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .spawn()
-        .map_err(|err| NoClassification::Failed(format!("cannot run git check-ignore: {err}")))?;
-
-    let mut stdout = child
-        .stdout
-        .take()
-        .ok_or_else(|| NoClassification::Failed("check-ignore gave no stdout".to_string()))?;
-    let drain = std::thread::spawn(move || {
-        let mut answer = Vec::new();
-        stdout.read_to_end(&mut answer).map(|_| answer)
-    });
-
-    // Taken rather than borrowed: the write ends by DROPPING stdin, and the child cannot finish until it
-    // sees that EOF. Left in place until the end of the call it would keep the pipe open past the read below.
-    let delivered = {
-        let mut stdin = match child.stdin.take() {
-            Some(stdin) => stdin,
-            None => {
-                let _ = drain.join();
-                let _ = child.wait();
-                return Err(NoClassification::Failed(
-                    "check-ignore took no stdin".to_string(),
-                ));
-            }
-        };
-        let mut delivered = Ok(());
-        for path in paths {
-            delivered = stdin
-                .write_all(path.as_bytes())
-                .and_then(|()| stdin.write_all(b"\0"));
-            if delivered.is_err() {
-                break;
-            }
+    match crate::hermetic_git::run_with_stdin(
+        repo,
+        &["-c", "core.excludesFile=/dev/null"],
+        &["check-ignore", "-z", "-v", "--no-index", "--stdin"],
+        paths,
+    ) {
+        Ok(answer) => Ok(answer),
+        // `check-ignore` exits 1 for *nothing matched*, which is an answer rather than a failure to give one.
+        Err(crate::hermetic_git::Failure::Exit { code: Some(1), .. }) => {
+            Err(NoClassification::MatchedNothing)
         }
-        delivered
-    };
-
-    // Reaped on every path, including the failed write — the child is drained and waited on before any
-    // outcome is consulted, so no arm below can leave a `git` behind holding a pipe.
-    let out = child.wait_with_output();
-    let answer = drain.join();
-
-    if let Err(err) = delivered {
-        return Err(NoClassification::Failed(format!(
-            "cannot write paths to check-ignore: {err}"
-        )));
-    }
-    let out =
-        out.map_err(|err| NoClassification::Failed(format!("check-ignore did not finish: {err}")))?;
-    let answer = match answer {
-        Ok(Ok(answer)) => answer,
-        Ok(Err(err)) => {
-            return Err(NoClassification::Failed(format!(
-                "cannot read check-ignore's answer: {err}"
-            )));
+        Err(crate::hermetic_git::Failure::Unreadable(why)) => {
+            Err(NoClassification::Unreadable(why))
         }
-        Err(_) => {
-            return Err(NoClassification::Failed(
-                "the reader of check-ignore's answer panicked".to_string(),
-            ));
-        }
-    };
-    match out.status.code() {
-        Some(0) => Ok(String::from_utf8_lossy(&answer).to_string()),
-        Some(1) => Err(NoClassification::MatchedNothing),
-        _ => Err(NoClassification::Failed(
-            String::from_utf8_lossy(&out.stderr).trim_end().to_string(),
-        )),
+        Err(err) => Err(NoClassification::Failed(err.to_string())),
     }
 }
 
