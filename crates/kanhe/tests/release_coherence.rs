@@ -3332,6 +3332,46 @@ fn an_example_manifest_that_is_not_a_regular_file_is_not_an_absent_one() {
     let _ = std::fs::remove_dir_all(&root);
 }
 
+/// A crate manifest that is there and is not a regular file is not one that is absent.
+///
+/// **The twin of the example loop's own direction, in the same file, left behind when that one was given
+/// its shape.** `workspace_manifests` read `manifest.is_file()`, so a directory named `Cargo.toml` — or any
+/// path that exists and cannot be stat'd — answered the same `false` as a crate directory holding no
+/// manifest at all. The member then dropped out of the enumeration, and every judgement standing on it —
+/// version inheritance, internal pins, example pins, the lock entries — reported clean over a corpus that
+/// was missing it. Absence is a state this loop may skip; unreadable is a fact to report.
+///
+/// Negative run, with the read restored to `is_file()`:
+///
+/// ```text
+/// expected a refusal containing "is not a regular file", got: found no dependency on a family crate in
+/// Cargo.toml — the declaration form changed, so pin coherence would be reported over nothing
+/// ```
+///
+/// **What the fixture shows is a misattributed refusal rather than a silent clean**, and the difference is
+/// worth stating. The member drops out of the enumeration, and a downstream counter then blames the
+/// *declaration form* for a manifest nothing opened — an operator sent to the wrong file. Whether some
+/// arrangement of members reaches a clean verdict instead depends on whether every judgement standing on
+/// the enumeration would notice one missing, which this direction does not establish and does not claim.
+#[test]
+fn a_crate_manifest_that_is_not_a_regular_file_is_not_an_absent_one() {
+    let root = scratch("crate-manifest-not-a-file");
+    let fixture = build_fixture(&root, "crate-manifest-not-a-file", "0.2.0");
+    let manifest = fixture.repo.join("crates/xuanji/Cargo.toml");
+    std::fs::remove_file(&manifest).expect("the fixture writes this manifest");
+    std::fs::create_dir(&manifest).expect("a directory may take its place");
+    development_changelog(&fixture.repo, "0.2.0", true);
+    commit(
+        &fixture.repo,
+        "chore: put a directory where a crate manifest was",
+    );
+    refusal::expect(
+        "release-coherence#crate-manifest-unreadable",
+        &refuse(&fixture.repo, Kind::CannotJudge, "is not a regular file"),
+    );
+    let _ = std::fs::remove_dir_all(&root);
+}
+
 /// An example directory this reader cannot stat is not an entry holding no example.
 ///
 /// The same collapse `an_example_manifest_that_is_not_a_regular_file_is_not_an_absent_one` refuses for the

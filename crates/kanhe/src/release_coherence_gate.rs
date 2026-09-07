@@ -1044,13 +1044,36 @@ pub fn workspace_manifests(repo: &Path) -> Result<Vec<(String, String)>, Refusal
     let dirs = entries_of(&crates)?;
     for dir in dirs {
         let manifest = dir.join("Cargo.toml");
-        if manifest.is_file() {
-            let text = std::fs::read_to_string(&manifest).map_err(|err| {
-                cannot_judge_at(
-                    "release-coherence#crate-manifest-unreadable",
-                    format!("could not read {manifest:?}: {err}"),
-                )
-            })?;
+        // **Absent is not unreadable, and this is the twin of the loop in `require_example_pins`.** That
+        // sibling was given this shape and this file's other crate-directory loop was not: `is_file()`
+        // answers one `false` for a manifest that is not there, one that cannot be stat'd, and a directory
+        // named `Cargo.toml` — so a member whose manifest could not be read dropped out of the enumeration
+        // and every judgement below it — version inheritance, internal pins, example pins, lock entries —
+        // reported clean over a corpus missing that member. `NotFound` is the absence this loop may skip;
+        // anything else is a fact to report, and the message carries which of the two it met.
+        //
+        // **One construction, three reasons.** The register holds a site identity to exactly one branch, so
+        // three arms reaching three calls would be one identity vouching for branches no direction reached —
+        // the rule the sibling states in its own words. All three reasons are *this manifest could not be
+        // read*, so the read joins the match and the reason travels as text.
+        let read = match std::fs::metadata(&manifest) {
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(err) => Err(format!("its metadata could not be read — {err}")),
+            Ok(found) if found.is_file() => {
+                std::fs::read_to_string(&manifest).map_err(|err| err.to_string())
+            }
+            Ok(_) => Err("it is there and is not a regular file".to_string()),
+        };
+        {
+            let text = match read {
+                Ok(text) => text,
+                Err(why) => {
+                    return Err(cannot_judge_at(
+                        "release-coherence#crate-manifest-unreadable",
+                        format!("could not read {manifest:?}: {why}"),
+                    ));
+                }
+            };
             // **Spelled by the one owner, because this is the side `member_enumeration` compares
             // against.** This read `strip_prefix(repo).unwrap_or(&manifest).display()`, which is the
             // host's own separator and, on a failed strip, the absolute path carried forward as if it
@@ -1954,7 +1977,9 @@ pub(crate) fn machinery_names(repo: &Path) -> Result<BTreeSet<String>, Refusal> 
                 return Err(cannot_judge_at(
                     "release-coherence#member-manifest-has-no-directory",
                     format!(
-                        "member manifest {manifest} has no parent directory, so there is no member                          directory to enumerate; cargo resolves member paths against the root it reports                          and every path it reports has one"
+                        "member manifest {manifest} has no parent directory, so there is no member directory to \
+                         enumerate; cargo resolves member paths against the root it reports and \
+                         every path it reports has one"
                     ),
                 ));
             }
