@@ -713,9 +713,9 @@ consumer for an undemonstrated deduplication.
 
   **Promoted from WATCH because its own trigger fired, six times.** That trigger was *a normative SHALL found
   un-reacted **after** the 0.5.0 window's sweep* — the sweep being the control, so the four found before it could not
-  stand as evidence for themselves. Rounds 6 and 7 then found three more, and **all three were requirements this
-  window had just written**: a SHALL added in one change and left unreacted, in the window whose whole subject was
-  closing that class. That is stronger evidence than the original four, because it shows the class reproducing under
+  stand as evidence for themselves. Rounds 6 and 7 then found three more, and **all three were requirements written after the sweep that is
+  this trigger's control**: a SHALL added in one change and left unreacted, while the class was being closed
+  around it. That is stronger evidence than the original four, because it shows the class reproducing under
   authors actively watching for it. The third re-review then found the fourth through sixth post-sweep recurrences, again
   in requirements or scenarios written in the same window; two were removed as inert, and semantic delegation
   gained a source-shape reaction.
@@ -2105,8 +2105,9 @@ consumer for an undemonstrated deduplication.
   and nine in the released `[0.4.0]` — spread
   across `### Added`, `### Changed`, `### Fixed` and `### Documentation`. The rule that now refuses them reads an entry's
   **references** — a word equal to a path under `scripts/`, or to a basename `git ls-files scripts/` resolves
-  — and an entry describing this repository's own governance while naming no such word stays invisible to it. *Observation source:* two live instances, not a hypothetical: after this
-  window's move, the entries *The bound register refuses a restatement* and *The bound register's own citations
+  — and an entry describing this repository's own governance while naming no such word stays invisible to it. *Observation source:* two live instances, not a hypothetical: after the
+  section collapse this entry already names, the entries *The bound register refuses a restatement* and *The
+  bound register's own citations
   can no longer read as coverage while defending nothing* both sit under adopter headings, both describe the
   bound register's own behaviour, and both name nothing the enumerator resolves. *Current reaction or bound:*
   declared unpinned as
@@ -2447,7 +2448,7 @@ consumer for an undemonstrated deduplication.
   from the alphabet, and the trigger's *an instance* means an instance in live governance text, which is
   still zero.
 
-- **WATCH: a relative phrase in non-record Markdown.** *Observed pressure:* `AGENTS.md` states the rule for
+- **WATCH: the duration phrase in non-record Markdown.** *Observed pressure:* `AGENTS.md` states the rule for
   prose generally — a relative anchor "names a moving reference, so it is stale the moment the window closes"
   — while `no_tracked_source_names_a_relative_anchor` reads line-comment formats only. The exclusion for
   Markdown gave two grounds and the second, *in a record a relative phrase narrates a past state*, reaches
@@ -2462,9 +2463,16 @@ consumer for an undemonstrated deduplication.
   `docs/history/` — and a figure does not, because this entry, the scenario and the scenario's two
   projections each quote the phrase to name it, so any breakdown moves as it is written. Three attempts
   proved that rather than argued it: stated in the spec, moved here, and wrong in both.
+  **Narrowed, because three of those four groups turned out to be separable by shape.** A record carrier is
+  decided by path and by dated section; a marked quotation — the phrase in backticks or single emphasis — is
+  how this repository quotes a phrase to define it rather than to point with it; and a generated
+  projection's copy of either is a marked quotation by the same test. `no_markdown_prose_names_a_relative_anchor`
+  now reads this corpus for every declared phrase but the duration one, and what remains unobserved is
+  *for a window* alone. The reader also found the class this entry watches in a shape a per-line sweep
+  cannot: two of its offences had the phrase wrapped across a line break.
   *Current reaction or bound:*
-  `reference-integrity/a-relative-phrase-in-non-record-markdown-is-not-observed-a-stated-bound`; the two
-  unanchored phrases are anchored to `0.5.0`. *Risk:* a phrase written here goes stale when its window
+  `reference-integrity/the-duration-phrase-in-non-record-markdown-is-not-observed-a-stated-bound`, narrowed
+  to the duration phrase; the earlier unanchored phrases are anchored to `0.5.0`. *Risk:* a phrase written here goes stale when its window
   closes and nothing says so, which is what the rule exists to prevent — bounded by this file being read by
   a person against the tree rather than executed. **The class recurred ten times in the `0.6.0` window, and the count is what changes the argument.** The
   `0.5.0` window closed the unanchored pointers to zero; re-measured later in `0.6.0`, `BACKLOG.md`
@@ -3202,8 +3210,8 @@ consumer for an undemonstrated deduplication.
   present-indicative *A capability change **moves through** OpenSpec* "prose stating a fact about the tree
   that the tree contradicts", and counted zero instances as the contradiction. A **rule** is not falsified by
   having no instances; it is left **unexercised**. The evidence the entry gathered was real and its reading
-  of that evidence was the error — the same distinction this window wrote into `AGENTS.md`'s bar one document
-  over, where a rule needs a reachable instance to earn a *reaction* and not to be true.
+  of that evidence was the error — the same distinction `AGENTS.md`'s bar draws, where a rule needs a
+  reachable instance to earn a *reaction* and not to be true.
 
   *What the entry got right and what survives.* Half the section is live and load-bearing: the sync-evidence
   rule is followed, and `openspec/changes/archive/.gitkeep` is tracked exactly as described. What remains is

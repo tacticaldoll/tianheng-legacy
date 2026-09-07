@@ -259,11 +259,11 @@ fallback used where no manifest exists, which the register spec describes.
 
 ## reference-integrity
 
-### `reference-integrity/a-relative-phrase-in-non-record-markdown-is-not-observed-a-stated-bound`
+### `reference-integrity/the-duration-phrase-in-non-record-markdown-is-not-observed-a-stated-bound`
 
-> nothing reacts. Extending the sweep to whole-document prose was measured against the tree it would judge, and most of what it would report is not an offence: some occurrences are `AGENTS.md`'s own row **declaring** the phrases, some are duration rather than pointer — *admitted it for a window*, which narrates how long something lasted — some are a generated projection's copy of either, and some are already anchored, by a commit or by naming the release. A reader over text separates none of those groups: telling a phrase that points at a moving window from one that measures a span is a judgement about the sentence, which is the prose instrument `AGENTS.md` records as designed, measured three times and rejected
+> nothing reacts, because that phrase alone is the group a reader over text cannot separate: it is as often **duration** — *admitted it for a window*, narrating how long something lasted — as it is a pointer at a moving window, and telling the two apart is a judgement about the sentence, which is the prose instrument `AGENTS.md` records as designed, measured three times and rejected. It is the same ground on which *the same window* is absent from the declared phrases entirely
 
-- **unpinned**, tracked by: `BACKLOG.md` — *a relative phrase in non-record Markdown*
+- **unpinned**, tracked by: `BACKLOG.md` — *the duration phrase in non-record Markdown*
 
 ### `reference-integrity/a-code-span-shaped-like-an-object-is-refused-though-it-names-none-a-stated-bound`
 
