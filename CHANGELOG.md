@@ -1080,6 +1080,26 @@ them.
 
 ### Self-governance
 
+- **The merge wrapper's repository-identity guard was defeated by three environment variables, and the
+  wrapper ran to completion.** `GIT_DIR`, `GIT_WORK_TREE` and `GIT_INDEX_FILE` move which repository a git
+  command acts on, past `current_dir` and past `-C`. `hermetic_git::hermetic` removes them for every git this
+  repository builds in Rust, with a doc saying why; `scripts/merge-pr.sh`, standing in front of the one
+  irreversible act, inherited them.
+
+  What they defeat is the guard rather than a read. It compares the worktree holding the wrapper's gate
+  against the worktree its evidence comes from, so that a wrapper invoked by absolute path from another
+  checkout cannot judge one repository's pull request by another repository's law. Measured with the two
+  pointed at a third repository, both reads answer the decoy — so the comparison **passes** in exactly the
+  arrangement it exists to refuse, vouching for an equality about a tree that is neither the gate's nor the
+  evidence's. The negative run shows what follows: exit `0`. Not a passed guard and a later refusal — the
+  wrapper merged.
+
+  The hazard was already written down in the direction that guards the same seam: *a fixture built under an
+  ambient `GIT_DIR` is not the worktree this direction believes it made*. The fixture builder was made
+  hermetic and the wrapper under test was not, in the same file. The selectors are cleared before anything
+  reads a repository now, and a direction sets them at a decoy. The configuration channels are out of scope
+  deliberately: this script's git calls are `rev-parse --show-toplevel`, which configuration does not move.
+
 - **A red rollup named the wrong gate.** The Definition of Done job ran `whitespace_hygiene`,
   `repeated_paragraph` and `hermetic_invocations` under one step called *whitespace hygiene across every
   tracked text file*, so a refusal from either of the other two reported under a name that misidentifies it

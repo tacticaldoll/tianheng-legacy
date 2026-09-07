@@ -69,7 +69,7 @@ fn read_if_present(path: &Path) -> std::io::Result<String> {
     }
 }
 
-/// The wrapper run from the workspace it lives in, which is how every direction but one exercises it.
+/// The wrapper run from the workspace it lives in, which is how every direction but two exercises it.
 fn run_wrapper(root: &Path, mode: &str, extra: &[&str]) -> Run {
     run_wrapper_in(root, mode, extra, None)
 }
@@ -79,6 +79,23 @@ fn run_wrapper(root: &Path, mode: &str, extra: &[&str]) -> Run {
 /// Split because the wrapper reads its gate from its own tree and its evidence from the working directory,
 /// and a harness that never varies the second cannot construct the case where they differ.
 fn run_wrapper_in(root: &Path, mode: &str, extra: &[&str], cwd: Option<&Path>) -> Run {
+    run_wrapper_with_ambient(root, mode, extra, cwd, &[])
+}
+
+/// The wrapper run with `ambient` in its environment.
+///
+/// **Split for the same reason the `cwd` variant was, one channel over.** The wrapper reads its gate and its
+/// evidence through git, and `GIT_DIR`/`GIT_WORK_TREE`/`GIT_INDEX_FILE` move which repository git answers
+/// about — so a harness that never sets them cannot construct the case where both reads are redirected and
+/// the guard's comparison passes about a third tree. Every other direction passes `&[]` and inherits this
+/// process's environment, which is what they were exercising before this parameter existed.
+fn run_wrapper_with_ambient(
+    root: &Path,
+    mode: &str,
+    extra: &[&str],
+    cwd: Option<&Path>,
+    ambient: &[(&str, &Path)],
+) -> Run {
     static NEXT: AtomicUsize = AtomicUsize::new(0);
     let scratch = loop {
         let candidate = std::env::temp_dir().join(format!(
@@ -349,6 +366,9 @@ printf '%s\n' 'test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 fil
     if let Some(cwd) = cwd {
         command.current_dir(cwd);
     }
+    for (name, value) in ambient {
+        command.env(name, value);
+    }
     if mode == "no-verdict" {
         command.env("FAKE_GATE_VERDICT", "none");
     }
@@ -433,6 +453,79 @@ fn a_pull_request_from_another_worktree_is_refused_before_any_evidence_is_read()
         run.cargo_log.trim().is_empty(),
         "the gate ran before the wrapper knew whose pull request it was judging: {}",
         run.cargo_log
+    );
+}
+
+/// The same refusal under an ambient repository selector, which defeated the guard rather than the read.
+///
+/// **This is the sibling above with one channel added, and the sibling's own comment named the hazard while
+/// the wrapper under test carried it.** That comment says a fixture built under an ambient `GIT_DIR` is not
+/// the worktree the direction believes it made — so the fixture builder was made hermetic and the wrapper
+/// was not. `GIT_DIR`, `GIT_WORK_TREE` and `GIT_INDEX_FILE` move which repository git answers about, past
+/// `current_dir` and past `-C`. Measured on this machine's git with the two pointed at a third repository:
+///
+/// ```text
+/// no selectors:     git -C gate rev-parse --show-toplevel -> .../gate    git (cwd=other) -> .../other
+/// pointed at decoy: git -C gate rev-parse --show-toplevel -> .../decoy   git (cwd=other) -> .../decoy
+/// ```
+///
+/// Both answer the decoy, so the guard's comparison passes in exactly the arrangement it exists to refuse
+/// and vouches for an equality about a tree that is neither the gate's nor the evidence's. What it would
+/// then do is what the sibling's own header says: apply this repository's law to a stranger's pull request
+/// and merge it.
+///
+/// Negative run, with the wrapper's `unset` removed:
+///
+/// ```text
+/// assertion `left == right` failed: an ambient selector made both reads answer a third repository, so the
+/// guard compared two spellings of the decoy and passed — the wrapper owes the cannot-judge class instead:
+///   left: Some(0)
+///  right: Some(2)
+/// ```
+///
+/// **`Some(0)`, not a passed guard followed by some later refusal.** The wrapper ran to completion and
+/// merged. That is the failure the guard was written for, reached by three environment variables that were
+/// removed from every git this repository builds in Rust and left in the one script standing in front of
+/// the act.
+#[test]
+fn an_ambient_repository_selector_does_not_make_two_worktrees_one() {
+    let Some(root) = workspace_root() else {
+        return;
+    };
+    let scratch = std::env::temp_dir().join(format!(
+        "tianheng-merge-workflow-ambient-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&scratch);
+    xingbiao::claim_scratch(&scratch).expect("create the fixture root");
+    let elsewhere = scratch.join("elsewhere");
+    let decoy = scratch.join("decoy");
+    for tree in [&elsewhere, &decoy] {
+        std::fs::create_dir_all(tree).expect("create a worktree");
+        // Through the builder, like every other fixture here, and for the reason the sibling records.
+        kanhe::hermetic_git::fixture(tree, "git", &["init", "-q", "-b", "main"]);
+    }
+
+    let run = run_wrapper_with_ambient(
+        &root,
+        "subjects",
+        &[],
+        Some(&elsewhere),
+        &[("GIT_DIR", &decoy.join(".git")), ("GIT_WORK_TREE", &decoy)],
+    );
+    let _ = std::fs::remove_dir_all(&scratch);
+
+    assert_eq!(
+        run.status.code(),
+        Some(2),
+        "an ambient selector made both reads answer a third repository, so the guard compared two \
+         spellings of the decoy and passed — the wrapper owes the cannot-judge class instead: {}",
+        run.stderr
+    );
+    assert!(
+        run.gh_log.is_empty(),
+        "the refusal must land before any evidence is read, as its non-ambient sibling requires: {}",
+        run.gh_log
     );
 }
 
