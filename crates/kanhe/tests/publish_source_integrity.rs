@@ -6,7 +6,9 @@
 
 use kanhe::publish_source_gate as gate;
 
-use gate::{build_fixture, judge};
+use kanhe::fixture::publish_source as fixture;
+
+use gate::judge;
 use std::path::PathBuf;
 
 fn workspace_root() -> Option<PathBuf> {
@@ -42,7 +44,7 @@ fn a_valid_signature_from_an_unauthorized_key_is_accepted() {
     let _ = std::fs::remove_dir_all(&root);
     xingbiao::claim_scratch(&root).expect("the fixture root is writable");
 
-    let fixture = build_fixture(&root, "unauthorized", "9.9.9");
+    let fixture = fixture::build(&root, "unauthorized", "9.9.9");
 
     // The premise, stated rather than trusted: nothing authorizes this key. If an allowed-signers file were
     // reachable, the acceptance below would say nothing about the bound.

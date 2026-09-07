@@ -136,7 +136,7 @@ pub fn hermetic(program: &str) -> Command {
 /// judgement's reads — measured, `status --porcelain --untracked-files=all` reports an excluded file with and
 /// without it, because that command does not consult it. What it moves is a **write**: under it,
 /// `git config user.name t` lands in the file the variable names instead of the fixture's own `.git/config`,
-/// so `fixture` and `build_fixture` would build a repository with no identity and the commit after them
+/// so `fixture` and the builders in `crate::fixture` would build a repository with no identity and the commit after them
 /// fails. That is fail-loud, like the object-directory pair, and it is cleared for the reason the selector
 /// row gives: an `env_remove` costs nothing and refuses no caller in this workspace.
 const CONFIG_CHANNELS: [&str; 2] = ["GIT_CONFIG_PARAMETERS", "GIT_CONFIG"];
@@ -477,22 +477,6 @@ pub fn fixture(dir: &Path, program: &str, args: &[&str]) {
         String::from_utf8_lossy(&out.stdout),
         String::from_utf8_lossy(&out.stderr)
     );
-}
-
-/// Stage everything in a fixture and commit it under one subject.
-///
-/// **The third instance of this module's own class, and converging [`fixture`] is what exposed it.** With the
-/// command builder shared, both fixture builders were left spelling `git add .` and then a commit — while
-/// `release_coherence_gate` had already written exactly this helper for itself and `publish_source_gate` had
-/// not. One module holding the extraction and its sibling not is the same shape the two earlier extractions
-/// left behind, one layer down, and it was invisible until the layer above it closed.
-///
-/// # Panics
-///
-/// As [`fixture`] does: this builds a subject rather than judging one.
-pub fn commit(repo: &Path, subject: &str) {
-    fixture(repo, "git", &["add", "."]);
-    fixture(repo, "git", &["commit", "-qm", subject]);
 }
 
 /// Why a `git` read produced no output.

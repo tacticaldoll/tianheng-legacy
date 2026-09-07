@@ -12,6 +12,7 @@ signature this gate deliberately does not judge.
 - `crates/kanhe/tests/publish_source.rs`
 - `crates/kanhe/tests/publish_source_integrity.rs`
 - `crates/kanhe/src/publish_source_gate.rs`
+- `crates/kanhe/src/fixture/publish_source.rs`
 
 The gate runs as `cargo test -p kanhe --test publish_source`, invoked by `scripts/publish.sh`, so *violation*
 and *cannot-judge* below name values of its result type rather than process statuses.

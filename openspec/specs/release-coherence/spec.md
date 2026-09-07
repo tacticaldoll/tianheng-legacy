@@ -10,6 +10,7 @@ surfaces, lock snapshot, and adopter-facing changelog coherent without time-base
 - `CHANGELOG.md`
 - `crates/kanhe/tests/release_coherence.rs`
 - `crates/kanhe/src/release_coherence_gate.rs`
+- `crates/kanhe/src/fixture/release_coherence.rs`
 
 ## Requirements
 

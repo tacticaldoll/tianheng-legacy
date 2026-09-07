@@ -13,13 +13,15 @@
 
 use kanhe::refusal;
 
+use kanhe::hermetic_git::hermetic;
 use kanhe::publish_source_gate as gate;
 use kanhe::verdict_channel::Verdict;
 
-use gate::{
-    NoClassification, Tracked, build_fixture, hermetic, hidden_by_the_checkout,
-    hidden_by_the_checkout_with, judge,
-};
+// The fixture and the judgement are separate modules now, and this file reaches each by its own name so a
+// reader can tell which half a call belongs to.
+use kanhe::fixture::publish_source as fixture;
+
+use gate::{NoClassification, Tracked, hidden_by_the_checkout, hidden_by_the_checkout_with, judge};
 use refusal::Kind;
 use std::path::{Path, PathBuf};
 
@@ -91,7 +93,7 @@ fn the_publish_source() -> Verdict {
 #[test]
 fn a_signed_tagged_snapshot_at_the_tip_of_main_is_accepted() {
     let root = scratch("accepted");
-    let fixture = build_fixture(&root, "ok", "9.9.9");
+    let fixture = fixture::build(&root, "ok", "9.9.9");
     let verdict = judge(&fixture.repo, &fixture.remote.display().to_string());
     let _ = std::fs::remove_dir_all(&root);
     assert!(verdict.is_ok(), "{:?}", verdict.err());
@@ -100,7 +102,7 @@ fn a_signed_tagged_snapshot_at_the_tip_of_main_is_accepted() {
 #[test]
 fn a_dirty_worktree_is_a_violation() {
     let root = scratch("dirty");
-    let fixture = build_fixture(&root, "dirty", "9.9.9");
+    let fixture = fixture::build(&root, "dirty", "9.9.9");
     std::fs::write(fixture.repo.join("stray.txt"), "untracked").expect("write a stray file");
     let verdict = judge(&fixture.repo, &fixture.remote.display().to_string());
     let _ = std::fs::remove_dir_all(&root);
@@ -127,7 +129,7 @@ fn a_dirty_worktree_is_a_violation() {
 #[test]
 fn the_dirty_worktree_diagnostic_names_each_path_unescaped_and_one_per_line() {
     let root = scratch("dirty-render");
-    let fixture = build_fixture(&root, "dirty-render", "9.9.9");
+    let fixture = fixture::build(&root, "dirty-render", "9.9.9");
     std::fs::write(fixture.repo.join("普通.txt"), "untracked")
         .expect("write a non-ASCII stray file");
     std::fs::write(fixture.repo.join("plain.txt"), "untracked").expect("write a stray file");
@@ -175,7 +177,7 @@ fn the_dirty_worktree_diagnostic_names_each_path_unescaped_and_one_per_line() {
 #[test]
 fn a_tag_that_is_not_on_the_remote_is_a_violation() {
     let root = scratch("tag-not-pushed");
-    let fixture = build_fixture(&root, "tag-not-pushed", "9.9.9");
+    let fixture = fixture::build(&root, "tag-not-pushed", "9.9.9");
     // The builder pushed it; this is the maintainer who has not.
     git(
         &fixture.repo,
@@ -205,7 +207,7 @@ fn a_tag_that_is_not_on_the_remote_is_a_violation() {
 #[test]
 fn a_tag_replaced_after_it_was_pushed_is_a_violation() {
     let root = scratch("tag-moved");
-    let fixture = build_fixture(&root, "tag-moved", "9.9.9");
+    let fixture = fixture::build(&root, "tag-moved", "9.9.9");
     // Same name, same commit, a different tag object: re-signing is enough to make the remote's ref stale.
     git(
         &fixture.repo,
@@ -224,7 +226,7 @@ fn a_tag_replaced_after_it_was_pushed_is_a_violation() {
 #[test]
 fn a_head_that_is_not_the_release_snapshot_is_a_violation() {
     let root = scratch("subject");
-    let fixture = build_fixture(&root, "subject", "9.9.9");
+    let fixture = fixture::build(&root, "subject", "9.9.9");
     std::fs::write(fixture.repo.join("note.md"), "later work").expect("write");
     git(&fixture.repo, &["add", "."]);
     git(&fixture.repo, &["commit", "-qm", "docs: later work"]);
@@ -249,7 +251,7 @@ fn a_head_that_is_not_the_release_snapshot_is_a_violation() {
 #[test]
 fn an_untagged_snapshot_is_a_violation() {
     let root = scratch("untagged");
-    let fixture = build_fixture(&root, "untagged", "9.9.9");
+    let fixture = fixture::build(&root, "untagged", "9.9.9");
     git(&fixture.repo, &["tag", "-d", "v9.9.9"]);
     let verdict = judge(&fixture.repo, &fixture.remote.display().to_string());
     let _ = std::fs::remove_dir_all(&root);
@@ -266,7 +268,7 @@ fn an_untagged_snapshot_is_a_violation() {
 #[test]
 fn a_lightweight_tag_is_a_violation() {
     let root = scratch("lightweight");
-    let fixture = build_fixture(&root, "lightweight", "9.9.9");
+    let fixture = fixture::build(&root, "lightweight", "9.9.9");
     git(&fixture.repo, &["tag", "-d", "v9.9.9"]);
     git(&fixture.repo, &["tag", "v9.9.9"]);
     let verdict = judge(&fixture.repo, &fixture.remote.display().to_string());
@@ -290,7 +292,7 @@ fn a_lightweight_tag_is_a_violation() {
 #[test]
 fn an_unsigned_annotated_tag_is_a_violation() {
     let root = scratch("unsigned");
-    let fixture = build_fixture(&root, "unsigned", "9.9.9");
+    let fixture = fixture::build(&root, "unsigned", "9.9.9");
     git(&fixture.repo, &["tag", "-d", "v9.9.9"]);
     git(
         &fixture.repo,
@@ -323,7 +325,7 @@ fn an_unsigned_annotated_tag_is_a_violation() {
 #[test]
 fn a_tag_pointing_elsewhere_than_head_is_a_violation() {
     let root = scratch("elsewhere");
-    let fixture = build_fixture(&root, "elsewhere", "9.9.9");
+    let fixture = fixture::build(&root, "elsewhere", "9.9.9");
     // Move HEAD forward, then move it back to a *different* commit with the same subject, so the tag no
     // longer names HEAD while every other property still holds.
     std::fs::write(fixture.repo.join("extra.md"), "x").expect("write");
@@ -356,7 +358,7 @@ fn a_tag_pointing_elsewhere_than_head_is_a_violation() {
 #[test]
 fn a_snapshot_that_is_not_the_tip_of_main_is_a_violation() {
     let root = scratch("not-tip");
-    let fixture = build_fixture(&root, "not-tip", "9.9.9");
+    let fixture = fixture::build(&root, "not-tip", "9.9.9");
     git(&fixture.repo, &["checkout", "-q", "-b", "later"]);
     std::fs::write(fixture.repo.join("after.md"), "after").expect("write");
     git(&fixture.repo, &["add", "."]);
@@ -395,7 +397,7 @@ fn an_unreadable_source_cannot_be_judged_rather_than_refused() {
         no_manifest.message
     );
 
-    let fixture = build_fixture(&root, "malformed", "9.9.9");
+    let fixture = fixture::build(&root, "malformed", "9.9.9");
     std::fs::write(
         fixture.repo.join("Cargo.toml"),
         "[workspace]\nmembers = []\n\n[workspace.package]\nversion = \"not-a-version\"\n",
@@ -423,7 +425,7 @@ fn an_unreadable_source_cannot_be_judged_rather_than_refused() {
 #[test]
 fn a_manifest_this_gate_cannot_read_is_not_judged_as_though_its_version_is_missing() {
     let root = scratch("unreadable-manifest");
-    let fixture = build_fixture(&root, "unreadable-manifest", "9.9.9");
+    let fixture = fixture::build(&root, "unreadable-manifest", "9.9.9");
     std::fs::write(fixture.repo.join("Cargo.toml"), [0xff, 0xfe, 0xfd])
         .expect("write invalid utf-8 in place of the manifest");
     let refusal = judge(&fixture.repo, &fixture.remote.display().to_string())
@@ -502,7 +504,7 @@ fn each_unreadable_input_says_which_one_it_could_not_read() {
 #[test]
 fn a_version_this_reader_cannot_read_stops_the_publish_as_a_cannot_judge() {
     let root = scratch("unreadable-version");
-    let fixture = build_fixture(&root, "unreadable", "9.9.9");
+    let fixture = fixture::build(&root, "unreadable", "9.9.9");
     // A real repository, so the worktree branch above this one is already satisfied and the refusal is about
     // the version. Rewriting the manifest also leaves the tree dirty, which is refused *after* the version is
     // read — so the order of `judge`'s phases is what keeps this direction about the thing it names.
@@ -547,7 +549,7 @@ fn a_version_this_reader_cannot_read_stops_the_publish_as_a_cannot_judge() {
 #[test]
 fn a_tag_with_no_signature_block_is_named_as_such() {
     let root = scratch("no-signature");
-    let fixture = build_fixture(&root, "no-signature", "9.9.9");
+    let fixture = fixture::build(&root, "no-signature", "9.9.9");
     git(&fixture.repo, &["tag", "-d", "v9.9.9"]);
     git(
         &fixture.repo,
@@ -578,7 +580,7 @@ fn a_tag_with_no_signature_block_is_named_as_such() {
 #[test]
 fn a_signature_this_gate_cannot_read_cannot_be_judged() {
     let root = scratch("foreign-signature");
-    let fixture = build_fixture(&root, "foreign-signature", "9.9.9");
+    let fixture = fixture::build(&root, "foreign-signature", "9.9.9");
     git(&fixture.repo, &["tag", "-d", "v9.9.9"]);
     git(
         &fixture.repo,
@@ -619,7 +621,7 @@ fn a_signature_this_gate_cannot_read_cannot_be_judged() {
 #[test]
 fn a_remote_that_cannot_be_read_cannot_be_judged() {
     let root = scratch("no-remote");
-    let fixture = build_fixture(&root, "no-remote", "9.9.9");
+    let fixture = fixture::build(&root, "no-remote", "9.9.9");
     let absent = root.join("there-is-no-remote-here.git");
     let verdict = judge(&fixture.repo, &absent.display().to_string());
     let _ = std::fs::remove_dir_all(&root);
@@ -644,7 +646,7 @@ fn a_remote_that_cannot_be_read_cannot_be_judged() {
 #[test]
 fn a_remote_without_main_is_named_as_missing_the_ref() {
     let root = scratch("remote-without-main");
-    let fixture = build_fixture(&root, "remote-without-main", "9.9.9");
+    let fixture = fixture::build(&root, "remote-without-main", "9.9.9");
     let remote_without_main = root.join("remote-without-main.git");
     git(
         &root,
@@ -681,7 +683,7 @@ fn a_remote_without_main_is_named_as_missing_the_ref() {
 #[test]
 fn a_worktree_state_that_cannot_be_read_cannot_be_judged() {
     let root = scratch("unreadable-index");
-    let fixture = build_fixture(&root, "unreadable-index", "9.9.9");
+    let fixture = fixture::build(&root, "unreadable-index", "9.9.9");
     std::fs::write(fixture.repo.join(".git/index"), b"not an index").expect("corrupt the index");
     let verdict = judge(&fixture.repo, &fixture.remote.display().to_string());
     let _ = std::fs::remove_dir_all(&root);
@@ -729,7 +731,7 @@ fn rev(repo: &Path, what: &str) -> String {
 #[test]
 fn a_tag_whose_object_is_missing_cannot_be_read() {
     let root = scratch("missing-tag");
-    let fixture = build_fixture(&root, "missing-tag", "9.9.9");
+    let fixture = fixture::build(&root, "missing-tag", "9.9.9");
     drop_object(&fixture.repo, &rev(&fixture.repo, "refs/tags/v9.9.9"));
     let verdict = judge(&fixture.repo, &fixture.remote.display().to_string());
     let _ = std::fs::remove_dir_all(&root);
@@ -751,7 +753,7 @@ fn a_tag_whose_object_is_missing_cannot_be_read() {
 #[test]
 fn a_head_whose_ancestor_is_missing_cannot_have_its_subject_read() {
     let root = scratch("missing-ancestor");
-    let fixture = build_fixture(&root, "missing-ancestor", "9.9.9");
+    let fixture = fixture::build(&root, "missing-ancestor", "9.9.9");
     let tagged = rev(&fixture.repo, "refs/tags/v9.9.9^{commit}");
     std::fs::write(fixture.repo.join("later.txt"), "later").expect("write");
     git(&fixture.repo, &["add", "."]);
@@ -778,7 +780,7 @@ fn a_head_whose_ancestor_is_missing_cannot_have_its_subject_read() {
 #[test]
 fn a_tag_whose_commit_is_missing_cannot_be_resolved() {
     let root = scratch("missing-tag-commit");
-    let fixture = build_fixture(&root, "missing-tag-commit", "9.9.9");
+    let fixture = fixture::build(&root, "missing-tag-commit", "9.9.9");
     let tagged = rev(&fixture.repo, "refs/tags/v9.9.9^{commit}");
     git(&fixture.repo, &["checkout", "-q", "--orphan", "detached"]);
     git(&fixture.repo, &["rm", "-rq", "--cached", "."]);
@@ -1045,7 +1047,7 @@ fn the_tracked_question_is_asked_once_per_source_not_once_per_path() {
     let asked = std::sync::atomic::AtomicUsize::new(0);
     let hidden = hidden_by_the_checkout_with(&repo, gate::classify, |repo, source| {
         asked.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        match gate::hermetic("git")
+        match hermetic("git")
             .args(["ls-files", "--error-unmatch", "-z", "--", source])
             .current_dir(repo)
             .output()
@@ -1123,7 +1125,7 @@ fn a_scratch_path_another_user_could_own_is_refused_rather_than_written_through(
 #[test]
 fn a_worktree_the_checkout_hides_is_a_violation() {
     let root = scratch("checkout-hidden");
-    let fixture = build_fixture(&root, "checkout-hidden", "9.9.9");
+    let fixture = fixture::build(&root, "checkout-hidden", "9.9.9");
     std::fs::write(fixture.repo.join(".git/info/exclude"), "stray.txt\n").expect("write");
     std::fs::write(fixture.repo.join("stray.txt"), "stray").expect("write");
     let verdict = judge(&fixture.repo, &fixture.remote.display().to_string());
@@ -1190,7 +1192,7 @@ fn a_source_whose_tracking_cannot_be_read_is_not_untracked() {
 #[test]
 fn a_manifest_declaring_no_workspace_version_stops_the_publish() {
     let root = scratch("absent-version");
-    let fixture = build_fixture(&root, "absent-version", "9.9.9");
+    let fixture = fixture::build(&root, "absent-version", "9.9.9");
     std::fs::write(
         fixture.repo.join("Cargo.toml"),
         "[workspace]\nmembers = []\n\n[workspace.package]\nedition = \"2024\"\n",
@@ -1294,7 +1296,7 @@ fn a_worktree_holding_an_undecodable_path_is_not_judged_clean_or_dirty() {
     use std::os::unix::ffi::OsStrExt;
 
     let root = scratch("undecodable-path");
-    let fixture = build_fixture(&root, "undecodable-path", "9.9.9");
+    let fixture = fixture::build(&root, "undecodable-path", "9.9.9");
     let name = std::ffi::OsStr::from_bytes(b"stray\xFF");
     std::fs::write(fixture.repo.join(name), b"x").expect("a path may be bytes on unix");
     let verdict = judge(&fixture.repo, &fixture.remote.display().to_string());
