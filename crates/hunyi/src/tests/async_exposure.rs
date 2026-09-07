@@ -418,7 +418,7 @@ pub(super) fn async_subtree_walks_every_branch_of_a_cfg_split_anchor_not_just_th
 #[test]
 pub(super) fn async_subtree_violations_name_each_branchs_own_file_not_a_shared_module_string_cache()
 {
-    // Round-5 finding: async_exposure_subtree_findings correctly emits one finding per branch
+    // `async_exposure_subtree_findings` correctly emits one finding per branch
     // (fixed above), both tagged with the identical module string "crate::foo::bar" (a legitimate
     // cfg-split: unix_leaf lives in foo/bar.rs, win_leaf in win/bar.rs). Before this redesign,
     // push_multi_module_violations resolved each finding's file via per_finding_file, a cache

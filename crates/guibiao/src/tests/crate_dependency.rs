@@ -1063,7 +1063,7 @@ pub(super) fn workspace_rule_flags_only_unlisted_workspace_members() {
 
 #[test]
 pub(super) fn workspace_rule_never_flags_a_crates_own_self_referential_dev_dependency() {
-    // Round-11 finding: Cargo genuinely permits (and real projects use, e.g. a doctest/
+    // Cargo genuinely permits (and real projects use, e.g. a doctest/
     // dogfooding pattern) a crate declaring itself as a `[dev-dependencies]` path dependency
     // on itself (`main = { path = "." }`), and `cargo metadata --no-deps` emits this edge
     // verbatim (verified against real cargo). `workspace_member_names` trivially includes the

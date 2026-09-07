@@ -701,7 +701,7 @@ pub(super) fn a_conventional_module_and_a_path_alias_to_it_are_not_a_false_cycle
 
 #[test]
 pub(super) fn unsafe_in_a_body_nested_mod_reacts() {
-    // The propose-review false-negative guard: a `mod` inside a fn body is not descended by the
+    // The false-negative guard: a `mod` inside a fn body is not descended by the
     // top-level walk; the collector's default recursion must still catch its unsafe.
     let out = unsafe_labels(
         "body-nested",

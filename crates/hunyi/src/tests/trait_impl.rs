@@ -147,7 +147,7 @@ pub(super) fn two_misplaced_impls_do_not_dedup_collapse_when_a_blanket_impls_par
 
 #[test]
 pub(super) fn a_cfg_dual_declared_module_backed_by_one_file_does_not_duplicate_its_impl_finding() {
-    // Round-6 finding: resolve_child_modules (scan.rs, backing the whole-crate scan) had no
+    // `resolve_child_modules` (scan.rs, backing the whole-crate scan) had no
     // canonical-file dedup for two mutually-exclusive #[cfg] arms plainly declaring the IDENTICAL
     // name resolving to the ONE real file -- unlike module_resolve.rs's descend(), which gained
     // exactly this dedup in 0.2.2. A renderable const-generic owner keeps this test focused on the

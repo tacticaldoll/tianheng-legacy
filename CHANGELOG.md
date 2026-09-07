@@ -26,6 +26,33 @@ them.
 
 ### Governance
 
+- **A defect's codename from the process that found it was standing in the code that fixed it.**
+  `Round-9 finding:`, `Round-2 fix:`, `F2`, `F6`, `fix #6`, `fix #9`, `Apply-review finding 1` and
+  `propose-review` opened comments across nine files. Each names *when* a defect was seen and by which pass,
+  which is the one thing nothing downstream reads: the round has no artifact in this repository, the letter
+  codes index a list that never existed here, and a reader who wanted the provenance has the commit. What
+  follows each of them is the invariant, and that is what the comment is for — so the codename came off and
+  the invariant stayed, twenty-three sites, no other wording touched.
+
+  **They lived where the reaction for exactly this shape declares it does not look.** `doc_provenance`
+  refuses the `round` token in a published crate's **doc** comments and says so in its header — ordinary
+  `//` comments are its stated stop. Every one of the twenty-three was an ordinary `//` comment. The sweep
+  is
+  `git ls-files '*.rs' | xargs grep -inE '^\s*//' | grep -E 'Round[- ]?[0-9]+|\bF[0-9]+[: ]|fix #[0-9]+|[Aa]pply-review finding|propose-review'`,
+  the reader's own file excluded, and it now answers nothing.
+
+  **The corpus did not widen, and the reason is that one token carries two dispositions.** A round number
+  used as an index is provenance. A **count** of rounds can be the observation itself: *four rounds of
+  findings in this file were one cause* is what says a positional reading cannot close the class, and *three
+  rounds of widening each added the variable someone had just measured* is what says a name list is not a
+  defence. Delete those and the invariant beside them has nothing to falsify it — the substitution
+  `AGENTS.md`'s *Invariant first, observation second* was written to stop. No reader separates the two;
+  an allowlist of the measurement sites is two lists that must agree; a shape matching only a comment that
+  *opens* with a codename covers seventeen of the twenty-three and reads as though it covered the class.
+  So `AGENTS.md`'s disposition table now carries the split on the two rows that already implied it, and
+  `BACKLOG.md` carries the un-reacted half as a `WATCH` whose reopening condition is a property: the corpus
+  widens with no allowlist the moment no comment in the tree carries a round count.
+
 - **A gate and the fixture that demonstrates it were one module, twice, with a banner comment where the
   boundary belonged.** `release_coherence_gate` and `publish_source_gate` each held both jobs behind a
   `// --- the fixture ---` line, and `hermetic_git` held a third piece of the same job beside its invocation
