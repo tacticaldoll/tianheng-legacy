@@ -466,6 +466,7 @@ fallback used where no manifest exists, which the register spec describes.
 > nothing reads it: a literal is one token, so what it carries is that token's text and not a call
 
 - **pinned by**: `a_construction_inside_an_ordinary_string_literal_is_not_read`
+- **pinned by**: `a_construction_inside_a_raw_string_is_not_read`
 
 ### `repository-checks/a-git-constructed-through-a-name-bound-elsewhere-is-not-read-a-stated-bound`
 

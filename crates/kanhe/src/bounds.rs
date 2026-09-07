@@ -994,12 +994,12 @@ pub fn observation_bounds() -> Vec<BoundDecl> {
             }),
             "a_construction_named_in_prose_is_not_read",
         ),
-        BoundDecl::pinned(
+        BoundDecl::pinned_by_many(
             BoundId::new(
                 "repository-checks/a-git-constructed-inside-a-string-literal-is-not-read-a-stated-bound",
             ),
-            "a `git` construction written inside a string literal of any form, where a file that emits Rust \
-             and compiles it carries one",
+            "a `git` construction written inside a string literal of either form, ordinary or raw, where a \
+             file that emits Rust and compiles it carries one",
             Extent::Reached(Reached::UnderReacts {
                 because: "a literal is one token, so what it carries is that token's text and not a call. \
                           Reading lines, this split in two: an ordinary literal escaped its quotes and \
@@ -1012,6 +1012,7 @@ pub fn observation_bounds() -> Vec<BoundDecl> {
                 owner: Owner::Engine,
             }),
             "a_construction_inside_an_ordinary_string_literal_is_not_read",
+            ["a_construction_inside_a_raw_string_is_not_read"],
         ),
         BoundDecl::pinned(
             BoundId::new(

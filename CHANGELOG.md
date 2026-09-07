@@ -932,6 +932,25 @@ them.
 
 ### Self-governance
 
+- **A bound claimed a stop in both string-literal forms and cited the evidence for one.** Its subject said
+  *either form* and its `because` said *one stop remains, in both forms*, while its citation named only
+  `a_construction_inside_an_ordinary_string_literal_is_not_read`. The direction holding the raw form was
+  cited nowhere — not by the declaration, not by either projection — so it could have been deleted with the
+  register, both projections and every gate unchanged, leaving the bound claiming a stop it had half the
+  evidence for. It cites both now, through `BoundDecl::pinned_by_many`.
+
+  **Two directions defending one bound, not two bounds.** Reading what the second direction demonstrates
+  settled that: a lexer answers both literal forms the same way, so the raw form's earlier over-report is
+  *closed* rather than declared, and there is one stop reached two ways. Splitting it would have declared two
+  stops where there is one, which is a worse fault than the under-citation — a bound register is only as
+  honest as the count of stops it names. The scenario says so in its own clause now, so the next reader does
+  not have to re-derive it from the directions.
+
+  The scenario's `WHEN` said *inside an **ordinary** string literal* while the declaration's subject said *of
+  any form* — a third instance of the same class in one bound, and one nothing could hold: the spec-to-code
+  bijection is over bound **ids**, not over the shape text either side spells. Both now say *either form,
+  ordinary or raw*.
+
 - **A deliberate stop was argued in a doc comment and declared nowhere.** The publish gate refuses rather
   than judging the cleanliness of a worktree holding a path that is a legal filename and not UTF-8, and the
   reason for that — `xingbiao::path_identity` keeps two identities for two paths differing only in

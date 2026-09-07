@@ -749,11 +749,12 @@ Generated from each dimension's `observation_bounds()` by `crates/kanhe/tests/ob
 
 ### `repository-checks/a-git-constructed-inside-a-string-literal-is-not-read-a-stated-bound`
 
-> a `git` construction written inside a string literal of any form, where a file that emits Rust and compiles it carries one
+> a `git` construction written inside a string literal of either form, ordinary or raw, where a file that emits Rust and compiles it carries one
 
 - **because**: a literal is one token, so what it carries is that token's text and not a call. Reading lines, this split in two: an ordinary literal escaped its quotes and dropped out on its own, while a RAW string carried the spelling verbatim and was reported -- an over-report that reading tokens closed rather than declared. One stop remains, in both forms. No mutation record isolates it: a literal's contents are not a token stream, so reaching into them is a different reader rather than a perturbation of this one
 - **its defence must show**: does not react
 - **pinned by**: `a_construction_inside_an_ordinary_string_literal_is_not_read`
+- **pinned by**: `a_construction_inside_a_raw_string_is_not_read`
 
 ### `repository-checks/a-git-constructed-through-a-name-bound-elsewhere-is-not-read-a-stated-bound`
 

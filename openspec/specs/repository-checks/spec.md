@@ -2117,14 +2117,17 @@ reading — and the worktree case's isolated value *is* the empty string, so a f
 
 #### Scenario: A `git` constructed inside a string literal is not read — a stated bound
 
-- **WHEN** a tracked file carries a `git` construction inside an **ordinary** string literal — a file that
-  emits Rust and compiles it carries one
+- **WHEN** a tracked file carries a `git` construction inside a string literal — ordinary or raw — as a file
+  that emits Rust and compiles it carries one
 - **THEN** nothing reads it: a literal is one token, so what it carries is that token's text and not a
   call
 - **AND** reading lines split this in two — an ordinary literal escaped its quotes and dropped out on its
   own, while a raw string carried the spelling verbatim and **was** reported. That over-report is closed by
   reading tokens rather than declared, and one stop remains, in both forms
+- **AND** the two forms are one stop reached two ways, not two stops, so both directions defend this bound
+  and neither is a bound of its own
 - **PINNED-BY** `a_construction_inside_an_ordinary_string_literal_is_not_read`
+- **PINNED-BY** `a_construction_inside_a_raw_string_is_not_read`
 
 #### Scenario: A `git` constructed through a name bound elsewhere is not read — a stated bound
 
