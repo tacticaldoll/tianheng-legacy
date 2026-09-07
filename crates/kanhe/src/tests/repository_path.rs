@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use crate::repository_path::{RepositoryPath, repository_path};
+use crate::repository_path::{DirectoryOf, RepositoryPath, repository_directory, repository_path};
 
 /// A path under the root is spelled the way git spells one, whatever the host's separator is.
 ///
@@ -113,5 +113,44 @@ fn the_refusal_names_the_component_it_could_not_read() {
     assert_eq!(
         repository_path(Path::new("/r"), &path),
         RepositoryPath::NotUtf8("\u{fffd}kanhe".to_string())
+    );
+}
+
+/// The *directory of* a manifest is answered by the same rule any other path is, one layer in.
+///
+/// The wrapping is what the composition buys: this direction reads `Directory(Below(…))` rather than a
+/// fourth state of the plain answer, so the plain question keeps three answers and no site matching it has
+/// to name a state it cannot produce.
+#[test]
+fn the_directory_of_a_manifest_is_the_manifest_s_path_one_component_shorter() {
+    assert_eq!(
+        repository_directory(Path::new("/r"), Path::new("/r/crates/kanhe/Cargo.toml")),
+        DirectoryOf::Directory(RepositoryPath::Below("crates/kanhe".to_string()))
+    );
+}
+
+/// A path with no parent has no directory, and that is not a path outside the root.
+///
+/// **This is the fold that was live.** `machinery_names` read `Path::parent`'s `None` through an `else` arm
+/// returning `member-manifest-outside-workspace-root`, whose message asserts the manifest is not under the
+/// workspace root — false of a path that has no parent at all. Both are cannot-judge, so no exit class
+/// separated them and nothing bound to one could have told them apart.
+///
+/// Negative run, with the `None` arm answering the way the fold did:
+///
+/// ```text
+/// assertion `left == right` failed
+///   left: Directory(Outside)
+///  right: HasNoDirectory
+/// ```
+///
+/// `Directory(Outside)` is the composition making the old fold visible as a value: the outer layer
+/// says a directory was found and the inner one says it is not under the root, which is two claims
+/// about a path that has neither.
+#[test]
+fn a_path_with_no_parent_has_no_directory_rather_than_being_outside_the_root() {
+    assert_eq!(
+        repository_directory(Path::new("/r"), Path::new("/")),
+        DirectoryOf::HasNoDirectory
     );
 }

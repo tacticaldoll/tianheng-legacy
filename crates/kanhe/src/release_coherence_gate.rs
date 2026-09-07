@@ -1943,11 +1943,21 @@ pub(crate) fn machinery_names(repo: &Path) -> Result<BTreeSet<String>, Refusal> 
                 ),
             )
         };
-        let Some(spelled) = manifest_path
-            .parent()
-            .map(|dir| crate::repository_path::repository_path(root, dir))
-        else {
-            return Err(outside());
+        let spelled = match crate::repository_path::repository_directory(root, manifest_path) {
+            crate::repository_path::DirectoryOf::Directory(spelled) => spelled,
+            // Its own site: a manifest path with no parent directory is not a manifest outside the root,
+            // and the sibling refusal below says it is. `cargo metadata --no-deps` reports absolute
+            // manifest paths, so this is not a shape cargo produces -- which is why it is DECLARED unheld
+            // rather than held by a fixture, alongside the sibling that says the same of a package cargo
+            // reports without a manifest path at all.
+            crate::repository_path::DirectoryOf::HasNoDirectory => {
+                return Err(cannot_judge_at(
+                    "release-coherence#member-manifest-has-no-directory",
+                    format!(
+                        "member manifest {manifest} has no parent directory, so there is no member                          directory to enumerate; cargo resolves member paths against the root it reports                          and every path it reports has one"
+                    ),
+                ));
+            }
         };
         let directory = match spelled {
             crate::repository_path::RepositoryPath::Below(directory) => directory,

@@ -932,6 +932,28 @@ them.
 
 ### Self-governance
 
+- **A repair that typed three answers apart left a fold at the `Path::parent` call in front of it.**
+  `repository_path` answers `Below`, `Outside` or `NotUtf8` precisely so a consumer cannot read a missing
+  value its own way — and the site that asks it about a *member directory* reached `Path::parent` first,
+  taking its `None` through an `else` arm that returns `member-manifest-outside-workspace-root`, whose
+  message asserts the manifest is not under the workspace root. That is false of a path with no parent, and
+  the site's own comment argues against exactly this shape: *a `let … else` reads every answer
+  that is not the one it wants as the one fact its `else` names.*
+
+  The question moved to the owner, so there is no longer an `Option` in front of any caller. What the extra
+  answer is *not* is a fourth `RepositoryPath` variant: the compiler refused that, because the plain path
+  question would then have to match a state it can never produce, and the only arms available there are the
+  fold being repaired or an `unreachable!` that `unreachable_branch` refuses. A second enum restating the
+  three answers would be two lists that must agree. `DirectoryOf` **wraps** instead — `Directory(…)` plus
+  `HasNoDirectory` — which costs one `match` at the single site asking the question and nothing anywhere
+  else.
+
+  The new refusal site is **declared unheld** rather than held by a fixture, with the reason its sibling
+  already uses for the same shape: `cargo metadata --no-deps` reports absolute manifest paths and every one
+  has a parent, so a manifest with no directory is not a shape cargo produces. The function's own behaviour
+  *is* held, at the unit level where the state is reachable. `docs/refusal-register.md` moves to 148 sites
+  with 20 declared unheld.
+
 - **A bound claimed a stop in both string-literal forms and cited the evidence for one.** Its subject said
   *either form* and its `because` said *one stop remains, in both forms*, while its citation named only
   `a_construction_inside_an_ordinary_string_literal_is_not_read`. The direction holding the raw form was

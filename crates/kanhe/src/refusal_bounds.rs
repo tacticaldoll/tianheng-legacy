@@ -99,6 +99,13 @@ pub fn unheld() -> Vec<Unheld> {
              disagreement inside cargo rather than a shape a manifest can carry",
         ),
         tool(
+            "release-coherence#member-manifest-has-no-directory",
+            "`cargo metadata --no-deps` reports absolute manifest paths and every one of those has a \
+             parent, so a manifest with no directory is not a shape cargo produces. It is a site rather \
+             than a fold because the sibling above asserts the manifest is outside the root, which is false \
+             of a path that has no parent -- the two are repaired in different places",
+        ),
+        tool(
             "release-coherence#member-directory-not-utf8",
             "the manifest this reader spells is a `&str` cargo's JSON handed over, so the parser made its \
              components UTF-8 before this gate saw them and no path built from one can carry a byte the \
