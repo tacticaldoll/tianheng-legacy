@@ -26,6 +26,29 @@
 # A merge made in the GitHub web UI reaches no wrapper at all; that is a declared bound, not an oversight.
 set -Eeuo pipefail
 
+# **The three repository selectors are cleared before anything reads a repository.**
+#
+# `GIT_DIR`, `GIT_WORK_TREE` and `GIT_INDEX_FILE` move WHICH repository a git command acts on, past
+# `current_dir` and past `-C`. `kanhe::hermetic_git::hermetic` removes them for every git this repository
+# builds in Rust, and its doc says why in so many words; this wrapper — standing in front of the one
+# irreversible act — inherited them.
+#
+# What they defeat is the guard below, not merely a read. That guard compares the worktree holding this
+# wrapper's gate against the worktree its evidence comes from, so that a wrapper invoked by absolute path
+# from another checkout cannot judge one repository's pull request by another repository's law. Measured on
+# this machine's git, with the two pointed at a third repository:
+#
+#   no selectors:      git -C gate rev-parse --show-toplevel -> .../gate    git (cwd=other) -> .../other
+#   pointed at decoy:  git -C gate rev-parse --show-toplevel -> .../decoy   git (cwd=other) -> .../decoy
+#
+# Both answer the decoy, so the comparison PASSES in exactly the arrangement it was written to refuse, and
+# it vouches for an equality about a tree that is neither the gate's nor the evidence's. `gh` resolves its
+# repository through the local remote as well, which is why this is cleared here rather than at the guard.
+#
+# The configuration channels are not in scope and that is deliberate rather than an omission: this script's
+# git calls are `rev-parse --show-toplevel`, which configuration does not move. The selectors do.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
+
 usage() {
     printf 'usage: %s <pr-number> --body-file <path> [--subject <text>] [gh args…]\n' "${0##*/}" >&2
     printf '  The subject defaults to the pull request title, which is what the rule requires anyway.\n' >&2
