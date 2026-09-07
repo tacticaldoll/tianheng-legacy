@@ -8,7 +8,7 @@
 //! written for one fixture was reached for by the other only after someone noticed.
 //!
 //! **The direction runs one way and is meant to.** A fixture writes a shape its gate declares, so
-//! `release_coherence` reads that gate's changelog-link constants; no gate reads anything here. The
+//! `release_coherence` reads that gate's compare-link constant; no gate reads anything here. The
 //! judgement modules are the authority on the shapes, and these builders are consumers of them.
 //!
 //! **What stayed behind, and why it is not an exception.** `hermetic_git::fixture` asserts success

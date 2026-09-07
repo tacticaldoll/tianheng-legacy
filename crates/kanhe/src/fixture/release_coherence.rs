@@ -1,6 +1,6 @@
 //! The repository shape `release_coherence_gate` judges, built hermetically.
 //!
-//! The changelog-link constants come from that gate rather than being spelled again here: it is the
+//! The compare-link constant comes from that gate rather than being spelled again here: it is the
 //! authority on the link shape it accepts, and a second spelling would be two facts that must agree.
 
 use std::path::{Path, PathBuf};
