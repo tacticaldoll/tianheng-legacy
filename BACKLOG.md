@@ -207,6 +207,14 @@ consumer for an undemonstrated deduplication.
   confirmed one. *Compatibility class:* patch; the checks ship in zero packages. *Authority:*
   `openspec/specs/repository-checks/spec.md`'s requirement on the region a check judges.
 
+  **Not fired, swept 2026-09-08 — first evaluation, and the sweep is the window's own delta.** Three checks
+  moved since the last reading: `repeated_paragraph` gained a direction over a file the lexer refuses,
+  `pin_bites` read a table whose header lost three figures, and `doc_provenance` reported clean over
+  twenty-three codename comments. None of those is this class. The last is the nearest miss and is worth
+  saying apart: that check's corpus **declares** it stops at doc comments, so it reported clean over text its
+  property does not claim — where this entry asks for a check reporting clean over text its property *does*
+  cover and never distinguished. No region decision moved in the delta.
+
   The mechanization was designed and rejected rather than deferred: refusing the inline comment marker inside
   the checks would refuse more legitimate sites than defects, because some select commentary on purpose and
   others parse a data format whose syntax marks comments. That measurement is the reason this is debt rather
@@ -354,6 +362,16 @@ consumer for an undemonstrated deduplication.
   decided. *Version class:* patch; a repository check shipping in no crate. *Authority:*
   `openspec/specs/release-coherence/spec.md`, and `CHANGELOG.md`'s own marking rule.
 
+  **Not fired on the reachable half, swept 2026-09-08; the rest is unobserved and says so.** The delta added
+  a `**BREAKING**` entry with its own migration bullet, so the sweep is whether any breaking-class change in
+  `[0.6.0]` carries no mark. What a sweep reaches: of the section's bullets, fourteen use the language of a
+  closure or a moved baseline, and of those, eight are repository checks — `kanhe` and `shengmo` publish
+  nothing, so no adopter is reached and no mark is owed. Five carry the mark. The ninth is a product reader
+  and turned out to be a **pin addition** rather than a closure: its own text says the scanner already
+  reached the candidate and *nothing pinned that*, so patch-class and correctly unmarked. What no sweep
+  reaches is whether an entry using none of that language is breaking-class, which is a judgement per bullet
+  over a hundred and seventy-odd of them — **unobserved**, and the honest word rather than a date.
+
   *A collision the shape has to answer, found while dispositioning this queue.* The named join would backfill
   a handle into every existing Migration bullet — and `[0.5.0]`'s bullets sit in a **dated, released**
   section. Rewriting one to satisfy a rule written afterwards is what this repository refuses as a stated
@@ -467,6 +485,39 @@ consumer for an undemonstrated deduplication.
 
 ### WATCH
 
+- **A pre-cut trigger reading records the entries it decided, and the count of entries it did not is a
+  property of the reader.** *Class:* WATCH — the reading is a step someone performs and the attempt to check
+  it is what failed, which this file already records; what follows is the reading of 2026-09-08 and what it
+  produced. *Observed pressure:* the reading was framed against a **delta** rather than against the tree,
+  because a pre-cut reading asks whether the window fired a trigger and not whether one can be re-derived
+  from scratch. The corpus is what landed on the release branch after the previous reading: six squashes
+  over thirty-two files, measured on 2026-09-08, and each verdict below names what it checked inside it. The
+  squashes are named by their subjects in `CHANGELOG.md` rather than by their objects here, for the reason
+  the reference gate gives — `main` carries one commit per release, so a development object resolves in no
+  fresh clone. Of the live entries carrying a trigger field, the ones whose observable the delta
+  reaches were read; the rest were not moved by it, which is a narrower claim than *not fired* and is why
+  they carry no new date.
+
+  **The unevaluated count came out 36, then 21, then 21, then 4, then 3, and every step was the reader.**
+  Looking for `Not fired` after the trigger sentence answered 36; admitting `fired` answered 21; admitting
+  `swept`, `witness-only`, `re-derived` and `evaluated` changed nothing, because those spellings sit *before*
+  the trigger in the entries that use them; reading the whole entry and admitting `measured` answered 4; and
+  reading those four found one whose verdict is spelled **FIRED** in capitals, which no case-sensitive
+  reader admits. Three entries genuinely carried none and now do. The sequence reproduces the conclusion this
+  file reached by a different route — a verdict here has no canonical spelling — and a fifth spelling is the
+  new part of it.
+
+  **What the reading produced beyond verdicts.** One repair, in the window's own output: a requirement
+  clause added days earlier read *the two halves of one comparison SHALL NOT answer differently about one
+  grammar*, which reaches every comparison in that family while what reacts is one wrapper's recognition.
+  `AGENTS.md` refuses a reason asserting structure the law does not react to, and the entry for un-reacted
+  normative SHALLs is `READY-PATCH` on exactly that class with its strongest evidence being clauses written
+  in the same window as the sweep that is its control. The clause is now the reason it was standing in for.
+  *Promotion trigger:* a reading that finds a trigger fired which an earlier reading had recorded as not
+  fired — the case that would mean the discipline is being performed and getting the answer wrong, as
+  against not being performed. *Version class:* patch; this file ships in no crate. *Authority:* `AGENTS.md`'s
+  *`BACKLOG.md`'s promotion triggers are read against the window before the cut*.
+
 - **A codename index for a defect lives in the half of the corpus `doc_provenance` declares out of scope,
   and the token that would find it is shared with a measurement that must stay.** *Class:* WATCH — the
   class is emptied and the emptying has no reaction behind it. *Observed pressure:* swept over every
@@ -488,11 +539,20 @@ consumer for an undemonstrated deduplication.
   though it covered the class, which is the narrow-instrument shape this repository has already withdrawn
   once. So `AGENTS.md`'s table carries the split and the criterion is the instrument.
 
-  *Reopening condition, as a property rather than as availability:* **no comment in the tree carries a round
-  count.** The moment the measurement half is absent from code comments — by decision, or because the
+  *Promotion trigger:* **no comment in the tree carries a round count** — a property rather than an
+  availability. The moment the measurement half is absent from code comments — by decision, or because the
   arguments it backs get restated as properties — the bare token is decidable over the whole corpus and
   `doc_provenance`'s corpus widens with no allowlist and no new shape. Until then a reappearing index is
   caught by a reader applying the table, and the cost of that is one sweep per review.
+
+  **Not fired, measured 2026-09-08 with the command this entry names.**
+  `git ls-files '*.rs' | xargs grep -lE '^[[:space:]]*//.*\b(two|three|four|five|six|seven|eight|nine|ten) (review )?rounds\b'`
+  answers seven files: `bounds.rs`, `release_coherence_gate.rs`, `src/tests/hermetic_git.rs`,
+  `gate_exit_classes.rs`, `hermetic_invocations.rs`, `reference_integrity.rs`, `release_coherence.rs`. The
+  measurement half is therefore present and the corpus cannot widen without an allowlist, which is the state
+  this entry was filed in. Two figures were reached for this before one command was written down and they
+  disagreed, which is the entry's own subject met on its own evaluation — the command above is what the next
+  reading re-runs.
 
 - **An axis was added without its instruments three times in one window, and a uniform fix would fight the
   asymmetry the corpus deliberately has.** *Class:* WATCH — the discipline is written where an author reads
@@ -712,6 +772,12 @@ consumer for an undemonstrated deduplication.
   that cites more pins enlarges this entry unless it authors the mutations too. That is the economics this
   entry rests on, observed on itself.
 
+  **Not fired, measured 2026-09-08.** The obligation this entry settled on is that citing carries the
+  mutation, so the sweep is what the window cited. Measured over the delta: `+.*PINNED-BY` in
+  `openspec/**` answers **zero**, and new rows in `pin_mutations.tsv` answer **zero** — a window that added
+  no citation created no debt for the obligation to be owed on. One spec scenario was added and deliberately
+  carries no citation, being an ordinary scenario rather than a declared bound.
+
   *What closing it costs, measured while seeding:* a
   mutation must genuinely perturb the pinned point, and authoring one is per-bound expert work. One attempt
   during this change did not — masking a brace inside a block comment left the exact one-statement comparison
@@ -871,6 +937,19 @@ consumer for an undemonstrated deduplication.
   adopter resolves, and no exit class moves. *Promotion trigger:* a third instance, or the design below being
   written. *Version class:* patch; the carriers ship in no crate. *Authority:* this entry, `AGENTS.md`'s *Bind a
   claim to its measurement* and *A census is produced, never typed*, and `crates/kanhe/src/census.rs`.
+
+  **Not fired, read 2026-09-08 — and a careless reading would have promoted it on the wrong form.** The
+  window produced prose claims that were false and found by review rather than by a reaction: three
+  hand-written counts in `pin_mutations.tsv`'s header, and one in a commit body about how many sites sat in
+  unpublished crates. All four are the **figure** form, which this entry separates from its own two
+  instances in so many words and which `census` was built for. The two instances the trigger counts are
+  **set-membership or absolute** claims — *syn quarantined to 渾儀 alone*, *zero change directories have ever
+  existed* — and the delta produced none. Swept over the live Markdown it added, for `only`, `never`,
+  `alone` and `no ... has ever`: one hit, *the re-export is never resolved against the extern prelude*,
+  which is a statement about a mechanism in a described failure mode rather than about an enumerable
+  property of this repository — and it has a reaction, the direction that reports the empty finding set. So
+  the count stands at two, and the sweep is written out because its one hit is the kind a re-run would
+  otherwise read as a contradiction.
 
   *Shape, because the obvious instrument is already refused:* a detector over prose was designed, measured three
   times and rejected, and that refusal has an observation source this entry does not get to ignore. The admitted
@@ -1642,6 +1721,13 @@ consumer for an undemonstrated deduplication.
   which is why this is filed rather than declared. *Version class:* patch; `hunyi` ships. *Authority:*
   `semantic-*` capabilities, which own the resolver's reach.
 
+  **Not fired over the delta read on 2026-09-08, and what that verdict does not say is stated with it.**
+  The delta touched `crates/hunyi/src/syn_util.rs`, which owns `cfg_attr_metas` — measured, the diff over
+  that file names the function **zero** times, so the reader the trigger is about was not moved. What the
+  reading did not do is construct the input the trigger asks for, an input rustc accepts and
+  `cfg_attr_metas` rejects; that remains **unobserved** rather than absent, and a dated *not fired* would
+  read as settled where only the delta was looked at.
+
   **Witness-only, sorted 2026-09-01.** No sweep decides this: the trigger is an input rustc accepts and this
   reader rejects, and two people have tried to construct one and failed. A sweep of the tree cannot produce
   an input that does not exist in it; what would settle it is a construction, and the same construction is
@@ -2331,6 +2417,15 @@ consumer for an undemonstrated deduplication.
   observer protocol already draws between reading the workspace and judging it, applied one level down. What
   it is **not** is a decomposition by size: splitting a long function that still acquires and decides moves
   the mixing rather than ending it. *Version class:* patch; repository-internal. *Authority:* this entry.
+
+  **Not fired, measured 2026-09-08 — first evaluation.** The delta changed
+  `crates/kanhe/src/release_coherence_gate.rs`, which is the file this entry is about, so the trigger's
+  second half — *a change to any of the three functions* — had to be read rather than assumed. Measured over
+  the diff: the only function signatures leaving the file are the fixture's (`write`, `workspace_files`,
+  `development_changelog`, `release_changelog`, `build_fixture`), `COMPARE` gained a doc and `pub(crate)`,
+  and the net is `+5 -143`. No judgement function was added, removed or re-signatured, and no new fixture was
+  written to ask a question about a pure derivation — the change moved the fixture **out**, which is the
+  opposite direction. The first half, a third finding whose isolation the mixing blocks, produced none.
 
 - **WATCH: a gate that is its own test is outside the refusal register.** *Observed pressure:* several
   gates are implemented under `crates/kanhe/tests`, where the judgement and the directions over it share a
