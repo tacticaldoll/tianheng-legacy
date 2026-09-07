@@ -50,6 +50,29 @@ them.
 
 ### Static
 
+- **A variant whose doc and behaviour disagreed, beside a remap that could remap nothing.**
+  `PathAttrKind` held `None`, `Remaps { direct: Option, conditional: Vec }` and `Excluded`. Its sole
+  consumption folded `Excluded` into the same arm as `None`, so the variant was behaviourally identical to
+  its neighbour while its doc said the opposite — that such a module is excluded from conventional file
+  backing. And `Remaps` admitted `direct: None` with an empty `conditional`: a remap that remaps nothing,
+  kept out by an `if` before the constructor rather than by the type.
+
+  **What the deleted variant stood for is not legal Rust**, which is what decided the repair rather than an
+  argument about intent. Measured against rustc 1.96.0, edition 2021, `--crate-type lib`: `#[path] mod m;`
+  and `#[path("m.rs")] mod m;` are both `error: malformed 'path' attribute input`. The 圭表 scanner is
+  deliberately cfg-blind and unions every candidate a build *could* compile; a shape no configuration
+  compiles is outside that, so implementing the doc's claimed exclusion would have governed source that
+  cannot exist. The answer is the same as no remap at all — which is what the fold already produced, and is
+  now what the type says.
+
+  `Remap` is two variants, `Direct { at, conditional }` and `Conditional { first, rest }`, where `first`
+  keeps the conditional state non-empty the way `xuanji::bound::Defence::PinnedBy` does for the same reason.
+  There is no negative run, and the reason is the property: a state the type cannot hold has no value to
+  assert about. Planting the construction the old shape admitted answers `expected 'usize', found
+  'Option<_>'`, and the two rows added to
+  `both_readers_take_the_attribute_name_from_one_position` hold the behaviour that used to reach the
+  deleted variant.
+
 - **BREAKING** — **圭表 requires the built-in `cfg_attr`'s exact path, where it matched the bare
   identifier.** `foo::cfg_attr(a, path = "bogus")` ends in the same word while being somebody else's
   attribute, so the collector descended into it and took `bogus` as a module remap. Measured over the span

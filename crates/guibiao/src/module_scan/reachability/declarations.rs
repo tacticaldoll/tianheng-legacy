@@ -133,13 +133,7 @@ impl TopLevelTracker {
 /// below extract identically from [`path_attr_before_item`], so a fix to one cannot silently
 /// diverge from the other.
 fn path_attr_pair(bytes: &[u8], mod_index: usize) -> (Option<usize>, Vec<usize>) {
-    match path_attr_before_item(bytes, mod_index) {
-        PathAttrKind::Remaps {
-            direct,
-            conditional,
-        } => (direct, conditional),
-        PathAttrKind::None | PathAttrKind::Excluded => (None, Vec::new()),
-    }
+    path_attr_before_item(bytes, mod_index).map_or_else(|| (None, Vec::new()), Remap::pair)
 }
 
 pub(super) fn declared_modules_in(
@@ -274,34 +268,74 @@ pub(super) fn declared_modules(source: &str) -> Vec<String> {
         .collect()
 }
 
-/// What the top-level item prefix before a `mod` keyword says about a `#[path]` remap. The
-/// static scanner intentionally does not read attributes in general, but `path` is a stated
-/// coverage concern either way: an unconditional, direct `#[path = "…"]` is now *followed*
-/// (`Direct`, carrying the cleaned-text position of its `=`, so the real value can be read from
-/// the untouched original source); a `cfg_attr`-wrapped one stays cfg-conditional and excluded,
-/// same as a bare `path`-named attribute with no followable value — both `Excluded`, matching the
-/// stated bound: a path-remapped module is not conventionally file-backed, so treating the `mod`
-/// token as an ordinary file declaration would govern the wrong file (or a same-named orphan).
-enum PathAttrKind {
-    None,
-    Remaps {
-        direct: Option<usize>,
-        conditional: Vec<usize>,
-    },
-    Excluded,
+/// A `#[path]` remap the prefix before a `mod` keyword carries — which, being one, remaps something.
+///
+/// The static scanner intentionally does not read attributes in general, but `path` is a stated coverage
+/// concern either way: an unconditional, direct `#[path = "…"]` is followed, carrying the cleaned-text
+/// position of its `=` so the real value can be read from the untouched original source, and a
+/// `cfg_attr`-wrapped one is a conditional candidate beside it. Every candidate physically written is
+/// unioned, because this scanner is deliberately cfg-blind and neither attribute order nor the active
+/// predicate may silently remove governed source.
+///
+/// **A remap that remaps nothing is unconstructible, and it used to be a runtime check.** The shape was a
+/// three-variant enum whose `Remaps` held an `Option` and a `Vec` — so `direct: None` with an empty
+/// `conditional` was a value the type admitted and only an `if` before the constructor kept out. Its
+/// siblings were `None` and an `Excluded` that no consumer acted on: the sole match folded the two into one
+/// arm, making the variant behaviourally identical to its neighbour while its doc claimed the opposite.
+/// `first` keeps the conditional state non-empty in the type, the way `xuanji::bound::Defence::PinnedBy`
+/// does for the same reason.
+///
+/// Measured by planting the construction the old shape admitted:
+///
+/// ```text
+/// error[E0308]: mismatched types
+///         let _ = Remap::Conditional { first: None, rest: Vec::new() };
+///                                             ^^^^ expected `usize`, found `Option<_>`
+/// ```
+///
+/// There is no negative *run* for this, and the reason is the property: a state the type cannot hold has no
+/// value to assert about. The compiler's refusal is the evidence, and the two rows this change adds to
+/// `both_readers_take_the_attribute_name_from_one_position` are what hold the behaviour that used to reach
+/// the deleted variant.
+///
+/// **What `Excluded` was for is not legal Rust.** It stood for a `path`-named attribute with no followable
+/// value, and its doc said such a module is excluded from conventional file backing. Measured against rustc
+/// 1.96.0, edition 2021, `--crate-type lib`: `#[path] mod m;` and `#[path("m.rs")] mod m;` are both
+/// `error: malformed 'path' attribute input`. A shape no configuration compiles is outside what a cfg-blind
+/// union of compilable candidates governs, so the answer is the same as no remap at all — which is what the
+/// fold already did, and is now what the type says.
+enum Remap {
+    /// An unconditional `#[path = "…"]`, with every cfg-conditional candidate written beside it.
+    Direct { at: usize, conditional: Vec<usize> },
+    /// Only cfg-conditional candidates. `first` is what keeps the state non-empty in the type.
+    Conditional { first: usize, rest: Vec<usize> },
 }
 
-fn path_attr_before_item(bytes: &[u8], mod_index: usize) -> PathAttrKind {
+impl Remap {
+    /// The direct/conditional pair a consumer reads, which is the shape both `mod` forms extract.
+    fn pair(self) -> (Option<usize>, Vec<usize>) {
+        match self {
+            Remap::Direct { at, conditional } => (Some(at), conditional),
+            Remap::Conditional { first, mut rest } => {
+                rest.insert(0, first);
+                (None, rest)
+            }
+        }
+    }
+}
+
+fn path_attr_before_item(bytes: &[u8], mod_index: usize) -> Option<Remap> {
     let start = attribute_prefix_start(bytes, mod_index);
-    match attr_prefix_path_kind(&bytes[start..mod_index]) {
-        PathAttrKind::Remaps {
-            direct,
-            conditional,
-        } => PathAttrKind::Remaps {
-            direct: direct.map(|rel| start + rel),
-            conditional: conditional.into_iter().map(|rel| start + rel).collect(),
-        },
-        other => other,
+    let shift = |positions: Vec<usize>| positions.into_iter().map(|rel| start + rel).collect();
+    match attr_prefix_remap(&bytes[start..mod_index])? {
+        Remap::Direct { at, conditional } => Some(Remap::Direct {
+            at: start + at,
+            conditional: shift(conditional),
+        }),
+        Remap::Conditional { first, rest } => Some(Remap::Conditional {
+            first: start + first,
+            rest: shift(rest),
+        }),
     }
 }
 
@@ -318,7 +352,7 @@ fn attribute_prefix_start(bytes: &[u8], item_index: usize) -> usize {
 
 /// Where the attribute's name begins, given the `#` at `hash` — or `None` where that `#` opens no attribute.
 ///
-/// **Two readers ask this, and the position is one fact.** `attr_prefix_path_kind` looks for `path` here and
+/// **Two readers ask this, and the position is one fact.** `attr_prefix_remap` looks for `path` here and
 /// `attr_prefix_has_bare_cfg` looks for `cfg`, and what each looks *at* has to be the same byte or the two
 /// disagree about the same source. Written out per site the preamble stood twice, byte-identical for
 /// twenty-three lines and diverging only at the terminal word — which is the shape where one copy gets a
@@ -352,9 +386,8 @@ fn attr_name_start(bytes: &[u8], hash: usize) -> Option<usize> {
     Some(i)
 }
 
-fn attr_prefix_path_kind(bytes: &[u8]) -> PathAttrKind {
+fn attr_prefix_remap(bytes: &[u8]) -> Option<Remap> {
     let mut i = 0;
-    let mut excluded = false;
     let mut direct = None;
     let mut conditional_eqs = Vec::new();
     while i < bytes.len() {
@@ -385,10 +418,10 @@ fn attr_prefix_path_kind(bytes: &[u8]) -> PathAttrKind {
                 i = j + 1;
                 continue;
             }
-            // A bare `#[path]`/`#[path(...)]` (not valid remap syntax) excludes on its own, but
-            // a later unconditional `#[path = "…"]` on the same item still wins — keep scanning
-            // rather than returning.
-            excluded = true;
+            // A bare `#[path]`/`#[path(...)]` is not valid remap syntax, and measured against rustc it is
+            // not valid Rust either — `error: malformed 'path' attribute input` for both spellings. So it
+            // contributes no candidate, and the scan continues rather than returning, because a later
+            // unconditional `#[path = "…"]` on the same item still wins.
             continue;
         }
         // The combined `#[cfg_attr(<pred>, …, path = "…")]` spelling (equivalent to
@@ -402,15 +435,13 @@ fn attr_prefix_path_kind(bytes: &[u8]) -> PathAttrKind {
             continue;
         }
     }
-    if direct.is_some() || !conditional_eqs.is_empty() {
-        PathAttrKind::Remaps {
-            direct,
-            conditional: conditional_eqs,
-        }
-    } else if excluded {
-        PathAttrKind::Excluded
-    } else {
-        PathAttrKind::None
+    match (direct, conditional_eqs) {
+        (Some(at), conditional) => Some(Remap::Direct { at, conditional }),
+        (None, mut conditional) if !conditional.is_empty() => Some(Remap::Conditional {
+            first: conditional.remove(0),
+            rest: conditional,
+        }),
+        (None, _) => None,
     }
 }
 
@@ -570,7 +601,7 @@ fn attr_prefix_has_bare_cfg(bytes: &[u8]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        PathAttrKind, attr_name_start, attr_prefix_has_bare_cfg, attr_prefix_path_kind,
+        attr_name_start, attr_prefix_has_bare_cfg, attr_prefix_remap,
         cfg_attr_prefix_collect_path_eqs,
     };
 
@@ -600,6 +631,14 @@ mod tests {
                 true,
                 false,
             ),
+            // A `path`-named attribute with no followable value contributes no candidate. Measured
+            // against rustc 1.96.0, edition 2021, `--crate-type lib`: both spellings are
+            // `error: malformed 'path' attribute input`, so no configuration compiles either, and a
+            // cfg-blind union of compilable candidates has nothing to union. The name position is still
+            // read, which is what keeps this row about the remap verdict rather than about the reader
+            // failing to find a name.
+            (&b"#[path]"[..], Some(2), false, false),
+            (&b"#[path(\"x.rs\")]"[..], Some(2), false, false),
             // A lone `r#` is not a raw identifier, so the name starts at the `r`.
             (&b"#[r#]"[..], Some(2), false, false),
             // The `#` that opens nothing is stepped over, and the one after it is read.
@@ -617,7 +656,7 @@ mod tests {
             assert_eq!(start, name_at, "the name position in {spelling}");
 
             assert_eq!(
-                matches!(attr_prefix_path_kind(prefix), PathAttrKind::Remaps { .. }),
+                attr_prefix_remap(prefix).is_some(),
                 remaps,
                 "the path reader's verdict on {spelling}"
             );
