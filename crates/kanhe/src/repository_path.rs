@@ -41,6 +41,29 @@ pub enum RepositoryPath {
     NotUtf8(String),
 }
 
+/// What the *directory of* a path is, relative to a root — [`RepositoryPath`] plus the one answer only this
+/// question has.
+///
+/// **It wraps rather than repeats, and the compiler is why.** Carrying the extra answer as a fourth
+/// `RepositoryPath` variant made the plain path question match a state it can never produce, and the only
+/// arms available there are a fold or an `unreachable!` — one is the defect being repaired and the other is
+/// what `unreachable_branch` refuses. Restating the three variants in a second enum would be two lists that
+/// must agree. Composing costs one `match` at the one site that asks this question, and nothing anywhere
+/// else.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DirectoryOf {
+    /// The directory, answered by exactly the rule any other path is answered by.
+    Directory(RepositoryPath),
+    /// The path has no parent directory, so there is no directory to spell.
+    ///
+    /// **It exists because the caller asking this question folded it.** `Path::parent` is an `Option`, and
+    /// the one site reading it took `None` through an `else` arm whose refusal says the manifest is *not
+    /// under the workspace root* — a claim that is false for a path with no parent, and exactly the reading
+    /// [`RepositoryPath`]'s variants were typed apart to stop, arriving at the `Path::parent` call rather
+    /// than at the strip that typing reached.
+    HasNoDirectory,
+}
+
 /// `path` spelled relative to `root`, the way git spells one.
 ///
 /// The comparison is component-wise, so a prefix matches on its own boundaries rather than on a separator
@@ -67,4 +90,22 @@ pub fn repository_path(root: &Path, path: &Path) -> RepositoryPath {
         spelled.push(text.to_string());
     }
     RepositoryPath::Below(spelled.join("/"))
+}
+
+/// The directory `path` sits in, spelled relative to `root` — the *directory of* question, asked here.
+///
+/// **The `Option` lives here rather than in front of a caller.** `Path::parent` answers `None` for a path
+/// with no parent, and a caller reaching for it has to decide what that means while it is holding a
+/// different question; the one site that did read it through an `else` arm whose refusal named *not under
+/// the workspace root*, which is false for such a path. That is the same fold this module's enum was typed
+/// apart to stop, arriving at the `Path::parent` call, so the question moves to the owner
+/// and the answer only this question has is [`DirectoryOf::HasNoDirectory`].
+///
+/// Every other answer is [`repository_path`]'s, over the directory rather than over `path` itself, so the
+/// separator rule and the refusal of a non-UTF-8 component are stated once and hold for both questions.
+pub fn repository_directory(root: &Path, path: &Path) -> DirectoryOf {
+    match path.parent() {
+        Some(directory) => DirectoryOf::Directory(repository_path(root, directory)),
+        None => DirectoryOf::HasNoDirectory,
+    }
 }

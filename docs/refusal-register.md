@@ -8,7 +8,7 @@ A site that no direction holds is **declared unheld**, with why, an owner and a 
 
 Generated from `crates/kanhe/src/**.rs` by `crates/kanhe/tests/refusal_register.rs`. **Do not edit by hand** — regenerate with `BLESS=1 TIANHENG_WORKSPACE_TESTS=1 cargo test -p kanhe --test refusal_register`. A stale projection fails that gate.
 
-**19 of 147 refusal sites are declared unheld.** 0 carry no identity at all, which is a state this repository does not keep — the register refuses a non-zero figure here.
+**20 of 148 refusal sites are declared unheld.** 0 carry no identity at all, which is a state this repository does not keep — the register refuses a non-zero figure here.
 
 ## Declared unheld
 
@@ -57,6 +57,12 @@ Generated from `crates/kanhe/src/**.rs` by `crates/kanhe/tests/refusal_register.
 ### `release-coherence#member-manifest-outside-workspace-root`
 
 - because cargo resolves member paths against the root it reports, so a member outside it is a disagreement inside cargo rather than a shape a manifest can carry
+- owner: Engine
+- tracked by `BACKLOG.md` — *a refusal reachable only by a broken tool is not observed*
+
+### `release-coherence#member-manifest-has-no-directory`
+
+- because `cargo metadata --no-deps` reports absolute manifest paths and every one of those has a parent, so a manifest with no directory is not a shape cargo produces. It is a site rather than a fold because the sibling above asserts the manifest is outside the root, which is false of a path that has no parent -- the two are repaired in different places
 - owner: Engine
 - tracked by `BACKLOG.md` — *a refusal reachable only by a broken tool is not observed*
 
