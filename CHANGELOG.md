@@ -48,6 +48,34 @@ them.
   about what it may become, so a charter widening is prose against prose. `PROJECT.md`'s decision states the
   criterion for the same reason.
 
+- **A mark is what encloses a phrase, and the parity of the markers before it is a different question.** The
+  Markdown relative-anchor sweep decided *is this phrase a quotation* by counting the marks preceding it and
+  reading an odd count as *inside one*. Parity and membership agree only where every marker pairs: after one
+  that closes nothing, parity answers *marked* for every remaining phrase in the paragraph, so one stray
+  marker suppresses every finding after it. Measured over this repository's own Markdown — a paragraph
+  opening a fenced block carries an odd count by construction, and one live relative anchor in `BACKLOG.md`
+  was standing behind exactly that while the reaction was green. `kanhe::reading::marked_spans` answers the
+  membership question with the spans themselves, over both marker classes this repository defines a phrase
+  with, and an unpairable passage answers *undecidable* — which the caller reads as marking nothing, the
+  direction that over-reacts rather than the one that goes quiet. The same run over the whole corpus reports
+  nothing else, so the over-reaction is unrealised rather than tolerated.
+
+  **The reader existed and a declared bound is why it was not asked.** `reading` already owned the pairing,
+  and `no_source_outside_the_shared_reader_pairs_markers_by_hand` already refused a `split` or a `find` on a
+  marker literal outside it. Neither reached a `matches` count taken modulo two — that primitive sat inside
+  an observation bound whose measured ground was that none of its live uses is a pairing, true when it was
+  written and falsified by the site above. The tracking entry named its own promotion: *the question is the
+  expression's shape rather than the primitive's name*. So the reaction now refuses a marker count taken
+  modulo two for both classes, the bound keeps the four primitives whose live uses read one delimited value,
+  and the direction is renamed for the marker classes it reads rather than the one it was written for.
+
+- **A record carrier is decided by path as well as by section shape.** The same sweep exempted the span under
+  any dated `## [X.Y.Z] - date` heading in any tracked Markdown file, while `AGENTS.md` enumerates exactly
+  three carriers and a level-2 heading in a live document is none of them — so a live file gained a record's
+  exemption by writing a record's heading. Measured: no tracked Markdown outside `CHANGELOG.md` carries that
+  shape today, so this closes a latent false negative rather than a standing one. The shape reader is
+  unchanged and the carrier is now the caller's answer.
+
 ### Static
 
 - **The instrument that says an axis does something was built for one axis, which is the shape the change
@@ -4965,7 +4993,7 @@ them.
   it cannot decide.** The entry two below extracted `reading::backticked` and converted the three sites a
   review had named. Sweeping this session's own output found `split('`').skip(1).step_by(2)` still standing in
   three more — `reference_integrity`, `bound_register`, `backlog_classification` — the exact shape, in the
-  window whose subject was that shape. `no_source_outside_the_shared_reader_pairs_backticks_by_hand` makes a
+  window whose subject was that shape. `no_source_outside_the_shared_reader_pairs_markers_by_hand` makes a
   seventh impossible.
 
   Converting `reference_integrity` measured something its per-line scan had been getting wrong all along: a

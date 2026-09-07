@@ -2516,7 +2516,7 @@ consumer for an undemonstrated deduplication.
 
 - **WATCH: the backtick primitives the pairing reader names.** *Observed pressure:* pairing markers as they
   arrive lets one unpaired marker shift every pair after it, which reads as prose named and a name dropped
-  rather than as an error. `no_source_outside_the_shared_reader_pairs_backticks_by_hand` refuses `split` and
+  rather than as an error. `no_source_outside_the_shared_reader_pairs_markers_by_hand` refuses `split` and
   `find` with a backtick literal outside `reading`. *Observation source:* the round that extracted
   `reading::backticked` converted the three sites a review named and left three more standing; the round
   after it added the reaction, and a review then found the reaction closed only one of the two primitives
@@ -2525,15 +2525,26 @@ consumer for an undemonstrated deduplication.
   — none of them a pairing. *Current reaction or bound:*
   `repository-checks/a-marker-is-reached-through-some-other-primitive-a-stated-bound`. *Risk:* a sequence
   paired by hand through one of those five passes, and the shifted pairing it produces is readable, so
-  nothing downstream reports it either. Bounded by all five being in live use for reading one delimited value,
-  where they are correct. *Next trigger:* a site using one of the five to walk a sequence — which would mean
-  the primitive's name is the wrong instrument and the question is the expression's shape. *Authority:*
-  engine. *Compatibility:* patch; the reaction is repository machinery and ships in no package.
+  nothing downstream reports it either. Bounded by all four remaining ones being in live use for reading one
+  delimited value, where they are correct. *Next trigger:* a site using one of the four to walk a sequence —
+  which would mean the primitive's name is the wrong instrument and the question is the expression's shape,
+  the reading the 2026-09-07 parity promotion already took for the one shape where the expression settles it.
+  *Authority:* engine. *Compatibility:* patch; the reaction is repository machinery and ships in no package.
 
   **Not fired, swept 2026-09-01.** The five primitives appear with a backtick literal at a handful of sites,
   each reading one delimited value rather than walking a sequence. The one site inside an iterator chain was
   read whole to be sure: `projection_offences` strips a prefix and then a suffix from each line, taking one
   value per line, which is not a pairing.
+
+  **Fired 2026-09-07, on `matches`, and promoted the way this entry says.** A governance check's own
+  quotation test decided *is this phrase inside a mark* from `matches` on a marker literal taken modulo two —
+  not a walk over a sequence, and a pairing all the same, since parity is what a pairing answers. It stood in
+  a green check and suppressed a live relative anchor in this file behind a stray marker earlier in the same
+  paragraph. Promoted as the trigger prescribes — by the expression's shape rather than the primitive's name:
+  `no_source_outside_the_shared_reader_pairs_markers_by_hand` now refuses a marker count taken modulo two,
+  for both classes `reading` pairs, and `kanhe::reading::marked_spans` answers the membership question with
+  the spans themselves. The bound keeps the four primitives whose live uses read one delimited value; the
+  ground it now rests on is that the expression settles the parity shape and does not settle theirs.
 
 - **WATCH: the always-Some consumer reached through a binding.** *Observed pressure:* `str::split` and
   `str::rsplit` always yield at least one item, so every consumer treating `.next()` as fallible is a branch
@@ -2886,8 +2897,8 @@ consumer for an undemonstrated deduplication.
     structurally safe, since it is the first group and everything else is below it. A rule refusing "above" and
     "below" outright would refuse those three, so the rule has to distinguish a reference within a group from one
     across groups, which is a design decision rather than a grep. *Version class:* documentation only; no
-    published surface. *Authority:* `release-coherence`, which owns what `CHANGELOG.md` must be true of, and this
-    window's group-merge change, whose verification is the measured gap.
+    published surface. *Authority:* `release-coherence`, which owns what `CHANGELOG.md` must be true of, and the
+    duplicate-group-heading merge whose line-multiset verification is the measured gap.
   - **Whether a gate's chosen exit code is the semantically right one.** *Observed pressure:* the class occurred
     once, in the 0.5.0 window, and produced **both** directions of `gate-shape-contract`'s `1-versus-2` bound in one
     gate — every refusal was `1`, so a shallow clone reported *"the release surfaces disagree"* (a

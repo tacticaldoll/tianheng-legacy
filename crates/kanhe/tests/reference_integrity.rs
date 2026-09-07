@@ -22,6 +22,7 @@
 //! held to generally.
 
 use std::collections::{BTreeSet, HashSet};
+use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -1692,19 +1693,27 @@ fn dated_record_lines(text: &str) -> BTreeSet<usize> {
     lines
 }
 
-/// Whether the anchor at `at` in `passage` is a **marked quotation** rather than an assertion.
+/// Whether the anchor occupying `at..end` of a passage is a **marked quotation** rather than an assertion.
 ///
 /// The rule this reader answers to says a sweep whose hits are all quoted is the finished state: the finding
-/// is an assertion, never a quotation. Backticks and **single** asterisks are how this repository marks a
-/// phrase it is defining rather than pointing with. Double asterisks are not — bold emphasises a whole
-/// sentence that happens to contain the phrase, which is an assertion — so the pairs are removed before the
-/// single ones are counted. Both counts are taken over the joined paragraph, because neither mark spans one.
+/// is an assertion, never a quotation. Which marks this repository defines a phrase with, and which merely
+/// emphasise a sentence containing it, is `kanhe::reading::marked_spans`'s to say — and `marked` is its
+/// answer over the joined paragraph, because no mark of either class spans one.
+///
+/// **What this asks it is *membership*, and the parity of the markers before the phrase is not that.** The
+/// shape written here first counted the marks preceding the anchor and read an odd count as *inside a mark*.
+/// The two agree only where every marker pairs: after one that closes nothing, parity calls every remaining
+/// phrase quoted, so a single stray marker suppresses every finding after it. Measured over this
+/// repository's own Markdown, that is not a hypothetical shape — a paragraph opening a fenced block carries
+/// an odd count by construction, and one live offence in `BACKLOG.md` was sitting behind exactly that.
+///
+/// An unpairable passage answers `None`, which is *undecidable* rather than *nothing is marked*, and this
+/// reads it as nothing marked — the direction that over-reacts rather than the one that goes quiet.
 ///
 /// Spelled with no example, for the reason `MARKDOWN_ANCHORS` gives: an example would have to carry a phrase
 /// this file's sibling sweep reads out of comment lines.
-fn marked_quotation(passage: &str, at: usize) -> bool {
-    let before = &passage[..at];
-    before.matches('`').count() % 2 == 1 || before.replace("**", "").matches('*').count() % 2 == 1
+fn marked_quotation(marked: Option<&Vec<Range<usize>>>, at: usize, end: usize) -> bool {
+    marked.is_some_and(|spans| spans.iter().any(|span| span.start <= at && end <= span.end))
 }
 
 /// Every relative anchor the **prose** of `corpus` carries, in `corpus_root`.
@@ -1730,18 +1739,28 @@ fn markdown_anchor_offences_in(corpus_root: &Path, corpus: &[String]) -> BTreeSe
             )
         });
         read += 1;
-        let exempt = dated_record_lines(&text);
+        // The carrier is decided by path, and the section shape alone is not it. `dated_record_lines` reads
+        // a shape any Markdown document can carry, so asking it of every file exempted a dated `## [x] - y`
+        // heading wherever one appeared — `AGENTS.md` enumerates three record carriers and a level-2 heading
+        // in a live document is none of them. Measured: no tracked Markdown outside this file carries that
+        // heading shape today, so the widened exemption was hiding nothing yet.
+        let exempt = if path == "CHANGELOG.md" {
+            dated_record_lines(&text)
+        } else {
+            BTreeSet::new()
+        };
         let mut passage = String::new();
         let mut origins: Vec<(usize, usize)> = Vec::new();
         let flush = |passage: &mut String,
                      origins: &mut Vec<(usize, usize)>,
                      offences: &mut BTreeSet<String>| {
+            let marked = kanhe::reading::marked_spans(passage);
             for anchor in MARKDOWN_ANCHORS {
                 let mut from = 0usize;
                 while let Some(at) = passage[from..].find(anchor) {
                     let start = from + at;
                     let end = start + anchor.len();
-                    if !marked_quotation(passage, start) {
+                    if !marked_quotation(marked.as_ref(), start, end) {
                         let line = origins
                             .iter()
                             .take_while(|(offset, _)| *offset < end)
@@ -1786,7 +1805,8 @@ fn markdown_anchor_offences_in(corpus_root: &Path, corpus: &[String]) -> BTreeSe
 /// anchors there one at a time by hand. Measured before this existed: live offences in `BACKLOG.md`, and the
 /// admitted phrases report them with no false positive anywhere in the corpus.
 ///
-/// Negative runs, the second being the one a hand sweep cannot reach:
+/// Negative runs, the second being the one a hand sweep cannot reach and the third the one this reader's
+/// own first quotation test could not:
 ///
 /// ```text
 /// 1 relative anchor(s) in Markdown prose:
@@ -1794,11 +1814,20 @@ fn markdown_anchor_offences_in(corpus_root: &Path, corpus: &[String]) -> BTreeSe
 ///
 /// 1 relative anchor(s) in Markdown prose:
 ///   BACKLOG.md:3214 writes `…`, which names a moving reference — …
+///
+/// 1 relative anchor(s) in Markdown prose:
+///   BACKLOG.md:2890 writes `…`, which names a moving reference — …
 /// ```
 ///
 /// The second put the phrase's two words on either side of a line break and is reported at the line it
 /// **ends** on, which is the paragraph join doing the work. A per-line measurement of this same corpus found
 /// one of the offences that were there; this reader found all of them.
+///
+/// The third is a **live** offence, and it stood while this check was green: the quotation test counted the
+/// marks before the phrase and read an odd count as *inside a mark*, so the stray marker earlier in that
+/// paragraph suppressed it. Asking `kanhe::reading::marked_spans` for the enclosing span instead is what
+/// reports it, and the same run over the whole corpus reports nothing else — the over-reaction on an
+/// unpairable paragraph is unrealised rather than tolerated.
 #[test]
 fn no_markdown_prose_names_a_relative_anchor() {
     let Some(root) = workspace_root() else {
@@ -2163,7 +2192,7 @@ fn unanchored_citation_offences_in(corpus_root: &Path, corpus: &[String]) -> BTr
         // **Two sanctioned readers, and neither is re-implemented here.** `region`'s prose reader decides
         // what is prose in Markdown, and `reading`'s pairing reader decides where a code span opens and
         // closes. Pairing backticks here would be the shape
-        // `no_source_outside_the_shared_reader_pairs_backticks_by_hand` refuses, and it refused this file
+        // `no_source_outside_the_shared_reader_pairs_markers_by_hand` refuses, and it refused this file
         // when the first draft did exactly that.
         for (line, span) in kanhe::reading::backticked_by_paragraph(&live) {
             // **Every delimiter-bounded hex run in the span, not the span and not its whitespace tokens.**

@@ -355,7 +355,7 @@ fallback used where no manifest exists, which the register spec describes.
 
 ### `repository-checks/a-marker-is-reached-through-some-other-primitive-a-stated-bound`
 
-> the reaction reports nothing. Those are in live use for reading a *single* delimited value rather than pairing a sequence, and none of their live uses is a pairing — so refusing them would refuse the honest use, and telling the two apart needs the expression's shape rather than the primitive's name
+> the reaction reports nothing. Those four are in live use for reading a *single* delimited value rather than pairing a sequence, and none of their live uses is a pairing — so refusing them by name would refuse the honest use, and telling the two apart needs the expression's shape rather than the primitive's name. Which is what the parity scenario above does for the one shape where the expression settles it: a count modulo two is a pairing whatever primitive produced the count
 
 - **unpinned**, tracked by: `BACKLOG.md` — *the backtick primitives the pairing reader names*
 

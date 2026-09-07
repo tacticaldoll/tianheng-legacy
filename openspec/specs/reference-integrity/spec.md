@@ -302,8 +302,18 @@ declared as a bound below rather than closed, and the reason is measured rather 
 - **THEN** the reaction fails, naming the file, the line the phrase ends on, and the phrase. The corpus is
   every tracked Markdown document less `docs/history/` and less the dated sections of `CHANGELOG.md`, which
   are the record carriers `AGENTS.md` enumerates; a commit message is the third and is not a file
+- **AND** the record carrier SHALL be decided by path as well as by section shape. A dated `## [X.Y.Z] - date`
+  heading is a shape any Markdown document can carry, and exempting the span under one wherever it appears
+  exempts a live document from a rule stated for live documents — `AGENTS.md` enumerates three carriers and a
+  level-2 heading in a live file is none of them
 - **AND** paragraphs SHALL be joined before matching, for the reason the comment sweep joins comment runs: a
   phrase whose words fall either side of a line break is one phrase, and a per-line reader sees neither half
+- **AND** whether the phrase is marked as a quotation SHALL be decided by the **span that encloses it**,
+  through the shared marked-span reader, and not by the parity of the markers before it. Parity answers
+  *do these markers pair*, so after one that closes nothing it answers *marked* for every remaining phrase in
+  the paragraph — measured, one live offence in `BACKLOG.md` stood behind a stray marker while this reaction
+  was green. A paragraph the shared reader cannot pair is read as marking nothing, which over-reacts rather
+  than going quiet
 - **PINNED-BY** `no_markdown_prose_names_a_relative_anchor`
 
 #### Scenario: A comment anchors to a moving reference
