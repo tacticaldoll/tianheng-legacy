@@ -3,7 +3,7 @@
 Every **observation bound** this family declares: a claim that a reaction deliberately stops at a
 named shape, so that shape is governed policy rather than a defect.
 
-**27 of 104 declared bounds have no pinning test.** That figure is the register's
+**27 of 105 declared bounds have no pinning test.** That figure is the register's
 audit backlog and leads the document because a number in a footnote is not read. Each such bound names
 the tracker that owns closing it.
 
@@ -250,6 +250,12 @@ fallback used where no manifest exists, which the register spec describes.
 > the gate accepts it, a stated bound: validity is verifiable without configuration and **attribution is not**, needing an allowed-signers file that exists on a maintainer's machine and not in CI. The ownership is inherited from the verification environment rather than held by this engine, because no change to this gate closes it — giving CI an allowed-signers file is what would
 
 - **pinned by**: `a_valid_signature_from_an_unauthorized_key_is_accepted`
+
+### `publish-source-integrity/whether-a-worktree-holding-an-undecodable-path-is-clean-is-not-observed-a-stated-bound`
+
+> the cleanliness judgement is never reached: the worktree read refuses as a cannot-judge, so the gate answers neither *clean* nor *dirty* for that tree. The stop is the reader's representation and not a choice this gate makes over the path — a verdict is not owed on an input it cannot represent, and every comparison the judgement would make downstream would be against a name the repository does not hold. What it costs is that such a repository cannot be published through the wrapper until the path is renamed or removed, which is a refusal in front of an irreversible act rather than a pass over one
+
+- **pinned by**: `a_worktree_holding_an_undecodable_path_is_not_judged_clean_or_dirty`
 
 ## reference-integrity
 

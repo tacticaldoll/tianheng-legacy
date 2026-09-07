@@ -1259,3 +1259,61 @@ fn an_exclusion_source_that_is_not_text_refuses_rather_than_naming_a_replaced_pa
         refusal.message
     );
 }
+
+/// A worktree holding an undecodable path is judged neither clean nor dirty — the declared bound.
+///
+/// **The stop is the reader's representation, reached before any cleanliness question is asked.** `ls-files
+/// -z --others` answers a legal non-UTF-8 filename as its own bytes, verbatim, so the worktree read refuses
+/// and the judgement never gets to compare anything. Measured on this machine's git, a `stray\xff` file in a
+/// repository with one commit:
+///
+/// ```text
+/// $ git ls-files -z --others | od -c
+/// 0000000   s   t   r   a   y 377  \0
+/// ```
+///
+/// This direction demonstrates the refusal, which is what `Reached::RefusesToJudge` owes. It reaches
+/// `worktree-state-unreadable` by a second route: the sibling that holds that site corrupts `.git/index`, so
+/// git declines to answer at all, where here git answers perfectly and this reader cannot hold the answer.
+///
+/// Negative run — the declared mutation, which makes the worktree read swallow the failure instead of
+/// refusing:
+///
+/// ```text
+/// a worktree this reader cannot represent must not be judged: "ok publish source
+/// (/tmp/tianheng-publish-source-undecodable-path-…/undecodable-path-origin.git/main at 8efe7387…,
+/// tagged v9.9.9)"
+/// ```
+///
+/// That is the whole reason the refusal is the right stop rather than a nuisance: without it the gate
+/// reports a **clean pass** over a tree holding a path it never read, in front of an act that cannot be
+/// undone. The one forbidden bug, reached by a legal filename.
+#[test]
+#[cfg(unix)]
+fn a_worktree_holding_an_undecodable_path_is_not_judged_clean_or_dirty() {
+    use std::os::unix::ffi::OsStrExt;
+
+    let root = scratch("undecodable-path");
+    let fixture = build_fixture(&root, "undecodable-path", "9.9.9");
+    let name = std::ffi::OsStr::from_bytes(b"stray\xFF");
+    std::fs::write(fixture.repo.join(name), b"x").expect("a path may be bytes on unix");
+    let verdict = judge(&fixture.repo, &fixture.remote.display().to_string());
+    let _ = std::fs::remove_dir_all(&root);
+
+    let refusal = verdict.expect_err("a worktree this reader cannot represent must not be judged");
+    refusal::expect(
+        "publish-source-integrity#worktree-state-unreadable",
+        &refusal,
+    );
+    assert_eq!(
+        refusal.kind,
+        Kind::CannotJudge,
+        "an unrepresentable path is an unread fact, not a tree that disagrees: {}",
+        refusal.message
+    );
+    assert!(
+        refusal.message.contains("could not read the worktree"),
+        "the refusal must say the worktree went unread, got: {}",
+        refusal.message
+    );
+}

@@ -3,7 +3,7 @@
 Where each declared **observation bound** stops the measure — not how far a scan walks (that is
 `ScanDepth`, an adopter's knob), but where this family's own reaction deliberately stops.
 
-**56 of 104 declared bounds are declared false negatives** — the reaction fires less than the truth, which is the one direction this family treats as a defect. That figure leads this document because a number in a footnote is not read, and each such bound names who must act:
+**56 of 105 declared bounds are declared false negatives** — the reaction fires less than the truth, which is the one direction this family treats as a defect. That figure leads this document because a number in a footnote is not read, and each such bound names who must act:
 
 - `external-crate-confinement/an-extern-crate-declaration-is-not-observed-a-stated-bound` — owner: engine
 - `inline-symbol-path-confinement/a-future-read-verb-outside-the-declared-set-is-a-documented-bound` — owner: adopter
@@ -462,6 +462,16 @@ Generated from each dimension's `observation_bounds()` by `crates/kanhe/tests/ob
 - **because**: the conservative `Crate` rank exceeds the `Module` ceiling, so an effectively private item may react — never a silent pass
 - **its defence must show**: reacts on a harmless shape
 - **pinned by**: `a_pub_in_narrow_path_over_reacts_under_a_module_ceiling`
+
+## refuses to judge (1)
+
+### `publish-source-integrity/whether-a-worktree-holding-an-undecodable-path-is-clean-is-not-observed-a-stated-bound`
+
+> a worktree holding a path that is a legal filename and not UTF-8, which `ls-files -z --others` and `status -z` both answer as its own bytes
+
+- **because**: a verdict is not owed on an input this reader cannot represent, and the alternative is worse than a refusal: collapsing the undecodable bytes to U+FFFD would make every comparison downstream against a name the repository does not hold, which is the property `xingbiao::path_identity` exists to keep. So the worktree read stops and the cleanliness judgement is never reached -- neither `clean` nor `dirty` for that tree. What it costs is that such a repository cannot be published through the wrapper until the path is renamed or removed, which is a refusal standing in front of an irreversible act rather than a pass over one
+- **its defence must show**: refuses to judge
+- **pinned by**: `a_worktree_holding_an_undecodable_path_is_not_judged_clean_or_dirty`
 
 ## under-reacts (56)
 
