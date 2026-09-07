@@ -467,6 +467,35 @@ consumer for an undemonstrated deduplication.
 
 ### WATCH
 
+- **An axis was added without its instruments three times in one window, and a uniform fix would fight the
+  asymmetry the corpus deliberately has.** *Class:* WATCH — the discipline is written where an author reads
+  it and the class has no reaction. *Observed pressure:* three instances, each caught by review rather than
+  by anything running. The spelling corpus gained `Position` and `Value` with a coverage floor over
+  `Position` only; the repair floored both and added a distinctness assertion for `Value` only; the next
+  repair added `Position`'s. Each time the missing instrument was the one for the axis added *beside* the
+  one being fixed. *Observation source:* two consecutive adversarial reviews of the same file, the second
+  reporting a defect introduced by the repair for the first.
+
+  *Current reaction or bound:* the three obligations an axis owes — set agreement, per-variant coverage,
+  variant distinctness — are stated on the axis definitions rather than in a commit body, since the next
+  axis inherits the file and not the history. Both live axes carry all three, and each distinctness
+  assertion is a `match`, so a new *variant* is a compile error. What is un-reacted is a new **axis**.
+  *Risk:* the instrument that goes missing is measurably the third one, and it is the only one no coverage
+  floor can substitute for: a floor reads the value a shape was labelled with, and the label comes from the
+  loop variable rather than from what the axis did.
+
+  **Why a trait was considered and not built.** `trait Axis { const DECLARED; const ENUMERATED; fn
+  output(&self) -> String }` with one generic assertion over it would make the compiler demand all three
+  pieces per axis. It misdescribes what is there: `Value::spell` is a pure per-variant spelling, while
+  `Position` selects a whole sub-product — a `Direct` shape has no wrapper and no predicate, which is the
+  asymmetry the sum-over-positions structure exists to express and which a uniform `output` per variant
+  would flatten. Designing for the union here builds one instrument and fights the shape.
+
+  *Watch trigger:* a **third** axis added to this corpus, or a second corpus in the tree that grows axes the
+  same way. Two axes cannot answer whether the asymmetry generalises; three can, and at three the trait's
+  cost is paid against evidence rather than against a guess. *Version class:* patch; test targets only.
+  *Authority:* the `attribute-spelling-differential` subject in `repository-checks`.
+
 - **A step name in CI can misidentify what failed, and both instruments for it were measured and
   declined.** *Class:* WATCH — the instance is closed and the class is open with no cheap reaction.
   *Observed pressure:* the Definition of Done job ran three unrelated gates under

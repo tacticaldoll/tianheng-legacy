@@ -50,6 +50,32 @@ them.
 
 ### Static
 
+- **The instrument that says an axis does something was built for one axis, which is the shape the change
+  before it repaired.** A `Value` spelling collapsed onto its sibling had been closed by asserting the two
+  spellings differ; `Position` was owed the same and did not have it. A shape's `position` comes from the
+  loop variable and its `attribute` from the match arm, so the two can part — measured, a `Direct` arm
+  emitting `#[cfg_attr(unix, {meta})]` satisfies the set agreement, both value assertions and the
+  per-position floor, reports the same 90 spellings, and leaves the direct attribute position unexercised.
+  The axis the corpus grew to cover, covered by nothing. It is matched rather than iterated now, so a new
+  position is a compile error there as it is in the builder.
+
+  **The three obligations are stated where the next axis reads them.** Set agreement, per-variant coverage,
+  variant distinctness — each catches a shrink the other two cannot, and the third is measurably the one
+  that gets missed: twice in this window, once per axis, each time passing every assertion that existed when
+  it was tried. A principle in a commit body is not a principle an axis inherits, so it sits on the axis
+  definitions.
+
+  **Three instances of one discipline failure, and the class is filed rather than closed.** Each time the
+  missing instrument was the one for the axis added *beside* the one being fixed. A trait demanding all
+  three pieces per axis would make the compiler ask for them, and it misdescribes what is there:
+  `Value::spell` is a pure per-variant spelling while `Position` selects a whole sub-product, which is the
+  asymmetry the sum-over-positions structure exists to express. `BACKLOG.md` carries it as a `WATCH` whose
+  trigger is a **third** axis — two cannot answer whether the asymmetry generalises.
+
+  The set-agreement message also now says what it holds. It compares the rendered sequences, because the two
+  axes are different types and one loop carries both, so a **reorder** fails it too — and the message said
+  *trimmed*, which would have named the wrong cause at the one moment someone reads it.
+
 - **Two axes were added and one was floored.** The coverage floor that arrived with `Position` and `Value`
   iterated `Position::ALL` and asserted nothing about the axis added beside it, in the same commit whose own
   comment says *a branch that stops emitting is a corpus that shrank, and a shrinking corpus passes*. Both
