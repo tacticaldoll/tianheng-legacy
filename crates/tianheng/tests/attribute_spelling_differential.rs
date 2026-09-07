@@ -83,6 +83,22 @@ struct Shape {
     live_predicate: bool,
 }
 
+/// **What an axis owes, stated here because the next axis inherits this and not a commit body.** Three
+/// instruments, and each catches a shrink the other two cannot:
+///
+/// 1. **Set agreement** — the direction declares the axis's membership and holds it against this
+///    enumerator both ways, so a trimmed enumerator has something independent to disagree with. A floor
+///    iterating the array the corpus was built from cannot see that array shrink.
+/// 2. **Per-variant coverage** — every declared variant produced at least one shape, read off a field on
+///    `Shape` rather than off its label.
+/// 3. **Variant distinctness** — the variants actually produce different source. Coverage cannot see this:
+///    a shape is labelled from the loop variable, not from what the axis *did*, so a variant collapsed onto
+///    its sibling satisfies every coverage assertion while generating one form twice under two names.
+///
+/// Both axes owe all three. Measured, twice, that the third is the one that gets missed: a `Value::Raw`
+/// spelling collapsed to the ordinary form, and a `Position::Direct` arm emitting a `cfg_attr`-wrapped
+/// attribute, each passed every assertion that existed when it was tried.
+///
 /// Where the `#[path]` attribute sits — the axis every reader has an arm for and the corpus had none.
 ///
 /// **Not orthogonal to the rest, which is why the corpus is a sum over positions rather than one product.**
@@ -475,7 +491,9 @@ fn every_generated_spelling_is_answered_the_same_way_by_every_dimension() {
         assert_eq!(
             declared, enumerated,
             "the {axis} axis is declared here and enumerated by the corpus, and these are two statements \
-             of one set held in both directions: neither may be trimmed alone"
+             of one membership, in one order, held in both directions: neither may be trimmed alone. A \
+             reorder fails here too — the comparison is over the rendered sequences, because the two axes \
+             are different types and one loop holds both"
         );
     }
     for position in EXPECTED_POSITIONS {
@@ -502,6 +520,31 @@ fn every_generated_spelling_is_answered_the_same_way_by_every_dimension() {
         "the two value spellings are the whole of this axis, so a spelling that answers both the same way \
          leaves the corpus generating one form twice under two labels"
     );
+    // The same obligation for the other axis, and it was owed from the moment `Position` existed. A shape's
+    // `position` is set from the loop variable and its `attribute` from the match arm, so the two can part:
+    // measured, a `Direct` arm emitting `#[cfg_attr(unix, {meta})]` passes the set agreement, both value
+    // assertions and the per-position floor, reports the same 90 spellings, and leaves the direct attribute
+    // position — the axis this corpus grew to cover — unexercised. Matched rather than iterated over an
+    // array, so a new variant is a compile error here as it is in `corpus`.
+    //
+    // Negative run:
+    //   direct · path · ordinary value is labelled a direct attribute and its source is `cfg_attr`-wrapped:
+    //   #[cfg_attr(unix, path = "target.rs")]
+    for shape in &corpus {
+        let wrapped = shape.attribute.contains("cfg_attr");
+        match shape.position {
+            Position::Direct => assert!(
+                !wrapped,
+                "{} is labelled a direct attribute and its source is `cfg_attr`-wrapped: {}",
+                shape.label, shape.attribute
+            ),
+            Position::CfgAttrWrapped => assert!(
+                wrapped,
+                "{} is labelled a wrapped attribute and its source carries no `cfg_attr`: {}",
+                shape.label, shape.attribute
+            ),
+        }
+    }
     let (governed, decoys) = corpus
         .iter()
         .fold((0, 0), |(g, d), shape| match shape.answer {
