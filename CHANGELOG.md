@@ -1277,6 +1277,40 @@ them.
 
 ### Self-governance
 
+- **The direction that held the rollup's position asserted a weaker property than its own doc claimed, and
+  its negative run wore the right colour for the wrong reason.** It listed the wrapper's five other reads
+  and required each to come before the rollup, taking each one's **first** occurrence — and three of them
+  occur twice, an early capture and a post-gate re-read, so the comparison was against the early capture.
+  Measured: with the rollup moved to after the changed-file count but before the three re-reads — one of
+  the positions the ordering exists to exclude — that form answers `ok`, while three `pr view` calls still
+  follow the rollup. The run recorded when it was written moved the rollup a slot further back and went red
+  on the changed-file count, which is a weaker property producing the same red.
+
+  It asserts adjacency now: the rollup is the call immediately before the merge, and it is read once. That
+  says what the requirement says, needs no list to keep in step with the wrapper's reads, and puts every
+  other read before the rollup by construction rather than by enumeration. The negative run is at the
+  position the enumeration passed, and the refusal names the count it found between them — three.
+
+- **Three unreachable recovery arms, one of them holding a hang.** `run_with_stdin` took its three pipe
+  handles one at a time, each with a refusal that had to unwind whatever the ones before it had started —
+  and the second joined a reader while stdin was still held, which waits on a stdout that cannot reach EOF
+  until the child sees one. Unreachable, since `Stdio::piped()` two lines above makes all three `Some`, so
+  no arm ran and nothing hung. What it cost is a reader working out that three recovery paths are dead.
+  They are taken together now, before any reader exists, so there is nothing started to unwind and *the
+  child did not give the pipes it was built with* is one fact rather than three. A refusal rather than an
+  `expect`: this module answers in `Failure` everywhere outside its fixture side, and a construction
+  invariant is not a reason to add the first panic. Behaviour is unchanged, measured on the same probe.
+
+- **A bound whose subject enumerated its inputs while its reason said the count is not written.** The
+  post-gate re-read bound named *title, base branch or head branch* in the scenario's WHEN and in the typed
+  `BoundDecl`, and said one clause later that it is *one bound rather than one per input… reached through
+  whichever inputs are re-read* and that the count is deliberately unwritten. Adding what CI said to the
+  re-read set left the enumeration short by one and the two halves disagreeing about their own subject. The
+  subject is the class now — an input the wrapper re-reads after the gate — which is what the reason was
+  already arguing for, and both projections are regenerated from it.
+
+  Found by two independent reviews of this window, one per defect, each naming the line.
+
 - **What CI said was read among the values the merge records, and it is one of the relations the merge is
   judged against.** The merge wrapper sorts its inputs by one question: does the merge RECORD this, or is it
   JUDGED AGAINST it? A recorded value travels as the value the gate saw; a judged relation has to still hold

@@ -2563,6 +2563,20 @@ fn shell_strictness_is_declared_once_for_the_whole_workflow() {
 /// This direction asserts the position in the log rather than the presence of the call, because presence
 /// was never the question — the call was always there, in the wrong place.
 ///
+/// **It asserts adjacency rather than an enumeration, and the enumeration is what it replaced.** The first
+/// form listed the wrapper's five other reads and required each to come before the rollup, taking each
+/// one's FIRST occurrence — and three of them occur twice, an early capture and a post-gate re-read. So
+/// the comparison was against the early capture, and moving the rollup to *after* the changed-file count
+/// but *before* the three re-reads — one of the positions this ordering exists to exclude — satisfied all
+/// five while three `pr view` calls still followed the rollup. The negative run recorded for that form
+/// moved the rollup a slot further back and went red on the changed-file count, which is a weaker property
+/// wearing the same colour.
+///
+/// Adjacency has neither defect: it says the thing the requirement says, it needs no list to keep in step
+/// with the wrapper's reads, and every read the wrapper makes is before the rollup by construction rather
+/// than by enumeration. The second assertion is the *once* half — a rollup read twice would be two calls,
+/// and only the later one could be adjacent, so the count is asserted rather than inferred.
+///
 /// The residual is stated where the other three state theirs: a client-side read cannot be atomic with the
 /// act it precedes, and `gh` offers no server-decided precondition for checks. What the order buys is that
 /// the window is this block's own API calls rather than those plus a whole `cargo test`.
@@ -2579,35 +2593,28 @@ fn what_ci_said_is_read_last_before_the_merge() {
         run.stderr
     );
     let lines: Vec<&str> = run.gh_log.lines().collect();
-    let at = |needle: &str| {
-        lines
-            .iter()
-            .position(|line| line.contains(needle))
-            .unwrap_or_else(|| panic!("{needle} must be read:\n{}", run.gh_log))
-    };
-    let rollup_at = at("--json statusCheckRollup");
+    let rollup: Vec<usize> = lines
+        .iter()
+        .enumerate()
+        .filter(|(_, line)| line.contains("--json statusCheckRollup"))
+        .map(|(at, _)| at)
+        .collect();
+    assert_eq!(
+        rollup.len(),
+        1,
+        "the rollup is read once, there being no value to record from an earlier read; gh log was:\n{}",
+        run.gh_log
+    );
     let merge_at = lines
         .iter()
         .position(|line| line.starts_with("pr merge"))
         .unwrap_or_else(|| panic!("the merge must be reached:\n{}", run.gh_log));
-
-    // Every other read this wrapper makes, so the assertion is *last* rather than *late*.
-    for earlier in [
-        "--json title",
-        "--json baseRefName",
-        "--json headRefName",
-        "--json headRefOid",
-        "--json changedFiles",
-    ] {
-        assert!(
-            at(earlier) < rollup_at,
-            "{earlier} must be read before the rollup, or the rollup is not the last guard; gh log was:\n{}",
-            run.gh_log
-        );
-    }
-    assert!(
-        rollup_at < merge_at,
-        "the rollup must be read before the merge; gh log was:\n{}",
+    assert_eq!(
+        merge_at,
+        rollup[0] + 1,
+        "the rollup must be the LAST call before the merge, and {} call(s) sit between them; gh log \
+         was:\n{}",
+        merge_at.saturating_sub(rollup[0] + 1),
         run.gh_log
     );
 }
