@@ -873,6 +873,13 @@ repository's law and then merge it. The two worktrees SHALL be compared before a
 - **THEN** it refuses as a cannot-judge before reading any evidence, naming both trees: applying one
   repository's law to another repository's pull request is a judgement about neither
 
+#### Scenario: An ambient GitHub repository selector names another repository
+
+- **WHEN** `GH_REPO` names a repository other than the checkout the wrapper is run in
+- **THEN** the selector is cleared before repository identity is resolved, and every subsequent `gh` call
+  explicitly names the repository resolved from the checkout
+- **PINNED-BY** `an_ambient_gh_repository_selector_cannot_move_the_judged_repository`
+
 #### Scenario: A squash subject carries the pull request's number
 
 - **WHEN** a proposed subject ends in `(#N)`
