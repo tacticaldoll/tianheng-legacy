@@ -26,12 +26,15 @@
 # A merge made in the GitHub web UI reaches no wrapper at all; that is a declared bound, not an oversight.
 set -Eeuo pipefail
 
-# **The three repository selectors are cleared before anything reads a repository.**
+# **Ambient repository selectors are cleared before anything reads a repository.**
 #
 # `GIT_DIR`, `GIT_WORK_TREE` and `GIT_INDEX_FILE` move WHICH repository a git command acts on, past
 # `current_dir` and past `-C`. `kanhe::hermetic_git::hermetic` removes them for every git this repository
 # builds in Rust, and its doc says why in so many words; this wrapper — standing in front of the one
 # irreversible act — inherited them.
+# `GH_REPO` moves which repository an otherwise implicit `gh` command acts on past that same current
+# directory. The first `gh repo view` below supplies its answer explicitly to every later call, so an ambient
+# value would move the whole workflow consistently and leave no later mismatch to expose the substitution.
 #
 # What they defeat is the guard below, not merely a read. That guard compares the worktree holding this
 # wrapper's gate against the worktree its evidence comes from, so that a wrapper invoked by absolute path
@@ -47,7 +50,7 @@ set -Eeuo pipefail
 #
 # The configuration channels are not in scope and that is deliberate rather than an omission: this script's
 # git calls are `rev-parse --show-toplevel`, which configuration does not move. The selectors do.
-unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GH_REPO
 
 usage() {
     printf 'usage: %s <pr-number> --body-file <path> [--subject <text>] [gh args…]\n' "${0##*/}" >&2
@@ -691,9 +694,10 @@ require_changed_files
 #
 # **This narrows the window; it does not close it, and the difference is the point.** `--match-head-commit`
 # is decided by the server, atomically. `gh` offers no `--match-title`, so a client-side re-read shrinks the
-# exposure from a whole `cargo test` — minutes on a cold target directory — to one API call, and a change
-# inside that call still lands. The residue is a declared bound of `repository-checks`, beside the one for a
-# merge made outside this wrapper, rather than a limit this comment implies away.
+# exposure from a whole `cargo test` — minutes on a cold target directory — rather than closing it, and a
+# change after a re-read but before the merge still lands. The residue is a declared bound of
+# `repository-checks`, beside the one for a merge made outside this wrapper, rather than a limit this comment
+# implies away.
 title_now=$(gh pr view "$pr_number" --repo "$repository" --json title --jq .title) || cannot_judge \
     "cannot re-read pull request $pr_number's title after the gate, so whether the subject the gate approved \
 is still that title cannot be decided — which is not the same fact as a subject that disagrees"

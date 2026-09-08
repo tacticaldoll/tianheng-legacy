@@ -152,7 +152,7 @@ set -eu
 argv=$*
 printf '%s\n' "${argv//$'\n'/\\n}" >> "$FAKE_GH_LOG"
 if [[ $1 == repo && $2 == view ]]; then
-    printf '%s\n' 'tacticaldoll/tianheng'
+    printf '%s\n' "${GH_REPO:-tacticaldoll/tianheng}"
 elif [[ $1 == pr && $2 == view && $* == *"--json headRefName"* ]]; then
     # The branch the squash comes from. The contract names both endpoints, so the gate takes both.
     if [[ $FAKE_GH_MODE == unreadable-head-branch ]]; then
@@ -276,7 +276,7 @@ elif [[ $1 == api ]]; then
     empty)
         :
         ;;
-    subjects | invalid-number | unreadable-head | unreadable-base | unreadable-head-branch | unreadable-body | body-moved | title-moved | base-moved | head-branch-moved | clean | no-verdict | ci-red | ci-red-status | ci-expected-status | ci-no-evidence | ci-pending | ci-unclaimed | empty-diff | unreadable-count)
+    subjects | ambient-gh-repo | invalid-number | unreadable-head | unreadable-base | unreadable-head-branch | unreadable-body | body-moved | title-moved | base-moved | head-branch-moved | clean | no-verdict | ci-red | ci-red-status | ci-expected-status | ci-no-evidence | ci-pending | ci-unclaimed | empty-diff | unreadable-count)
         if [[ $* != *"--paginate"* ]]; then
             printf '%s\n' 'feat(x): live first subject'
         else
@@ -376,6 +376,9 @@ printf '%s\n' 'test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 fil
         command
             .env("FAKE_BODY_REWRITE", &body)
             .env("FAKE_BODY_REWRITE_TEXT", REWRITTEN_BODY);
+    }
+    if mode == "ambient-gh-repo" {
+        command.env("GH_REPO", "other/project");
     }
     let output = command.output().expect("run controlled merge workflow");
 
@@ -840,6 +843,43 @@ fn every_call_names_one_repository_and_another_one_is_refused() {
         assert!(
             invocation.contains("tacticaldoll/tianheng"),
             "every gh call must name the resolved repository, but this one does not: {invocation}"
+        );
+    }
+}
+
+/// `GH_REPO` is a repository selector on the same side of the identity boundary as the Git selectors:
+/// without an explicit `--repo`, `gh repo view` answers it instead of the checkout. The repository read is
+/// the source passed explicitly to every later call, so an ambient value otherwise moves the whole workflow
+/// consistently and no later equality can expose the substitution.
+///
+/// Negative run, with the wrapper's `unset GH_REPO` removed:
+///
+/// ```text
+/// every gh call must name the repository resolved from the checkout, but this one does not:
+/// pr view 42 --repo other/project --json number --jq .number
+/// ```
+#[test]
+fn an_ambient_gh_repository_selector_cannot_move_the_judged_repository() {
+    let Some(root) = workspace_root() else {
+        return;
+    };
+
+    let run = run_wrapper(&root, "ambient-gh-repo", &[]);
+    assert!(
+        run.status.success(),
+        "clearing an ambient gh repository selector must preserve the accepted path: {}",
+        run.stderr
+    );
+
+    for invocation in run
+        .gh_log
+        .lines()
+        .filter(|line| !line.starts_with("repo view"))
+    {
+        assert!(
+            invocation.contains("tacticaldoll/tianheng"),
+            "every gh call must name the repository resolved from the checkout, but this one does not: \
+             {invocation}"
         );
     }
 }
