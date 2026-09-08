@@ -109,16 +109,13 @@ fn published_sources(root: &Path) -> Vec<(String, String)> {
         .iter()
         .map(|krate| format!("crates/{krate}/src"))
         .collect();
-    let mut args = vec!["ls-files"];
-    args.extend(dirs.iter().map(String::as_str));
-    let listing = kanhe::hermetic_git::read(
-        root,
-        "`git ls-files` over the published crates' sources",
-        "git",
-        &args,
-    );
+    let pathspec: Vec<&str> = dirs.iter().map(String::as_str).collect();
+    let listing = kanhe::hermetic_git::tracked_paths(root, &pathspec).unwrap_or_else(|failure| {
+        panic!("`git ls-files` over the published crates' sources: {failure:?}")
+    });
     let files: Vec<(String, String)> = listing
-        .lines()
+        .iter()
+        .map(String::as_str)
         .filter(|path| path.ends_with(".rs"))
         .map(|path| {
             let text = std::fs::read_to_string(root.join(path))

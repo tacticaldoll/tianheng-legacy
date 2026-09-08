@@ -314,6 +314,18 @@ The system SHALL treat a raw identifier (`r#name`) and its plain form (`name`) a
 - **WHEN** a crate declares `mod r#type;` (resolving to `src/type.rs`), that file imports `use crate::r#mod::Thing;`, and a boundary governs `crate::type` forbidding `crate::mod`
 - **THEN** the module `crate::type` is found (not an unknown-module constitution error) and the import `crate::mod::Thing` is observed as a violation, the raw and plain forms having been canonicalized to one identity
 
+**One identity means the recorded one too, not only the matched one.** A rule's key is what a baseline files
+a violation under, so a boundary whose declaration is rewritten between the two spellings SHALL keep its key:
+matching them while keying them apart makes a pure rename move every recorded finding, which is work an
+adopter did not choose and cannot see the reason for. The canonicalization SHALL therefore reach every rule
+field carrying a module path — the governed path, an allowlist's entries, and a confined crate name alike.
+
+#### Scenario: A boundary rewritten between the two spellings keeps its recorded identity
+
+- **WHEN** a boundary's declared module, allowlist entry, or confined crate name is rewritten from `r#name`
+  to `name`, or the reverse
+- **THEN** the rule key is unchanged, so a recorded baseline still describes the tree
+
 ### Requirement: Imports are attributed to their enclosing inline module
 
 The system SHALL attribute each `use` declaration to the module that lexically encloses it, including an inline `mod name { … }` submodule, rather than to the containing file's module. A `self`/`super` path SHALL be resolved against that enclosing module, and a bare first segment inside an inline submodule SHALL be treated as external even when the file itself is the crate root, matching how the compiler resolves it. A `mod name;` declaration with no inline body does not enclose any `use` and SHALL NOT change attribution.
@@ -366,6 +378,8 @@ A same-named conventional source file (`name.rs` / `name/mod.rs`) that sits besi
 ### Requirement: A plain module declaration resolves to exactly one conventional file
 
 A plain `mod name;` declaration SHALL resolve to exactly one conventional source file — `name.rs` or `name/mod.rs` — and the system SHALL react rather than guess in every other outcome, never silently dropping the module from the reachable set (which would hide every import beneath it, the false negative the core contract forbids). When **both** forms are present the system SHALL report a constitution error (exit 2) naming both resolved paths and the exactly-one-file rule, regardless of any `cfg_attr(path)` candidate also present on the same declaration — the ambiguity test SHALL precede the absent-file tolerance below and SHALL NOT be overridden by it, so a declaration whose predicate is off — which rustc strips before module resolution, leaving a crate that compiles cleanly and raises no E0761 — is still a constitution error: the scanner is cfg-blind and cannot know which arm is live, and treating one arm's ambiguity as resolvable would require evaluating `cfg`. When **neither** form is present the system SHALL report a constitution error (exit 2) naming both expected paths, EXCEPT when the declaration is **cfg-conditional**, in which case the module may legitimately have no file in the current configuration and SHALL be skipped rather than errored. A declaration SHALL be cfg-conditional from any of three sources, which the system SHALL treat identically because they express one intent — "this declaration may legitimately have no conventional file in the active configuration": a **bare** `#[cfg(...)]` attribute preceding the item; membership in a transparent control-flow macro arm (a `mod` written directly inside a `cfg_if!` arm, whose predicate lives in the macro's `if #[cfg(..)]` header rather than on the item — every such arm is conditionally compiled by construction, the trailing `else` on its predicate's negation); or the declaration carrying one or more `cfg_attr(..., path = "…")` remap attributes of which **at least one candidate physically resolves to a real file on disk**. A `#[cfg_attr(...)]` wrapper that carries no `path` meta at all, or whose every `path` remap candidate is absent from disk, SHALL NOT make a declaration cfg-conditional on that basis alone: `cfg_attr` never removes the item, it only conditionally applies its wrapped attribute, so with no resolved candidate to back it a missing conventional file beneath it is a genuine compile error (E0583) in every configuration — the same blind, existence-only test the plain-file check itself already uses, extended to a resolved conditional remap target, never a predicate-exhaustiveness proof the scanner cannot perform. The same cfg-conditional test SHALL govern an absent `#[path]` remap target, so the two absence outcomes cannot drift apart. Either constitution error SHALL abort the whole reachability walk rather than excluding one module, since a crate whose module graph cannot be resolved cannot be judged. This is the static dimension's own independently-implemented policy for these outcomes; the runtime dimension states the same rules for its own probe-coverage walker (三儀 ⊥ 三儀: the same rule, not the same function).
+
+**An attribute is the name it spells, and the built-in is the single-segment path.** A raw-identifier spelling — `r#path`, `r#cfg`, `r#cfg_attr`, at the attribute's own name position or inside a `cfg_attr`'s argument list — SHALL be read as the built-in it names, because `r#` changes an identifier's lexical spelling and not the name it spells and none of those three is a keyword. A **keyword** is the opposite case and SHALL NOT be folded into this rule: `r#mut` is an identifier named `mut` and is precisely not the keyword, so a reader matching Rust keywords compares as written. Conversely a segment reached through `::` is somebody else's attribute and SHALL carry no module target, and that narrowing governs the applied `path` meta as much as the `cfg_attr` wrapping it.
 
 #### Scenario: A module backed by both conventional forms is a constitution error
 
@@ -421,6 +435,37 @@ A plain `mod name;` declaration SHALL resolve to exactly one conventional source
 
 - **WHEN** a crate declares `#[cfg_attr(unix, path = "unix_child.rs")] #[cfg_attr(not(unix), path = "other_child.rs")] mod child;`, BOTH `unix_child.rs` and `other_child.rs` exist on disk, and neither `src/child.rs` nor `src/child/mod.rs` exists
 - **THEN** the system skips the plain-file requirement rather than erroring, and both `unix_child.rs` and `other_child.rs` are governed under `crate::child` — the shape every real rustc build compiles through exactly one of the two mutually-exhaustive targets, never through a conventional file this declaration never needs
+
+#### Scenario: A qualified applied path names no module target
+
+- **WHEN** a crate declares `#[cfg_attr(any(), foo::path = "bogus.rs", path = "real.rs")] mod plat;` and `bogus.rs` exists on disk
+- **THEN** no dimension reads `bogus.rs` as a target of `crate::plat`, because the built-in remap is the **single-segment** `path` and a segment reached through `::` is somebody else's attribute — measured under rustc 1.96.0, edition 2021, `--crate-type lib`, the declaration compiles, since a false predicate expands no applied attribute and never resolves `foo::path`
+- **AND** the same narrowing governs the applied target as much as the `cfg_attr` wrapper: reading a qualified target reports a violation against source the governed tree does not compile, and counts a probe inside it as coverage for a seam nothing probes on any real build
+- **PINNED-BY** `a_qualified_applied_path_is_not_a_module_target`
+
+#### Scenario: A raw-identifier attribute name is the built-in it spells
+
+- **WHEN** a crate declares `#[r#path = "imp_unix.rs"] mod imp;`, with `imp_unix.rs` on disk and a conventional `src/imp.rs` present as well
+- **THEN** every dimension reads `imp_unix.rs`, because the attribute's own name position takes a raw identifier exactly as a `cfg_attr`'s argument list does — measured under rustc 1.96.0, edition 2021, `--crate-type lib`, the declaration compiles with only `imp_unix.rs` present, and with both present it is the remapped file that is compiled
+- **PINNED-BY** `all_three_dimensions_read_an_unconditional_raw_identifier_path_remap`
+
+#### Scenario: A raw-identifier bare cfg grants the absent-file tolerance
+
+- **WHEN** a crate declares `#[r#cfg(target_os = "none")] mod gone;` with no `gone.rs` anywhere
+- **THEN** no dimension reports the missing-file constitution error, because `r#cfg` is the built-in `cfg` and a false predicate removes the `mod` item outright — measured under rustc 1.96.0, edition 2021, `--crate-type lib`, the declaration compiles with no backing file, exactly as the plain spelling does
+- **PINNED-BY** `all_three_dimensions_tolerate_an_absent_file_behind_a_raw_identifier_cfg`
+
+#### Scenario: A raw-identifier spelling of a path remap is the same remap
+
+- **WHEN** a crate declares `#[cfg_attr(unix, r#path = "imp_unix.rs")] mod imp;`, or the nested `#[cfg_attr(unix, r#cfg_attr(not(target_os = "none"), path = "imp_unix.rs"))] mod imp;`, and `imp_unix.rs` exists on disk
+- **THEN** every dimension reads `imp_unix.rs` as the remapped target, because `r#` changes an identifier's lexical spelling and not the name it spells — measured under rustc 1.96.0, edition 2021, `--crate-type lib`, both declarations compile with only `imp_unix.rs` present, and with a conventional `imp.rs` present as well it is the remapped file rustc compiles
+- **PINNED-BY** `all_three_dimensions_read_a_raw_identifier_spelling_of_a_cfg_attr_path`
+
+#### Scenario: A conventional file beside a raw-identifier remap does not hide the remapped one
+
+- **WHEN** a crate declares `#[cfg_attr(unix, r#path = "imp_unix.rs")] mod imp;` with a clean `src/imp.rs` present and every violation in `imp_unix.rs`
+- **THEN** the violation in `imp_unix.rs` is reported, because governing the conventional file alone reports clean over the file the build actually contains — a false negative produced by a spelling of the governed code, which the Core Contract's non-bypassability forbids
+- **PINNED-BY** `a_conventional_file_beside_a_raw_identifier_remap_does_not_hide_the_remapped_one`
 
 #### Scenario: An unresolved cfg_attr(path) candidate alone does not tolerate a missing conventional file
 

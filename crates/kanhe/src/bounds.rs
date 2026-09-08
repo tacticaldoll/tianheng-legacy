@@ -15,14 +15,15 @@ pub fn observation_bounds() -> Vec<BoundDecl> {
             "a bare reference to a registered or unregistered constructor's name, where whether it names the \
              constructor taken by value or a local variable sharing its spelling is not decidable from syntax",
             Extent::Reached(Reached::UnderReacts {
-                because: "the register's reader used to be text over Rust and not exhaustive over the \
-                          language, where a byte char literal, a raw string, or a two-line closure parameter \
-                          list could desynchronise a character scan entirely -- invisible to both of its \
-                          readings at once, the unsafe direction this bound named. Reading this repository's \
-                          own Rust with a real parser instead of scanning it closed that floor; what remains \
-                          is not lexical. Whether a bare reference names the constructor taken by value or a \
-                          local sharing its spelling is not written down anywhere a parse tree carries, and \
-                          answering it needs name resolution, which a reader of syntax alone does not have"
+                because: "what remains is not lexical, because the register's reader parses this \
+                          repository's own Rust rather than scanning it. A character scan is the reading \
+                          that leaves a lexical residue -- a byte char literal, a raw string or a two-line \
+                          closure parameter list desynchronises one entirely, invisible to both of its \
+                          readings at once, which is the unsafe direction. A parse carries none of those and \
+                          does not carry this: whether a bare reference names the constructor taken by value \
+                          or a local sharing its spelling is not written down anywhere a parse tree reaches, \
+                          and answering it needs name resolution, which a reader of syntax alone does not \
+                          have"
                     .into(),
                 owner: Owner::Engine,
             }),
@@ -92,6 +93,25 @@ pub fn observation_bounds() -> Vec<BoundDecl> {
             }),
             "a_refused_flag_cannot_sit_in_an_admitted_arguments_value_position",
         ),
+        BoundDecl::pinned(
+            BoundId::new(
+                "publish-source-integrity/whether-a-worktree-holding-an-undecodable-path-is-clean-is-not-observed-a-stated-bound",
+            ),
+            "a worktree holding a path that is a legal filename and not UTF-8, which `ls-files -z --others` \
+             and `status -z` both answer as its own bytes",
+            Extent::Reached(Reached::RefusesToJudge {
+                because: "a verdict is not owed on an input this reader cannot represent, and the \
+                          alternative is worse than a refusal: collapsing the undecodable bytes to U+FFFD \
+                          would make every comparison downstream against a name the repository does not \
+                          hold, which is the property `xingbiao::path_identity` exists to keep. So the \
+                          worktree read stops and the cleanliness judgement is never reached -- neither \
+                          `clean` nor `dirty` for that tree. What it costs is that such a repository cannot \
+                          be published through the wrapper until the path is renamed or removed, which is a \
+                          refusal standing in front of an irreversible act rather than a pass over one"
+                    .into(),
+            }),
+            "a_worktree_holding_an_undecodable_path_is_not_judged_clean_or_dirty",
+        ),
         BoundDecl::unpinned(
             BoundId::new(
                 "publish-source-integrity/the-tree-changing-after-the-gate-passed-is-not-observed-a-stated-bound",
@@ -114,14 +134,17 @@ pub fn observation_bounds() -> Vec<BoundDecl> {
                 "repository-checks/a-marker-is-reached-through-some-other-primitive-a-stated-bound",
             ),
             "a sequence of backtick-delimited names paired by hand through `split_once`, `strip_prefix`, \
-             `strip_suffix`, `trim_matches` or `matches`",
+             `strip_suffix` or `trim_matches`",
             Extent::Reached(Reached::UnderReacts {
-                because: "the reaction names two primitives, `split` and `find`, which are the two shapes \
-                          `reading`'s own doc records replacing. The others are in live use for reading \
-                          a SINGLE delimited value, where they are correct, and none of their live uses \
-                          is a pairing -- so refusing them by name would \
-                          refuse the honest use, and telling the two apart needs the expression's shape \
-                          rather than the primitive's name"
+                because: "the reaction names the primitives whose shape settles the question: `split` and \
+                          `find`, which are the two shapes `reading`'s own doc records replacing, and a \
+                          marker count taken modulo two, which is a pairing whatever produced the count. \
+                          These four remain because each is in live use for reading a SINGLE delimited \
+                          value, where they are correct, so refusing them by name would refuse the honest \
+                          use -- and what tells a pairing from a single read is the expression's shape \
+                          rather than the primitive's name. Where the expression does settle it, the \
+                          reaction takes it: that is the ground on which the parity of a `matches` count \
+                          is refused rather than declared here"
                     .into(),
                 owner: Owner::Engine,
             }),
@@ -161,19 +184,25 @@ pub fn observation_bounds() -> Vec<BoundDecl> {
         ),
         BoundDecl::unpinned(
             BoundId::new(
-                "repository-checks/a-title-edited-inside-the-re-read-itself-a-stated-bound",
+                "repository-checks/an-input-edited-inside-its-own-post-gate-re-read-a-stated-bound",
             ),
-            "a pull request title changing between the wrapper's post-gate re-read of it and `gh pr merge`",
+            "an input the wrapper re-reads after the gate changing between that re-read and \
+             `gh pr merge`",
             Extent::Reached(Reached::UnderReacts {
-                because: "the wrapper pins two of its three judged inputs by construction -- the body \
-                          travels as the value the gate judged, and the commit set is pinned through \
-                          `--match-head-commit`, which the server decides atomically. `gh` offers no \
-                          equivalent for the title, so a re-read shrinks the exposure from a whole \
-                          `cargo test` to one API call rather than closing it"
+                because: "the wrapper pins what the merge RECORDS by construction -- the body travels as the \
+                          value the gate judged, and the commit set is pinned through `--match-head-commit`, \
+                          which the server decides atomically. What the merge is JUDGED AGAINST has to be \
+                          re-read instead, and `gh` offers no equivalent precondition for any of it, so a \
+                          re-read shrinks the exposure rather than closing it. One bound rather than one per \
+                          input: the stop is a property of a client-side re-read not being atomic with the \
+                          act it precedes, so it is reached through whichever inputs are read that way -- \
+                          which is why neither this subject nor this reason names them. It read as three \
+                          while the reason said the count is not written, and a fourth was added to the \
+                          re-read set with the enumeration left standing"
                     .into(),
                 owner: Owner::Engine,
             }),
-            "`BACKLOG.md` — *the title race the wrapper can only narrow*",
+            "`BACKLOG.md` — *the re-read races the wrapper can only narrow*",
         ),
         BoundDecl::pinned(
             BoundId::new(
@@ -581,27 +610,27 @@ pub fn observation_bounds() -> Vec<BoundDecl> {
         // reaction and the uncovered half rested on a reason that did not carry it.
         BoundDecl::unpinned(
             BoundId::new(
-                "reference-integrity/a-relative-phrase-in-non-record-markdown-is-not-observed-a-stated-bound",
+                "reference-integrity/the-duration-phrase-in-non-record-markdown-is-not-observed-a-stated-bound",
             ),
-            "one of the declared relative phrases, unanchored, in a tracked Markdown document outside the \
+            "the duration phrase `for a window`, unanchored, in a tracked Markdown document outside the \
              record set",
             Extent::Reached(Reached::UnderReacts {
-                because: "extending the sweep to whole-document prose was measured against the tree it \
-                          would judge, and most of what it would report is not an offence: some \
-                          occurrences are `AGENTS.md`'s own row DECLARING the phrases, some are duration \
-                          rather than pointer -- `admitted it for a window` narrates how long something \
-                          lasted -- some are a generated projection's copy of either, and some are already \
-                          anchored, by a commit or by naming the release. A reader over text separates \
-                          none of those groups: telling a phrase that points at a moving window from one \
-                          measuring a span is a judgement about the sentence, which is the prose \
-                          instrument `AGENTS.md` records as designed, measured three times and rejected. \
-                          How many fall in each group is not written here: this reason is itself in the \
-                          corpus it describes, since a bound about a phrase has to quote the phrase, and \
-                          its projection moves the figure again"
+                because: "that phrase alone is the group a reader over text cannot separate: it is as \
+                          often duration -- `admitted it for a window`, narrating how long something \
+                          lasted -- as it is a pointer at a moving window, and telling the two apart is a \
+                          judgement about the sentence, which is the prose instrument `AGENTS.md` records \
+                          as designed, measured three times and rejected. It is the ground on which `the \
+                          same window` is absent from the declared phrases entirely. Every other group a \
+                          widened sweep reports is separable by SHAPE rather than by meaning, which is why \
+                          none of them is here: a record carrier by path and by dated section, a marked \
+                          quotation in backticks or single emphasis, and a generated projection's copy of \
+                          either, which is a marked quotation by the same test. How many fall in each group \
+                          is not written here: this reason is itself in the corpus it describes, and its \
+                          projection moves the figure again"
                     .into(),
                 owner: Owner::Engine,
             }),
-            "`BACKLOG.md` — *a relative phrase in non-record Markdown*",
+            "`BACKLOG.md` — *the duration phrase in non-record Markdown*",
         ),
         // The reader decides by shape, so a code span that merely HAS the shape is refused. Resolving each
         // token against the object database was measured and declined: `actions/checkout` fetches one commit
@@ -618,11 +647,12 @@ pub fn observation_bounds() -> Vec<BoundDecl> {
             Extent::Reached(Reached::OverReacts {
                 because: "the reader decides by shape and nothing in the tree distinguishes a value with \
                           that shape from a citation without resolving it against an object database. \
-                          Resolving was declined by measurement: CI checks out one commit, so the objects a \
-                          citation names are absent there and the reader would either answer clean over all \
-                          of them or refuse to judge at all. Measured over the live corpus: no span of this \
-                          shape names anything but a commit, so the over-reaction is unrealised rather than \
-                          tolerated"
+                          Resolving is declined because the verdict would then depend on the object store \
+                          rather than on the tracked text: the job running this reader checks out full \
+                          history, but jobs checking out at the default depth would answer clean over every \
+                          citation, so the reader would report clean for a reason unrelated to the content. \
+                          Measured over the live corpus: no span of this shape names anything but a commit, \
+                          so the over-reaction is unrealised rather than tolerated"
                     .into(),
             }),
             "`BACKLOG.md` — *a code span shaped like an object that names none*",
@@ -643,12 +673,12 @@ pub fn observation_bounds() -> Vec<BoundDecl> {
                           tree actually holds -- a long run of digits written as a figure, and an English \
                           word spelled from the hex alphabet -- and the price is the abbreviations that \
                           carry only one kind of character. Over uniformly random seven-character \
-                          abbreviations that is 3.8%. The direction is deliberate, and its reason is not the \
-                          one first written here: the Core Contract names a **silent** false negative as the \
-                          one forbidden bug, so a miss is not the cheaper direction by default. What makes \
-                          this one admissible is that it is not silent -- it is this declaration, with an \
-                          owner and a tracker -- and the alternative is refusing prose that cites nothing, \
-                          which no declaration would cover"
+                          abbreviations that is 3.8%. The direction is deliberate, and what makes it \
+                          admissible is not that a miss is the cheaper direction: the Core Contract names a \
+                          **silent** false negative as the one forbidden bug, so no miss is cheaper by \
+                          default. This one is not silent -- it is this declaration, with an owner and a \
+                          tracker -- and the alternative is refusing prose that cites nothing, which no \
+                          declaration would cover"
                     .into(),
                 owner: Owner::Engine,
             }),
@@ -777,10 +807,10 @@ pub fn observation_bounds() -> Vec<BoundDecl> {
                           asking the filesystem, since case folding is the volume's rule rather than the \
                           string's — and a release gate whose verdict over one tree differs by the machine \
                           it runs on is worse than a refusal an author can read and argue with. This reader \
-                          is also handed no repository to ask. An earlier wording claimed canonicalizing \
-                          would make `..` resolvable and move three other verdicts: review showed it can be \
-                          confined to the accepted branch, leaving every refusal intact, so that reason was \
-                          false and is not what keeps the bound"
+                          is also handed no repository to ask. What does NOT keep the bound is the cost of \
+                          canonicalizing: confined to the accepted branch it makes `..` resolvable and \
+                          leaves every other verdict, and every refusal, exactly where it was -- measured, \
+                          so the reason is the two above rather than a spread of consequences"
                     .into(),
             }),
             "`BACKLOG.md` — *a pin may defend a direction its bound does not declare*",
@@ -897,6 +927,117 @@ pub fn observation_bounds() -> Vec<BoundDecl> {
                 owner: Owner::Engine,
             }),
             "a_name_reached_only_through_a_url_is_a_stated_bound",
+        ),
+        BoundDecl::pinned(
+            BoundId::new(
+                "repository-checks/a-paragraph-repeated-out-of-line-is-not-read-a-stated-bound",
+            ),
+            "a comment paragraph repeated somewhere other than immediately after itself -- twenty lines \
+             down, in another function, or in another file",
+            Extent::Reached(Reached::UnderReacts {
+                because: "adjacency is what a paste leaves behind, and it is also what can be judged \
+                          without deciding whether a repetition is deliberate. Two paragraphs that read the \
+                          same in different places are as often two sites documented alike as one pasted \
+                          twice, and this repository keeps both -- so widening past adjacency would buy the \
+                          rarer defect with a report the author has to argue with, which is the authoring \
+                          tax `PROJECT.md` refuses"
+                    .into(),
+                owner: Owner::Engine,
+            }),
+            "a_repetition_split_by_code_is_not_read",
+        ),
+        BoundDecl::pinned(
+            BoundId::new(
+                "repository-checks/a-paragraph-repeated-in-prose-is-not-read-a-stated-bound",
+            ),
+            "a paragraph repeated in a tracked file that is not Rust, including this repository's governance \
+             prose",
+            Extent::Reached(Reached::UnderReacts {
+                because: "the corpus is Rust comments, where an identical adjacent pair has one cause. \
+                          Markdown repeats identical adjacent lines for its own reasons -- a table's rule \
+                          row, two list items that read the same -- so the same rule there reports text its \
+                          author wrote. The prose corpora carry the weight this check exists to protect, so \
+                          the stop is the one worth revisiting first if a shape with no false positive is \
+                          found for them"
+                    .into(),
+                owner: Owner::Engine,
+            }),
+            "a_repeated_paragraph_in_a_prose_file_is_outside_the_corpus",
+        ),
+        BoundDecl::pinned(
+            BoundId::new(
+                "repository-checks/a-git-constructed-through-a-program-value-is-not-read-a-stated-bound",
+            ),
+            "a `git` constructed as `Command::new(<value>)` rather than with the program written out",
+            Extent::Reached(Reached::UnderReacts {
+                because: "whether a value names `git` is not decidable from the line that constructs it, \
+                          and `gate_exit_classes`' own header records a detector keyed on how a spawn is \
+                          written being one form short three rounds running. Measured across the tracked \
+                          Rust: two sites take a program as a value, and one of them IS the builder every \
+                          other read is routed through while the other names an `ssh-keygen` signature \
+                          verifier. A site cannot be invisible either way -- `gate_exit_classes` requires \
+                          any target spawning a process to be declared -- so what this stop leaves \
+                          unclassified is which program that spawn is, not that it happens"
+                    .into(),
+                owner: Owner::Engine,
+            }),
+            "a_construction_through_a_program_value_is_not_read",
+        ),
+        BoundDecl::pinned(
+            BoundId::new("repository-checks/a-git-named-in-prose-is-not-read-a-stated-bound"),
+            "a `git` construction written inside a comment rather than executed",
+            Extent::Reached(Reached::UnderReacts {
+                because: "comments are what a lexer discards, and this reader asks one -- so the stop is \
+                          what a token stream IS rather than an arm this check chose, which also closes the \
+                          block-comment form a line-opening test could not see. What it costs is that a \
+                          construction commented out rather than deleted is unread, and \
+                          `unreachable_branch` is where commented-out code is the subject. No mutation \
+                          record isolates it: perturbing it means giving this reader a text path back, \
+                          which is the defect rather than a perturbation of it"
+                    .into(),
+                owner: Owner::Engine,
+            }),
+            "a_construction_named_in_prose_is_not_read",
+        ),
+        BoundDecl::pinned_by_many(
+            BoundId::new(
+                "repository-checks/a-git-constructed-inside-a-string-literal-is-not-read-a-stated-bound",
+            ),
+            "a `git` construction written inside a string literal of either form, ordinary or raw, where a \
+             file that emits Rust and compiles it carries one",
+            Extent::Reached(Reached::UnderReacts {
+                because: "a literal is one token, so what it carries is that token's text and not a call. \
+                          Reading lines, this split in two: an ordinary literal escaped its quotes and \
+                          dropped out on its own, while a RAW string carried the spelling verbatim and was \
+                          reported -- an over-report that reading tokens closed rather than declared. One \
+                          stop remains, in both forms. No mutation record isolates it: a literal's contents \
+                          are not a token stream, so reaching into them is a different reader rather than a \
+                          perturbation of this one"
+                    .into(),
+                owner: Owner::Engine,
+            }),
+            "a_construction_inside_an_ordinary_string_literal_is_not_read",
+            ["a_construction_inside_a_raw_string_is_not_read"],
+        ),
+        BoundDecl::pinned(
+            BoundId::new(
+                "repository-checks/a-git-constructed-through-a-name-bound-elsewhere-is-not-read-a-stated-bound",
+            ),
+            "a `git` constructed through a name this file does not bind to `Command` -- a rename in another \
+             module, a type alias, a re-export",
+            Extent::Reached(Reached::UnderReacts {
+                because: "a rename is decidable inside one file, where `use std::process::Command as Cmd` \
+                          is written down, and this reader binds those. What a name means when it is bound \
+                          somewhere else is not written down anywhere a parse tree carries, and answering \
+                          it needs name resolution -- the same floor \
+                          `a-construction-shape-the-register-s-reader-does-not-model-a-stated-bound` \
+                          already names for this repository's other reader of its own Rust, reached here by \
+                          the same road. The direction pinning it is the control that a name this file does \
+                          not bind is not read"
+                    .into(),
+                owner: Owner::Engine,
+            }),
+            "a_construction_through_a_rename_or_inside_a_macro_is_read",
         ),
     ]
 }

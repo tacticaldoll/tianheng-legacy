@@ -197,16 +197,18 @@ fn offences(path: &str, text: &str) -> Vec<String> {
 
 /// Every tracked Rust file under `crates/`, read through the hermetic builder.
 fn tracked_rust(root: &std::path::Path) -> Result<Vec<(String, String)>, Refusal> {
-    let listing = kanhe::hermetic_git::run(root, &[], &["ls-files", "-z", "crates"]).map_err(
-        |failure| {
-            cannot_judge(format!(
-                "CannotJudge: could not enumerate the tracked Rust sources ({failure:?}), so no file was \
-                 inspected"
-            ))
-        },
-    )?;
+    let listing = kanhe::hermetic_git::tracked_paths(root, &["crates"]).map_err(|failure| {
+        cannot_judge(format!(
+            "CannotJudge: could not enumerate the tracked Rust sources ({failure:?}), so no file was \
+             inspected"
+        ))
+    })?;
     let mut read = Vec::new();
-    for path in listing.split('\0').filter(|p| p.ends_with(".rs")) {
+    for path in listing
+        .iter()
+        .map(String::as_str)
+        .filter(|p| p.ends_with(".rs"))
+    {
         let text = std::fs::read_to_string(root.join(path)).map_err(|err| {
             cannot_judge(format!(
                 "CannotJudge: {path} is tracked and could not be read ({err}) — an unread file is not a file \
@@ -315,7 +317,7 @@ fn the_reader_separates_a_dead_fallback_from_a_reachable_one() {
     }
 }
 
-/// No source outside `reading` pairs backtick markers by hand.
+/// No source outside `reading` pairs marker literals by hand.
 ///
 /// **The extraction closed three sites and the class stayed open at three more.** `reading::backticked` was
 /// written because pairing markers as they arrive lets one unpaired marker shift every pair after it; the
@@ -323,10 +325,20 @@ fn the_reader_separates_a_dead_fallback_from_a_reachable_one() {
 /// session's own output found `split('`').skip(1).step_by(2)` still standing in three test targets — the
 /// exact shape, in the window whose subject was that shape. A reaction is what makes the seventh impossible.
 ///
+/// **The third shape is the parity of a marker count, and it came through the door the primitive names left
+/// open.** The two search primitives were the whole of this reader, on a measured ground: the other
+/// primitives reaching a marker literal were reading one delimited value, where they are correct, so
+/// refusing them by name would refuse the honest use. A later site then decided a *pairing* with
+/// `.count() % 2` — odd meant *inside a mark* — which is neither of the two search shapes and is a pairing
+/// all the same. It reached a governance check's own quotation test and suppressed a live offence there. So
+/// the question the tracking entry named is the one asked here: the expression's shape rather than the
+/// primitive's name. A count is honest and a **parity** of one is a pairing, and both marker classes
+/// `reading` pairs are read, because a door one character wide is a door.
+///
 /// The corpus is executed Rust, so the paragraphs recording this — including this one — write the shape they
 /// forbid and are not read.
 #[test]
-fn no_source_outside_the_shared_reader_pairs_backticks_by_hand() {
+fn no_source_outside_the_shared_reader_pairs_markers_by_hand() {
     let Some(root) = workspace_root() else {
         return;
     };
@@ -355,11 +367,25 @@ fn no_source_outside_the_shared_reader_pairs_backticks_by_hand() {
                     ));
                 }
             }
+            // The parity of a marker count is a pairing by another route: it answers *do these markers pair*
+            // and is read as *is this phrase inside a mark*, which is a different question. Counting is
+            // honest — `reading`'s own refusal says how many it found — so the parity is the shape, not the
+            // count. Both classes `reading` pairs are read here.
+            for needle in [concat!(".matches(", "'`')"), concat!(".matches(", "'*')")] {
+                if line.contains(needle) && line.contains("% 2") {
+                    standing.push(format!(
+                        "  {path}:{number}: decides a pairing by the parity of a marker count — parity says \
+                         whether the markers pair, not which text a pair encloses, so after one marker that \
+                         closes nothing every phrase reads as marked. Call \
+                         `kanhe::reading::marked_spans`, whose answer is the spans themselves"
+                    ));
+                }
+            }
         }
     }
     assert!(
         standing.is_empty(),
-        "these sites pair backticks themselves, so the reader that decides the count first is not the only \
+        "these sites pair markers themselves, so the reader that decides the count first is not the only \
          one:\n{}",
         standing.join("\n")
     );

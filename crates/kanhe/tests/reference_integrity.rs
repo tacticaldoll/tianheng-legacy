@@ -22,6 +22,7 @@
 //! held to generally.
 
 use std::collections::{BTreeSet, HashSet};
+use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -286,23 +287,15 @@ fn no_tracked_file_is_claimed_by_two_declared_formats() {
 }
 
 fn tracked(root: &Path) -> Vec<String> {
-    // Through the builder for the reason the whole capability's Purpose states: every read behind a verdict
+    // Through the owner for the reason the whole capability's Purpose states: every read behind a verdict
     // here is isolated from config outside the repository being judged, not only the one an ignore file can
-    // flip.
-    let out = kanhe::hermetic_git::hermetic("git")
-        .args(["ls-files"])
-        .current_dir(root)
-        .output()
-        .expect("run git ls-files");
-    assert!(
-        out.status.success(),
-        "`git ls-files` failed enumerating tracked paths — a failed enumeration is not a repository holding \
-         no files, and every reference verdict would rest on it"
-    );
-    String::from_utf8_lossy(&out.stdout)
-        .lines()
-        .map(str::to_string)
-        .collect()
+    // flip — and a path git quotes or cannot decode is refused rather than renamed.
+    kanhe::hermetic_git::tracked_paths(root, &[]).unwrap_or_else(|failure| {
+        panic!(
+            "`git ls-files` did not enumerate tracked paths ({failure:?}) — a failed enumeration is not a \
+             repository holding no files, and every reference verdict would rest on it"
+        )
+    })
 }
 
 #[test]
@@ -1648,6 +1641,207 @@ fn no_tracked_source_names_a_relative_anchor() {
     );
 }
 
+/// The relative anchors read in **Markdown prose**: every phrase `RELATIVE_ANCHORS` declares except the
+/// duration one, and the exclusion is measured rather than assumed.
+///
+/// **The excluded phrase is the one that narrates a span.** Over the corpus below, every occurrence of it
+/// measures how long something held rather than pointing at a moving reference, so admitting it here would
+/// refuse only legitimate sentences. Telling the two readings apart is a judgement about the sentence, which
+/// is the prose instrument `RELATIVE_ANCHORS`'s own doc records refusing for the phrase it leaves out of the
+/// declared set entirely. The gap is declared as an observation bound rather than left as a narrower list
+/// nobody wrote down.
+///
+/// **Neither the excluded phrase nor any admitted one is spelled in this comment**, and the omission is the
+/// point: this file is inside the corpus its sibling sweep reads, and that sweep has no quotation
+/// discriminator — the phrases live in the arrays, where a reader of comment lines cannot reach them.
+/// `RELATIVE_ANCHORS`'s own doc solves it the same way.
+const MARKDOWN_ANCHORS: [&str; 3] = ["this window", "one commit ago", "the previous round"];
+
+/// The `## [X.Y.Z] - YYYY-MM-DD` spans of a changelog, which are record carriers.
+///
+/// **A dated section is a measurement of the moment it was taken**, so holding one to `HEAD` would demand
+/// that the record change every time the tree does — `AGENTS.md` names exactly three such carriers, and this
+/// is the one that lives inside a file the rest of which is live. `docs/history/` and commit messages are
+/// the other two: the first is skipped by path and the second is not a file.
+///
+/// **A span closes on any level-2 heading and reopens only if the new one is dated.** Written as an `elif`
+/// that reopened without closing, one dated section following another left the earlier one unexempted — and
+/// the measurement that shaped this function reported 144 offences in a file that holds 1. That is the third
+/// spelling of this span logic; the first two are in the changelog entry that records them.
+fn dated_record_lines(text: &str) -> BTreeSet<usize> {
+    let mut lines = BTreeSet::new();
+    let all: Vec<&str> = text.lines().collect();
+    let mut start: Option<usize> = None;
+    let close = |start: &mut Option<usize>, end: usize, lines: &mut BTreeSet<usize>| {
+        if let Some(from) = start.take() {
+            lines.extend(from..end);
+        }
+    };
+    for (index, line) in all.iter().enumerate() {
+        if line.starts_with("## ") && !line.starts_with("### ") {
+            close(&mut start, index, &mut lines);
+            let dated = line
+                .strip_prefix("## [")
+                .and_then(|rest| rest.split_once("] - "))
+                .is_some_and(|(_, date)| kanhe::release_coherence_gate::is_iso_date(date.trim()));
+            if dated {
+                start = Some(index);
+            }
+        }
+    }
+    close(&mut start, all.len(), &mut lines);
+    lines
+}
+
+/// Whether the anchor occupying `at..end` of a passage is a **marked quotation** rather than an assertion.
+///
+/// The rule this reader answers to says a sweep whose hits are all quoted is the finished state: the finding
+/// is an assertion, never a quotation. Which marks this repository defines a phrase with, and which merely
+/// emphasise a sentence containing it, is `kanhe::reading::marked_spans`'s to say — and `marked` is its
+/// answer over the joined paragraph, because no mark of either class spans one.
+///
+/// **What this asks it is *membership*, and the parity of the markers before the phrase is not that.** The
+/// shape written here first counted the marks preceding the anchor and read an odd count as *inside a mark*.
+/// The two agree only where every marker pairs: after one that closes nothing, parity calls every remaining
+/// phrase quoted, so a single stray marker suppresses every finding after it. Measured over this
+/// repository's own Markdown, that is not a hypothetical shape — a paragraph opening a fenced block carries
+/// an odd count by construction, and one live offence in `BACKLOG.md` was sitting behind exactly that.
+///
+/// An unpairable passage answers `None`, which is *undecidable* rather than *nothing is marked*, and this
+/// reads it as nothing marked — the direction that over-reacts rather than the one that goes quiet.
+///
+/// Spelled with no example, for the reason `MARKDOWN_ANCHORS` gives: an example would have to carry a phrase
+/// this file's sibling sweep reads out of comment lines.
+fn marked_quotation(marked: Option<&Vec<Range<usize>>>, at: usize, end: usize) -> bool {
+    marked.is_some_and(|spans| spans.iter().any(|span| span.start <= at && end <= span.end))
+}
+
+/// Every relative anchor the **prose** of `corpus` carries, in `corpus_root`.
+///
+/// **Paragraph-joined, for the reason the comment sweep is line-joined.** A phrase wrapped across two lines
+/// of Markdown is one phrase, and a per-line reader sees neither half. A blank line ends a paragraph, so a
+/// phrase does not cross one — the same boundary the sibling draws at a non-comment line.
+fn markdown_anchor_offences_in(corpus_root: &Path, corpus: &[String]) -> BTreeSet<String> {
+    let mut offences = BTreeSet::new();
+    let mut read = 0usize;
+    for path in corpus.iter() {
+        if !matches!(prose_of(path), Some(Prose::Whole)) || !path.ends_with(".md") {
+            continue;
+        }
+        // A record carrier by path, which is the cheaper half of the same exemption.
+        if path.starts_with("docs/history/") {
+            continue;
+        }
+        let text = std::fs::read_to_string(corpus_root.join(path)).unwrap_or_else(|error| {
+            panic!(
+                "cannot read tracked file '{path}' — a file this check claims to have inspected must have \
+                 been read: {error}"
+            )
+        });
+        read += 1;
+        // The carrier is decided by path, and the section shape alone is not it. `dated_record_lines` reads
+        // a shape any Markdown document can carry, so asking it of every file exempted a dated `## [x] - y`
+        // heading wherever one appeared — `AGENTS.md` enumerates three record carriers and a level-2 heading
+        // in a live document is none of them. Measured: no tracked Markdown outside this file carries that
+        // heading shape today, so the widened exemption was hiding nothing yet.
+        let exempt = if path == "CHANGELOG.md" {
+            dated_record_lines(&text)
+        } else {
+            BTreeSet::new()
+        };
+        let mut passage = String::new();
+        let mut origins: Vec<(usize, usize)> = Vec::new();
+        let flush = |passage: &mut String,
+                     origins: &mut Vec<(usize, usize)>,
+                     offences: &mut BTreeSet<String>| {
+            let marked = kanhe::reading::marked_spans(passage);
+            for anchor in MARKDOWN_ANCHORS {
+                let mut from = 0usize;
+                while let Some(at) = passage[from..].find(anchor) {
+                    let start = from + at;
+                    let end = start + anchor.len();
+                    if !marked_quotation(marked.as_ref(), start, end) {
+                        let line = origins
+                            .iter()
+                            .take_while(|(offset, _)| *offset < end)
+                            .last()
+                            .map_or(0, |(_, line)| *line);
+                        offences.insert(format!(
+                            "  {path}:{line} writes `{anchor}`, which names a moving reference — it is \
+                             stale the moment that reference moves, and nothing can check it. Anchor it to \
+                             the moment (a version, a date, a commit) or name the item"
+                        ));
+                    }
+                    from = end;
+                }
+            }
+            passage.clear();
+            origins.clear();
+        };
+        for (index, line) in text.lines().enumerate() {
+            if exempt.contains(&index) || line.trim().is_empty() {
+                flush(&mut passage, &mut origins, &mut offences);
+                continue;
+            }
+            let normalised = line.split_whitespace().collect::<Vec<_>>().join(" ");
+            passage.push(' ');
+            origins.push((passage.len(), index + 1));
+            passage.push_str(&normalised);
+        }
+        flush(&mut passage, &mut origins, &mut offences);
+    }
+    assert!(
+        read > 0,
+        "no tracked Markdown was read, so this sweep would report clean over a corpus it never opened"
+    );
+    offences
+}
+
+/// A relative anchor in Markdown prose is read, which is where a continuation reads from.
+///
+/// **The rule's subject is every tracked live file and its reader was comment lines.** `prose_of` classifies
+/// Markdown as `Prose::Whole`, and the sibling sweep filters to `Prose::LineComment` — so `AGENTS.md`,
+/// `BACKLOG.md`, `PROJECT.md` and every spec sat outside the corpus entirely, and four review rounds found
+/// anchors there one at a time by hand. Measured before this existed: live offences in `BACKLOG.md`, and the
+/// admitted phrases report them with no false positive anywhere in the corpus.
+///
+/// Negative runs, the second being the one a hand sweep cannot reach and the third the one this reader's
+/// own first quotation test could not:
+///
+/// ```text
+/// 1 relative anchor(s) in Markdown prose:
+///   BACKLOG.md:3213 writes `…`, which names a moving reference — …
+///
+/// 1 relative anchor(s) in Markdown prose:
+///   BACKLOG.md:3214 writes `…`, which names a moving reference — …
+///
+/// 1 relative anchor(s) in Markdown prose:
+///   BACKLOG.md:2890 writes `…`, which names a moving reference — …
+/// ```
+///
+/// The second put the phrase's two words on either side of a line break and is reported at the line it
+/// **ends** on, which is the paragraph join doing the work. A per-line measurement of this same corpus found
+/// one of the offences that were there; this reader found all of them.
+///
+/// The third is a **live** offence, and it stood while this check was green: the quotation test counted the
+/// marks before the phrase and read an odd count as *inside a mark*, so the stray marker earlier in that
+/// paragraph suppressed it. Asking `kanhe::reading::marked_spans` for the enclosing span instead is what
+/// reports it, and the same run over the whole corpus reports nothing else — the over-reaction on an
+/// unpairable paragraph is unrealised rather than tolerated.
+#[test]
+fn no_markdown_prose_names_a_relative_anchor() {
+    let Some(root) = workspace_root() else {
+        return;
+    };
+    let offences = markdown_anchor_offences_in(&root, &tracked(&root));
+    assert!(
+        offences.is_empty(),
+        "{} relative anchor(s) in Markdown prose:\n{}",
+        offences.len(),
+        offences.iter().cloned().collect::<Vec<_>>().join("\n")
+    );
+}
+
 /// Every positional reference the comment lines of `corpus` carry, in `corpus_root`.
 ///
 /// Split from the check so a negative fixture can call it, for the reason the sibling sweep states: a check
@@ -1968,6 +2162,7 @@ fn no_reference_names_a_line_number() {
 /// number and every other line is empty — so the shared pairing reader answers with the document's own line
 /// numbers and a run of prose is one paragraph.
 fn unanchored_citation_offences_in(corpus_root: &Path, corpus: &[String]) -> BTreeSet<String> {
+    let own = own_repository(corpus_root);
     let mut offences = BTreeSet::new();
     let mut read = 0usize;
     for path in corpus.iter() {
@@ -1997,18 +2192,37 @@ fn unanchored_citation_offences_in(corpus_root: &Path, corpus: &[String]) -> BTr
         // **Two sanctioned readers, and neither is re-implemented here.** `region`'s prose reader decides
         // what is prose in Markdown, and `reading`'s pairing reader decides where a code span opens and
         // closes. Pairing backticks here would be the shape
-        // `no_source_outside_the_shared_reader_pairs_backticks_by_hand` refuses, and it refused this file
+        // `no_source_outside_the_shared_reader_pairs_markers_by_hand` refuses, and it refused this file
         // when the first draft did exactly that.
         for (line, span) in kanhe::reading::backticked_by_paragraph(&live) {
-            if !is_abbreviated_object(&span) {
-                continue;
+            // **Every delimiter-bounded hex run in the span, not the span and not its whitespace tokens.**
+            // Testing whether the span IS the hex missed an object cited inside a longer one; splitting on
+            // whitespace then missed one glued to punctuation, which is where a git object usually sits —
+            // `<object>..release/0.5.0`, `<object>^{commit}` and `(<object>)` are each ONE whitespace
+            // token, and none of them is bare hex. The placeholders are placeholders because this reader
+            // refuses a real one here too, which is the shape working rather than an inconvenience. Both narrowings were found by a reader after the reader here had
+            // run over the same lines, so the corpus is taken from the shape a revision expression has
+            // rather than from the shape a sentence has. A run bounded by alphanumerics is not a citation —
+            // it is the tail of a word — so the bound is non-alphanumeric on both sides, and the predicate
+            // below is unchanged and is still what keeps the noise out.
+            // **A third party's object is not this rule**, and `AGENTS.md` says so: an action pinned as
+            // `owner/action@<sha>` is correct supply-chain practice. The containing syntax is classified
+            // before the run inside it, because the criterion that governance states — *that sha does not
+            // resolve here* — is one a person applies and a reaction cannot: a development commit of this
+            // tree does not resolve in a fresh clone either, so a reader keyed on resolution would report
+            // clean in CI over exactly what it exists to find.
+            let sanctioned = action_pin_objects(&span, own.as_deref());
+            for token in hex_runs(&span) {
+                if !is_abbreviated_object(&token) || sanctioned.contains(&token) {
+                    continue;
+                }
+                offences.insert(format!(
+                    "  {path}:{line} cites the commit object `{token}`, and live text anchors to a release. \
+                     `main` carries one commit per release, so a development commit is unreachable from a \
+                     fresh clone by construction; a release commit is reachable and is still named better by \
+                     its version. Name the release window, or move the citation into a record"
+                ));
             }
-            offences.insert(format!(
-                "  {path}:{line} cites the commit object `{span}`, and live text anchors to a release. \
-                 `main` carries one commit per release, so a development commit is unreachable from a fresh \
-                 clone by construction; a release commit is reachable and is still named better by its \
-                 version. Name the release window, or move the citation into a record"
-            ));
         }
     }
     assert!(
@@ -2069,6 +2283,295 @@ fn live_prose(kind: Prose, text: &str, records: &kanhe::record::Records) -> Stri
                 .join("\n")
         }
     }
+}
+
+/// The reader reaches a citation glued to punctuation, and the two narrower readers it replaced do not.
+///
+/// **The live direction cannot pin this and never could.** It sweeps the tracked corpus, which is kept
+/// clean — so reverting the widening leaves it green, and the scenario it pins would have been satisfied by
+/// a reader that had stopped working. The guard has to supply the offending span itself.
+///
+/// Three forms, one per narrowing this reader has had:
+/// the whole-span predicate reads none of them; splitting on whitespace reads only the first; bounding on
+/// non-alphanumerics reads all three.
+///
+/// Negative runs, each with the fixture untouched: with `hex_runs` replaced by `span.split_whitespace()`
+/// this reports 1 of 3 and fails naming the two it lost; with the loop replaced by the whole span it
+/// reports 0 of 3.
+#[test]
+fn a_citation_glued_to_punctuation_is_read() {
+    let root = std::env::temp_dir().join(format!("kanhe-citation-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    xingbiao::claim_scratch(&root).expect("the fixture root is writable");
+
+    // Assembled from pieces no piece of which is itself object-shaped, because this file is inside the
+    // corpus the live direction sweeps: a literal abbreviated object written here would be an offence of
+    // the very class under test.
+    let object: String = ["f4", "1b", "3b", "9c"].concat();
+    let document = format!(
+        "# Fixture\n\nA span carrying a space: `git show {object}`.\n\n         A revision expression: `{object}..release/0.5.0`.\n\n         Punctuation around it: `({object})`.\n"
+    );
+    std::fs::write(root.join("GUIDE.md"), document).expect("the fixture document is writable");
+
+    let offences = unanchored_citation_offences_in(&root, &["GUIDE.md".to_string()]);
+    assert_eq!(
+        offences.len(),
+        3,
+        "each of the three spans carries the object and each must be reported; got {offences:#?}"
+    );
+    for offence in &offences {
+        assert!(
+            offence.contains(&object),
+            "an offence must name the object it found: {offence}"
+        );
+    }
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+/// A third party's pin is not this repository's object, and everything narrower than that still is.
+///
+/// The control beside the three positive spans above, holding the sanction's whole boundary at once.
+/// `AGENTS.md` sanctions `owner/action@<sha>` by name as correct supply-chain practice, and this reader
+/// refused it: every delimiter-bounded hex run was classified without first classifying the syntax
+/// containing it. The workflow that carries the real pins is not prose and never reached this sweep, so the
+/// rule and its reaction disagreed with no instance between them — which is the state this fixture ends.
+///
+/// **Then the sanction was wider than the sanction.** Read by shape alone it covered
+/// `tacticaldoll/tianheng@<sha>` — GitHub's cross-reference for a commit of *this* tree, which is what the
+/// requirement exists to refuse — and it accepted a suffix (`^{commit}`, `..HEAD`) that makes the reference
+/// a revision expression rather than a pin, and an empty path segment that GitHub resolves for nobody. Each
+/// is a way to spell the prohibited form behind the sanctioned one's prefix, so each is a row here.
+#[test]
+fn a_third_partys_action_pin_is_not_read_as_this_repositorys_object() {
+    let root = std::env::temp_dir().join(format!("kanhe-action-pin-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    xingbiao::claim_scratch(&root).expect("the fixture root is writable");
+
+    // The manifest, because the exclusion is a fact about the repository being read rather than a constant:
+    // `own_repository` takes it from the field the workspace already declares.
+    std::fs::write(
+        root.join("Cargo.toml"),
+        "[workspace.package]\nrepository = \"https://github.com/tacticaldoll/tianheng\"\n",
+    )
+    .expect("the fixture manifest is writable");
+
+    // Assembled, for the reason the sibling above assembles its object: this file is swept by the live
+    // direction, so no piece written here is object-shaped on its own.
+    let object: String = ["f4", "1b", "3b", "9c"].concat();
+    let full: String = ["fbc6f399", "2d24b796", "d5a048ff", "273f7fcc", "4a7b6c09"].concat();
+    let sanctioned = [
+        format!("A pinned action: `actions/checkout@{full}`."),
+        format!("A pin under a path: `owner/name/sub@{full}`."),
+    ];
+    let refused = [
+        format!("This repository's own commit: `tacticaldoll/tianheng@{full}`."),
+        format!("A pin with a revision suffix: `owner/action@{full}^{{commit}}`."),
+        format!("A pin opening a range: `owner/action@{full}..HEAD`."),
+        format!("A pin with an empty segment: `owner//action@{full}`."),
+        format!("A bare object: `git show {object}`."),
+        format!("A shortened pin: `actions/checkout@{object}`."),
+    ];
+    let document = format!(
+        "# Fixture\n\n{}\n",
+        sanctioned
+            .iter()
+            .chain(refused.iter())
+            .map(String::as_str)
+            .collect::<Vec<_>>()
+            .join("\n\n         ")
+    );
+    std::fs::write(root.join("GUIDE.md"), document).expect("the fixture document is writable");
+
+    let offences = unanchored_citation_offences_in(&root, &["GUIDE.md".to_string()]);
+    let _ = std::fs::remove_dir_all(&root);
+
+    assert_eq!(
+        offences.len(),
+        refused.len(),
+        "every span but the two sanctioned pins is reported; got {offences:#?}"
+    );
+    for (index, span) in refused.iter().enumerate() {
+        let line = 3 + (sanctioned.len() + index) * 2;
+        assert!(
+            offences
+                .iter()
+                .any(|offence| offence.contains(&format!("GUIDE.md:{line} "))),
+            "the span {span:?} at line {line} must be reported; got {offences:#?}"
+        );
+    }
+    for (index, span) in sanctioned.iter().enumerate() {
+        let line = 3 + index * 2;
+        assert!(
+            !offences
+                .iter()
+                .any(|offence| offence.contains(&format!("GUIDE.md:{line} "))),
+            "a third party's pinned sha is sanctioned by name — {span:?} at line {line} must not be \
+             reported: {offences:#?}"
+        );
+    }
+}
+
+/// The workspace declares the repository this exclusion is taken from.
+///
+/// The vacuity direction for [`own_repository`]: an unread field leaves the sanction with nothing to exclude
+/// and this repository's own cross-references silently sanctioned again, which is indistinguishable in a
+/// green run from the exclusion working.
+#[test]
+fn the_workspace_declares_the_repository_the_sanction_excludes() {
+    let Some(root) = workspace_root() else {
+        return;
+    };
+    assert_eq!(
+        own_repository(&root).as_deref(),
+        Some("tacticaldoll/tianheng"),
+        "the exclusion is read from `[workspace.package] repository`, and an exclusion that evaluates to \
+         nothing is one that stopped excluding"
+    );
+}
+
+/// Every maximal run of lowercase hex characters in `span` whose neighbours are not alphanumeric.
+///
+/// A citation sits next to punctuation far more often than next to a space: a revision expression glues it
+/// to `..`, `^`, `~` or `{`, and prose glues it to a bracket or a comma. Bounding on non-alphanumerics
+/// rather than on whitespace is what makes this reader's corpus the corpus its requirement claims, and the
+/// alphanumeric bound is what keeps the tail of an ordinary word from being read as an object.
+fn hex_runs(span: &str) -> Vec<String> {
+    let chars: Vec<char> = span.chars().collect();
+    let mut runs = Vec::new();
+    let mut start = 0usize;
+    while start < chars.len() {
+        if !chars[start].is_ascii_hexdigit() {
+            start += 1;
+            continue;
+        }
+        let mut end = start;
+        while end < chars.len() && chars[end].is_ascii_hexdigit() {
+            end += 1;
+        }
+        let bounded_left = start == 0 || !chars[start - 1].is_alphanumeric();
+        let bounded_right = end == chars.len() || !chars[end].is_alphanumeric();
+        if bounded_left && bounded_right {
+            runs.push(chars[start..end].iter().collect());
+        }
+        start = end;
+    }
+    runs
+}
+
+/// The `owner/name` this workspace declares as its own repository, from `[workspace.package] repository`.
+///
+/// The one value that separates *a third party's pin* from *this repository's own commit written in GitHub's
+/// cross-reference notation*, and the manifest already carries it. `None` where the root holds no manifest
+/// or no such field — the fixtures below supply their own, and the live direction asserts it resolved,
+/// because an exclusion that silently evaluates to nothing is an exclusion that stopped excluding.
+fn own_repository(root: &Path) -> Option<String> {
+    let manifest = std::fs::read_to_string(root.join("Cargo.toml")).ok()?;
+    let document = manifest.parse::<toml_edit::DocumentMut>().ok()?;
+    let url = document
+        .get("workspace")?
+        .get("package")?
+        .get("repository")?
+        .as_str()?
+        .trim_end_matches('/')
+        .trim_end_matches(".git");
+    let mut segments = url.rsplit('/');
+    let name = segments.next()?;
+    let owner = segments.next()?;
+    (!name.is_empty() && !owner.is_empty()).then(|| format!("{owner}/{name}"))
+}
+
+/// Whether `text` is the owner path of an action reference: two or more non-empty segments.
+///
+/// Non-empty is the point. `owner//action@<sha>` is not a reference GitHub resolves, and a reader that
+/// counted slashes rather than reading segments sanctioned it — an empty segment is the cheapest way to
+/// spell a shape that looks pinned and is not.
+fn is_owner_path(text: &str) -> bool {
+    let segments: Vec<&str> = text.split('/').collect();
+    segments.len() >= 2
+        && segments.iter().all(|segment| {
+            !segment.is_empty()
+                && segment
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-'))
+        })
+}
+
+/// Whether the object ends the reference — the sha is the last of it, bar closing prose punctuation.
+///
+/// **A suffix makes it a revision expression, not a pin.** `owner/action@<sha>^{commit}` and
+/// `owner/action@<sha>..HEAD` each name a *commit reached from* the pin, which is a citation of a moment and
+/// is what this rule refuses; sanctioning them would let the prohibited form back in behind the sanctioned
+/// one's prefix. So the terminator is an allowlist of what closes a sentence, and a single `.` counts only
+/// where a second does not follow it.
+fn closes_the_reference(after: Option<char>, then: Option<char>) -> bool {
+    match after {
+        None => true,
+        Some('.') => then != Some('.'),
+        Some(c) => matches!(
+            c,
+            ' ' | '`' | ',' | ';' | ')' | ']' | '}' | '"' | '\'' | '\n'
+        ),
+    }
+}
+
+/// Every object a span cites as a **third party's** action pin, which this rule sanctions by name.
+///
+/// **`AGENTS.md` states the exception and states its criterion**: *an action pinned as `owner/action@<sha>`
+/// is correct supply-chain practice, and the same criterion excludes it without a list — that sha does not
+/// resolve here.* That criterion is not the one a reaction can run. A development commit of this tree does
+/// not resolve in a fresh clone either — that is the whole reason the rule exists — so a reader keyed on
+/// resolution would report clean in CI over exactly the citations it is there to find, and loud on the
+/// author's own machine. Resolution is the criterion a person applies; the shape is what a reader can.
+///
+/// **A third party's, and the manifest says whose this is.** Read by shape alone, the sanction covered
+/// `<this repository's owner>/<its name>@<sha>` — GitHub's canonical cross-reference for a commit of this
+/// tree, which is precisely what the requirement exists to refuse. The escape hatch was recorded and
+/// accepted on the ground that the alternative was *a list of third parties somebody has to keep*; that
+/// reason does not survive, because excluding this repository needs no list, only `own_repository` — one
+/// field the workspace manifest already carries. An unread manifest leaves the exclusion empty, which the
+/// live direction refuses rather than passing over.
+///
+/// The shape is `<owner>/<name>[/<path>]@<forty lowercase hex>`, with every segment non-empty and the sha
+/// closing the reference. The forty is required: a pin shortened is not the practice the rule sanctions.
+fn action_pin_objects(span: &str, own: Option<&str>) -> BTreeSet<String> {
+    let chars: Vec<char> = span.chars().collect();
+    let mut pinned = BTreeSet::new();
+    for at in (0..chars.len()).filter(|index| chars[*index] == '@') {
+        let mut end = at + 1;
+        while end < chars.len()
+            && chars[end].is_ascii_hexdigit()
+            && !chars[end].is_ascii_uppercase()
+        {
+            end += 1;
+        }
+        if end - (at + 1) != 40 {
+            continue;
+        }
+        if !closes_the_reference(chars.get(end).copied(), chars.get(end + 1).copied()) {
+            continue;
+        }
+        // The owner path immediately before the `@`, taken as far as path characters run and then read as
+        // segments — counting slashes admitted an empty one.
+        let mut start = at;
+        while start > 0 {
+            let previous = chars[start - 1];
+            if !(previous.is_ascii_alphanumeric() || matches!(previous, '_' | '.' | '-' | '/')) {
+                break;
+            }
+            start -= 1;
+        }
+        let owner_path: String = chars[start..at].iter().collect();
+        if !is_owner_path(&owner_path) {
+            continue;
+        }
+        // This repository's own commit, spelled as a cross-reference, is the rule rather than its exception.
+        if own.is_some_and(|own| owner_path == own || owner_path.starts_with(&format!("{own}/"))) {
+            continue;
+        }
+        pinned.insert(chars[at + 1..end].iter().collect());
+    }
+    pinned
 }
 
 /// Whether a code span's content is an abbreviated commit object: 4 to 40 lowercase hex characters

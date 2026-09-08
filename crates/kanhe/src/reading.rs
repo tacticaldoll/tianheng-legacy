@@ -12,6 +12,8 @@
 //! **This module binds only the call sites that use it.** Nothing enumerates the readers that should —
 //! see `BACKLOG.md`'s entry on a reader's corpus being narrower than its claim, which owns that residue.
 
+use std::ops::Range;
+
 use crate::refusal::{Refusal, cannot_judge_at};
 
 /// How a text is divided into fields.
@@ -213,6 +215,28 @@ pub fn backticked(what: &str, text: &str) -> Result<Vec<String>, Refusal> {
 /// by line and was reading exactly those shifted spans; the document is what pairs, and the line is only
 /// where the reader is sent.
 pub fn backticked_at(what: &str, text: &str) -> Result<Vec<(usize, String)>, Refusal> {
+    Ok(backticked_spans(what, text)?
+        .into_iter()
+        .map(|span| {
+            let line = text[..span.start].matches('\n').count() + 1;
+            (line, text[span.start + 1..span.end - 1].to_string())
+        })
+        .collect())
+}
+
+/// Every backticked run in `text` as the byte range it occupies, **markers included** — the one place the
+/// pairing happens, and the same refusal when a marker closes nothing.
+///
+/// **[`backticked`] and [`backticked_at`] are views of this, because a third question needed a third view.**
+/// They answer *what are the names* and *where did each start*; a caller asking *is this phrase inside a
+/// marked span* needs the offsets themselves, and the only shape available without this was to pair the
+/// markers again at the call site. That is the shape this module exists to remove, so the primitive is
+/// exported rather than the pairing repeated: one implementation decides the count, and every view is a map
+/// over its answer.
+///
+/// The range spans the markers rather than the run between them, so a membership test answers the same for a
+/// phrase sitting on a marker as for one inside it.
+pub fn backticked_spans(what: &str, text: &str) -> Result<Vec<Range<usize>>, Refusal> {
     let markers = text.matches('`').count();
     if markers % 2 != 0 {
         return Err(cannot_judge_at(
@@ -224,19 +248,64 @@ pub fn backticked_at(what: &str, text: &str) -> Result<Vec<(usize, String)>, Ref
             ),
         ));
     }
-    let mut runs = Vec::new();
+    let mut spans = Vec::new();
     let mut at = 0usize;
     while let Some(offset) = text[at..].find('`') {
         let open = at + offset;
-        let line = text[..open].matches('\n').count() + 1;
-        let rest = &text[open + 1..];
-        let close = rest
-            .find('`')
-            .expect("the marker count is even, so an opener has a closer");
-        runs.push((line, rest[..close].to_string()));
-        at = open + 1 + close + 1;
+        let close = open
+            + 1
+            + text[open + 1..]
+                .find('`')
+                .expect("the marker count is even, so an opener has a closer");
+        spans.push(open..close + 1);
+        at = close + 1;
     }
-    Ok(runs)
+    Ok(spans)
+}
+
+/// Where `text` **marks** a phrase rather than asserting it, or `None` where a marker class does not pair.
+///
+/// This repository marks a phrase it is defining, rather than pointing with, in backticks or in single
+/// emphasis. Double asterisks are not a mark of that kind: bold emphasises a whole sentence, and a sentence
+/// that happens to contain the phrase is still asserting it — so the doubles are masked before the singles
+/// are paired, and a phrase inside a backticked span is masked too, so `` `a*b` `` leaves no lone asterisk
+/// behind.
+///
+/// **`None` is *undecidable here*, not *nothing is marked*, and the difference is a false negative.** A
+/// caller suppressing a finding on a marked phrase must treat `None` as *nothing is marked* — a paragraph
+/// carrying a fenced block or a doubled marker has an odd count for a reason that is not a wrapped span, and
+/// answering it with a pairing would enclose whatever prose follows the unpaired marker. That is the same
+/// disposition [`backticked_by_paragraph`] gives the same state: judge the block whole rather than pair it
+/// wrongly.
+pub fn marked_spans(text: &str) -> Option<Vec<Range<usize>>> {
+    let mut spans = backticked_spans("prose passage", text).ok()?;
+    let mut bytes = text.as_bytes().to_vec();
+    for span in &spans {
+        bytes[span.clone()].fill(b' ');
+    }
+    let mut at = 0usize;
+    while at + 1 < bytes.len() {
+        if bytes[at] == b'*' && bytes[at + 1] == b'*' {
+            bytes[at] = b' ';
+            bytes[at + 1] = b' ';
+            at += 2;
+        } else {
+            at += 1;
+        }
+    }
+    let singles: Vec<usize> = bytes
+        .iter()
+        .enumerate()
+        .filter(|(_, byte)| **byte == b'*')
+        .map(|(at, _)| at)
+        .collect();
+    if singles.len() % 2 != 0 {
+        return None;
+    }
+    for pair in singles.chunks(2) {
+        spans.push(pair[0]..pair[1] + 1);
+    }
+    Some(spans)
 }
 
 /// Every backticked run in a Markdown document, with the line its opener sits on — paired per paragraph.

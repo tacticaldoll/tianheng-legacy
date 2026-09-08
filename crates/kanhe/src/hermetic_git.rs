@@ -63,7 +63,14 @@ pub const EXCLUDES_SETTING: &str = "core.excludesFile";
 /// **The `GIT_CONFIG_*` row is closed, and it read open until someone measured it.** The claim was that any
 /// ambient key reaches `git`, `commit.gpgsign=true` included. It does not: [`Command::env`] overrides
 /// `GIT_CONFIG_COUNT` to `1`, `git` then reads index `0` only, and this builder owns index `0` — so an
-/// ambient key at any index is unreachable and an ambient key at index `0` is overwritten. Measured, with
+/// ambient key at any index is unreachable and an ambient key at index `0` is overwritten.
+///
+/// **Which of the two closes it was measured afterwards, and it is the key rather than the count.** Deleting
+/// `GIT_CONFIG_COUNT` alone leaves the behavioural case green; deleting `GIT_CONFIG_KEY_0` alone fails it.
+/// Occupying index `0` is the guard; pinning the count is defence beside it. The same measurement says
+/// `GIT_CONFIG_SYSTEM` and `GIT_CONFIG_NOSYSTEM` are redundant with each other — either alone carries the
+/// system file, and only removing both fails a case. Recorded rather than tidied: redundancy that has been
+/// measured is a different fact from redundancy nobody checked. Measured, with
 /// `GIT_CONFIG_COUNT=2` and `GIT_CONFIG_KEY_1=user.name` in the environment: under this builder
 /// `git config --get user.name` exits `1` with no output, and the same pair without it answers the ambient
 /// value. A row saying **no** where the answer is **yes** is not a conservative error — it reads as governed
@@ -129,7 +136,7 @@ pub fn hermetic(program: &str) -> Command {
 /// judgement's reads — measured, `status --porcelain --untracked-files=all` reports an excluded file with and
 /// without it, because that command does not consult it. What it moves is a **write**: under it,
 /// `git config user.name t` lands in the file the variable names instead of the fixture's own `.git/config`,
-/// so `fixture` and `build_fixture` would build a repository with no identity and the commit after them
+/// so `fixture` and the builders in `crate::fixture` would build a repository with no identity and the commit after them
 /// fails. That is fail-loud, like the object-directory pair, and it is cleared for the reason the selector
 /// row gives: an `env_remove` costs nothing and refuses no caller in this workspace.
 const CONFIG_CHANNELS: [&str; 2] = ["GIT_CONFIG_PARAMETERS", "GIT_CONFIG"];
@@ -177,28 +184,269 @@ const CONFIG_CHANNELS: [&str; 2] = ["GIT_CONFIG_PARAMETERS", "GIT_CONFIG"];
 const REPOSITORY_SELECTORS: [&str; 3] = ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"];
 
 /// One read of `git` in `repo` through [`hermetic`], with the output/success/failure mapping every gate's
-/// own `git()` wrapper otherwise has to restate.
+/// own `git()` wrapper otherwise has to restate — and the body [`run`] is this one plus a trim.
 ///
-/// It lived twice here too, byte-identical past the leading flags, in the same two files this module's own
-/// doc comment already names for [`hermetic`]. `flags` are spliced in before `args` — `&[]` for
-/// `release_coherence_gate`, `&["-c", "core.excludesFile=/dev/null"]` for `publish_source_gate`, which stated
-/// per command what [`hermetic`] now states for every caller. The flag is kept there rather than dropped: it
-/// is the narrower statement, it costs nothing, and the measurement that earned it is recorded beside it.
-pub fn run(repo: &Path, flags: &[&str], args: &[&str]) -> Result<String, Failure> {
+/// **The extraction history that used to open this doc is [`run`]'s**, and is now written there. That is
+/// what an annexed doc looks like: a passage describing one item, attached to its neighbour, where both
+/// read plausibly enough that nobody re-attributed it.
+///
+/// This accessor is the one **without** the trailing-whitespace trim, for a caller comparing **content**
+/// rather than reading a value. Most callers read one line — a sha, a ref, a status — and the trim is what
+/// makes those comparable. A caller comparing a committed file against a working one needs the bytes git
+/// gave: trimming both sides makes a worktree edited only in its trailing whitespace read as unmodified,
+/// which is a different tree reported as the same one.
+pub fn run_exact(repo: &Path, flags: &[&str], args: &[&str]) -> Result<String, Failure> {
     let out = hermetic("git")
         .args(flags)
         .args(args)
         .current_dir(repo)
         .output()
         .map_err(|err| Failure::Spawn(format!("cannot run git {args:?}: {err}")))?;
-    if out.status.success() {
-        Ok(String::from_utf8_lossy(&out.stdout).trim_end().to_string())
-    } else {
-        Err(Failure::Exit {
-            code: out.status.code(),
-            stderr: String::from_utf8_lossy(&out.stderr).trim_end().to_string(),
-        })
+    answered(out.status, out.stdout, &out.stderr, args)
+}
+
+/// One disposition of a finished `git`, so every accessor in this module answers the same fact in the same
+/// words.
+///
+/// **Refused, never mangled.** `from_utf8_lossy` replaces each undecodable byte with U+FFFD, and what these
+/// runners mostly carry is **paths**: `ls-files -z` avoids git's own quoting and promises nothing about
+/// encoding, so a tracked path that is not UTF-8 arrives as a different path than the one on disk, and every
+/// comparison downstream is then made against that. `xingbiao::path_identity` exists for the opposite
+/// property — two paths differing only in undecodable bytes keep two identities — so a reader in this
+/// repository that silently collapses them contradicts the product's own rule. A verdict is not owed on an
+/// input this reader cannot represent; saying so is.
+///
+/// `stderr` stays lossy, deliberately: it is a sentence for an operator, not a value anything compares.
+///
+/// **The status and the answer arrive separately rather than as one [`Output`](std::process::Output).**
+/// [`run_with_stdin`] takes stdout for a draining thread, so it reaches `wait_with_output` with an empty
+/// `stdout` field and its answer in hand from elsewhere; passing the bytes is what lets both accessors reach
+/// one decision instead of two that must agree.
+fn answered(
+    status: std::process::ExitStatus,
+    stdout: Vec<u8>,
+    stderr: &[u8],
+    args: &[&str],
+) -> Result<String, Failure> {
+    if !status.success() {
+        return Err(Failure::Exit {
+            code: status.code(),
+            stderr: String::from_utf8_lossy(stderr).trim_end().to_string(),
+        });
     }
+    String::from_utf8(stdout).map_err(|err| {
+        Failure::Unreadable(format!(
+            "git {args:?} answered bytes this reader cannot represent as text — {err}; a path that is \
+             not UTF-8 keeps its own identity, and reporting a replaced one would compare something the \
+             repository does not hold"
+        ))
+    })
+}
+
+/// [`run_exact`] with git's trailing whitespace trimmed off, which is what a caller reading a **value**
+/// wants: a sha, a ref name, a status line.
+///
+/// It lived twice here too, byte-identical past the leading flags, in the same two files this module's own
+/// doc comment already names for [`hermetic`]. `flags` are spliced in before `args` — `&[]` for
+/// `release_coherence_gate`, `&["-c", "core.excludesFile=/dev/null"]` for `publish_source_gate`, which stated
+/// per command what [`hermetic`] now states for every caller. The flag is kept there rather than dropped: it
+/// is the narrower statement, it costs nothing, and the measurement that earned it is recorded beside it.
+///
+/// **And then it lived twice again, inside the module that exists to end exactly that.** This body was the
+/// eight statements of [`run_exact`] with one `.map` inserted, and the copy had already drifted where
+/// nothing was watching: the two `Failure::Unreadable` sentences differed, so one fact reached an operator
+/// two ways depending on which accessor a caller reached for. The trim is the whole difference and is now
+/// the whole body;
+/// `both_accessors_report_an_undecodable_answer_in_the_same_words` holds that the two cannot part again.
+pub fn run(repo: &Path, flags: &[&str], args: &[&str]) -> Result<String, Failure> {
+    run_exact(repo, flags, args).map(|text| text.trim_end().to_string())
+}
+
+/// [`run_exact`] over a *conversation*: NUL-separated records are fed on stdin, and the answer is drained
+/// while the question is still being asked.
+///
+/// **This is the third accessor, and it is here for the decode rather than for the pipes.** It lived in
+/// `publish_source_gate::classify`, which spelled its own `from_utf8_lossy` — so one gate read git's answer
+/// under two policies, strict through [`run_exact`] and lossy in its own classifier, and the strict one is
+/// the policy this module's own `answered` states. Nothing downstream could tell: the classifier's
+/// paths are handed to it already strict-decoded, so the lossy call had no reachable effect and no direction
+/// could have shown one. A policy that is right by accident at every site it is reached from is still two
+/// policies. `answered` is now the only place either question is decided.
+///
+/// **The answer is drained while the question is still being asked.** Writing every record and only then
+/// reading works while the conversation fits in the kernel's pipe buffers and deadlocks the moment it does
+/// not: the child fills its 64 KB stdout and blocks, so it stops reading stdin, so the parent blocks on a
+/// full 64 KB stdin, and neither can move. Measured on this repository — 73,670 excluded paths, 9.1 MB in,
+/// 11.0 MB out, against a 64 KB pipe — the gate standing in front of `cargo publish` never reached a verdict
+/// at all: `git check-ignore` sat in `pipe_wait` and `scripts/publish.sh` hung indefinitely.
+///
+/// What made that survive review is worth naming: every fixture in the failure matrix hides a handful of
+/// files, so the premise *the excluded set is small* held everywhere it was ever exercised and failed only on
+/// the repository this gate exists to judge. A green suite is no evidence about a corpus it never saw.
+/// `a_repository_whose_ignored_set_outgrows_a_pipe_is_still_answered` is what holds the property, and it
+/// stays where it is: it exercises this body through the gate that calls it.
+///
+/// Each record is followed by a NUL, which is what git's `--stdin` reads under `-z`. There is no
+/// line-oriented spelling of this accessor because no caller in this repository wants one — and a `-z`
+/// conversation is the same decision [`tracked_records`] makes, for the same reason.
+pub fn run_with_stdin(
+    repo: &Path,
+    flags: &[&str],
+    args: &[&str],
+    records: &[&str],
+) -> Result<String, Failure> {
+    use std::io::{Read, Write};
+
+    let mut child = hermetic("git")
+        .args(flags)
+        .args(args)
+        .current_dir(repo)
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|err| Failure::Spawn(format!("cannot run git {args:?}: {err}")))?;
+
+    // **Both pipes are drained while the conversation runs, not one.** The header above records the
+    // measured deadlock on stdout and closed it with the thread below; `stderr` was left piped and read
+    // only by `wait_with_output`, which runs *after* the write loop. That is the same shape one pipe over:
+    // a child that fills the stderr buffer mid-conversation stops reading stdin, the parent blocks on a
+    // full stdin, and neither moves. No arm of the current argument set writes enough to stderr to reach
+    // it — `check-ignore` writes there only to be fatal, in about a hundred and sixty bytes — so what
+    // stands in place of a negative run is the property: with both readers running, no caller can be left
+    // betting that its subcommand's stderr is small.
+    // **All three handles are taken before any reader exists, and one arm answers for all three.** They
+    // were taken one at a time, each with a refusal of its own, and each refusal had to unwind whatever the
+    // ones before it had started: the second joined a reader while stdin was still held, which would wait
+    // on a stdout that cannot reach EOF until the child sees one. Unreachable — `Stdio::piped()` two lines
+    // up makes all three `Some`, so no arm ran and nothing hung — but three dead recovery paths, one of
+    // them holding a hang, are what a reader has to work out is dead. Taken together there is nothing
+    // started to unwind, and *the child did not give the pipes it was built with* is one fact rather than
+    // three.
+    //
+    // A refusal rather than an `expect`: this module answers in `Failure` everywhere and carries no panic
+    // outside the fixture side, and a construction invariant is not a reason to add the first one.
+    let (mut stdout, mut stderr, stdin) =
+        match (child.stdout.take(), child.stderr.take(), child.stdin.take()) {
+            (Some(stdout), Some(stderr), Some(stdin)) => (stdout, stderr, stdin),
+            _ => {
+                let _ = child.wait();
+                return Err(Failure::Spawn(format!(
+                    "git {args:?} did not give the three pipes it was built with"
+                )));
+            }
+        };
+    let drain = std::thread::spawn(move || {
+        let mut answer = Vec::new();
+        stdout.read_to_end(&mut answer).map(|_| answer)
+    });
+    let complaint = std::thread::spawn(move || {
+        let mut said = Vec::new();
+        stderr.read_to_end(&mut said).map(|_| said)
+    });
+
+    // Moved into this block rather than held to the end: the write ends by DROPPING stdin, and the child
+    // cannot finish until it sees that EOF. Alive past the block it would keep the pipe open past the reads.
+    let delivered = {
+        let mut stdin = stdin;
+        let mut delivered = Ok(());
+        for record in records {
+            delivered = stdin
+                .write_all(record.as_bytes())
+                .and_then(|()| stdin.write_all(b"\0"));
+            if delivered.is_err() {
+                break;
+            }
+        }
+        delivered
+    };
+
+    // Reaped on every path, including the failed write — the child is drained and waited on before any
+    // outcome is consulted, so no arm below can leave a `git` behind holding a pipe. `wait` rather than
+    // `wait_with_output`, because both pipes are held by the readers above and that call would collect
+    // nothing from either.
+    let waited = child.wait();
+    let answer = drain.join();
+    let said = complaint.join();
+
+    let read = |joined: std::thread::Result<std::io::Result<Vec<u8>>>, which: &str| match joined {
+        Ok(Ok(bytes)) => Ok(bytes),
+        Ok(Err(err)) => Err(Failure::Spawn(format!(
+            "cannot read git {args:?}'s {which}: {err}"
+        ))),
+        Err(_) => Err(Failure::Spawn(format!(
+            "the reader of git {args:?}'s {which} panicked"
+        ))),
+    };
+    let answer = read(answer, "answer")?;
+    let said = read(said, "complaint")?;
+    let status =
+        waited.map_err(|err| Failure::Spawn(format!("git {args:?} did not finish: {err}")))?;
+
+    // **A write that failed because the child had already refused is the child's refusal.** Reported as a
+    // write failure it read *cannot write records to git […]: Broken pipe*, a sentence about this process
+    // for a fact about git's — the fold this module's own `Failure` doc records paying for one level up.
+    // Measured through this runner, with a record `check-ignore` is fatal about first and fifty thousand
+    // ordinary ones behind it: the broken pipe was all the caller got, and git's `fatal:` and its exit
+    // status were both discarded. So where the child answered with a status of its own, that status is the
+    // answer; the write error stands only where git did not refuse.
+    if let Err(err) = delivered {
+        if !status.success() {
+            return answered(status, answer, &said, args);
+        }
+        return Err(Failure::Spawn(format!(
+            "cannot write records to git {args:?}: {err}"
+        )));
+    }
+    answered(status, answer, &said, args)
+}
+
+/// Every record `git ls-files` answers under `pathspec`, NUL-separated, through [`run_exact`].
+///
+/// **One owner for *which paths does git track*.** Nineteen invocations across this repository's checks
+/// asked it and each decided three things for itself, so each could decide any of them differently:
+///
+/// - **`-z`, because git quotes a path it cannot write plainly.** `core.quotePath` defaults on, so a tracked
+///   path carrying a non-ASCII byte is answered as `"\344\270\255.md"` — a spelling that names no file.
+///   Measured on a scratch repository: a tracked `圭表.md` reads back quoted from a line-oriented listing and
+///   the quoted spelling opens nothing. This repository's whole vocabulary is those characters, and its
+///   crates are named for them, so the shape is one edit away rather than hypothetical.
+/// - **[`run_exact`], not a lossy decode.** `ls-files -z` promises nothing about encoding, so a path that is
+///   not UTF-8 arrives as a different path than the one on disk if it is decoded lossily, and every read
+///   below is made against that name. A verdict is not owed on an input this reader cannot represent.
+/// - **[`hermetic`], because a verdict must not move with config outside the repository being judged** —
+///   the Purpose `reference-integrity` states for its whole capability.
+///
+/// The property was discovered three separate times before it had an owner — `release_coherence_gate`'s
+/// walk, `projection_register`'s reader and `repeated_paragraph`'s enumeration each carry their own sentence
+/// about `core.quotePath` — which is what a fact with no owner looks like from inside.
+///
+/// Records rather than paths, because one caller asks `--eol` and reads `<info>\t<path>`; [`tracked_paths`]
+/// is the ordinary question and is spelled once in terms of this.
+pub fn tracked_records(
+    repo: &Path,
+    flags: &[&str],
+    pathspec: &[&str],
+) -> Result<Vec<String>, Failure> {
+    let mut args = vec!["ls-files", "-z"];
+    args.extend_from_slice(flags);
+    if !pathspec.is_empty() {
+        args.push("--");
+        args.extend_from_slice(pathspec);
+    }
+    let listing = run_exact(repo, &[], &args)?;
+    Ok(listing
+        .split('\0')
+        .filter(|record| !record.is_empty())
+        .map(str::to_string)
+        .collect())
+}
+
+/// Every path `git` tracks under `pathspec`, exactly as git spells it.
+///
+/// The ordinary form of [`tracked_records`]. An empty `pathspec` is the whole tracked set.
+pub fn tracked_paths(repo: &Path, pathspec: &[&str]) -> Result<Vec<String>, Failure> {
+    tracked_records(repo, &[], pathspec)
 }
 
 /// Run `program` in `dir` through [`hermetic`] and assert it succeeded — the fixture side of this module.
@@ -236,7 +484,7 @@ pub fn run(repo: &Path, flags: &[&str], args: &[&str]) -> Result<String, Failure
 pub fn fixture(dir: &Path, program: &str, args: &[&str]) {
     // **A fixture's commits carry a fixed date**, so a direction can assert what a date is rather than only
     // what shape it has. `release_coherence` writes its dated release section as a literal and now holds it
-    // against the `release: X.Y.Z` commit's own date; with the date taken from the clock those two agree
+    // against the `chore(release): X.Y.Z` commit's own date; with the date taken from the clock those two agree
     // only until midnight, and the fixture would be asserting the machine rather than the subject.
     //
     // Both variables, because git takes the author date from one and the committer date from the other.
@@ -269,22 +517,6 @@ pub fn fixture(dir: &Path, program: &str, args: &[&str]) {
     );
 }
 
-/// Stage everything in a fixture and commit it under one subject.
-///
-/// **The third instance of this module's own class, and converging [`fixture`] is what exposed it.** With the
-/// command builder shared, both fixture builders were left spelling `git add .` and then a commit — while
-/// `release_coherence_gate` had already written exactly this helper for itself and `publish_source_gate` had
-/// not. One module holding the extraction and its sibling not is the same shape the two earlier extractions
-/// left behind, one layer down, and it was invisible until the layer above it closed.
-///
-/// # Panics
-///
-/// As [`fixture`] does: this builds a subject rather than judging one.
-pub fn commit(repo: &Path, subject: &str) {
-    fixture(repo, "git", &["add", "."]);
-    fixture(repo, "git", &["commit", "-qm", subject]);
-}
-
 /// Why a `git` read produced no output.
 ///
 /// **Two facts, folded into one `Err(String)` until a review named the cost.** *git could not be run at all*
@@ -297,7 +529,26 @@ pub fn commit(repo: &Path, subject: &str) {
 /// unchanged by the split; a caller that wants to tell the two apart now can.
 #[derive(Debug)]
 pub enum Failure {
-    /// The process could not be started: git is absent, or `repo` is not a directory this process can enter.
+    /// git ran, succeeded, and answered bytes this reader cannot represent as text.
+    ///
+    /// Separate from [`Failure::Exit`] because git did not fail: the command answered, and the answer is one
+    /// no `String` holds without changing it. Folding the two would report a working repository as a broken
+    /// command, and folding this into success would compare a path against a replaced copy of itself.
+    Unreadable(String),
+    /// No answer was obtained from git, for a reason that is not git's own exit status.
+    ///
+    /// The process could not be started — git is absent, or `repo` is not a directory this process can
+    /// enter — or, for [`run_with_stdin`], the conversation with a process that *did* start could not be
+    /// completed: a pipe handle the child never provided, a write to its stdin that failed, a read of its
+    /// answer that failed, or a draining thread that panicked.
+    ///
+    /// **Those are one fact, and the widening is stated rather than assumed.** This doc said only *could not
+    /// be started* while a second accessor reached the variant for five further states, which would have made
+    /// the sentence false at the site an operator reads it. They are one fact because of what a caller does
+    /// with them: every one means *this reader never got an answer, and git's status is not the reason*, and
+    /// the publish gate maps all of them to the single refusal whose message is that an unusable classifier
+    /// is not one that found nothing. A variant per state would be a distinction no caller in this
+    /// repository makes.
     Spawn(String),
     /// git ran and exited non-zero. Carries its status and its stderr.
     ///
@@ -320,7 +571,7 @@ pub enum Failure {
 impl std::fmt::Display for Failure {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Failure::Spawn(why) => write!(f, "{why}"),
+            Failure::Spawn(why) | Failure::Unreadable(why) => write!(f, "{why}"),
             Failure::Exit { stderr, .. } => write!(f, "{stderr}"),
         }
     }

@@ -111,7 +111,7 @@ fn assert_violation_in_each(outcome: &Outcome, label: &str, expect_file_suffixes
     }
 }
 
-/// The 0.3.1 audit trigger shape reconstructed verbatim: a single `pub mod imp;` decorated with
+/// The 0.4.0 audit trigger shape reconstructed verbatim: a single `pub mod imp;` decorated with
 /// TWO STACKED `#[cfg_attr(.., path = ..)]` attributes, one per platform, each naming a
 /// different real file that exists on disk — jointly exhaustive (`unix` / `not(unix)`), so every
 /// real rustc build compiles cleanly through exactly one of the two targets and NEVER needs a
@@ -195,8 +195,8 @@ pub mod imp;
     );
 }
 
-/// Control (b): a direct unconditional `#[path]` plus a `cfg_attr` fallback must keep working —
-/// this is the shape the pre-existing "observe-both" shipment, from the 0.5.0 window, already covers.
+/// Control (b): a direct unconditional `#[path]` plus a `cfg_attr` fallback must keep working,
+/// ensuring both candidates remain observed.
 #[test]
 fn direct_path_plus_cfg_attr_fallback_still_works() {
     let lib_rs = r#"

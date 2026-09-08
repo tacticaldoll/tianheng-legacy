@@ -78,10 +78,10 @@ a different direction. The corpus is this repository's own check crate; sites no
 are counted in a produced projection that falls to zero.
 
 Shipping in zero packages is what this capability already gives as the criterion separating governance from
-product — the reason `scripts/` and `docs/` count as governance. Measured before this change, the checks
-themselves failed it: `cargo package --list -p tianheng` carried every file under `tests/`, so every
-check judging this repository's changelog, specs, scripts and documents reached every adopter, where it
-could only detect no workspace and return.
+product — the reason `scripts/` and `docs/` count as governance. A check that ships inside a published
+package reaches every adopter, where it can only detect no workspace and return; `cargo package --list -p
+<member>` is what decides whether a path ships, so whether a check meets this criterion is read from the
+build rather than from where the file sits.
 
 Outside every published package is a floor, not the whole answer: it says where a check must **not** live and
 nothing about where it belongs. Checks SHALL therefore be held apart by **what they judge** — the law this
@@ -131,13 +131,13 @@ was a shell script and its refusal was an exit code, and it is why retiring the 
 - **WHEN** a registered or unregistered constructor is referenced by a bare name rather than called directly
   — a binding taken by value and called through the alias, or a reference to the name that a local binding
   of the same spelling has shadowed
-- **THEN** the reference is read as a construction, whichever it actually names. **This bound used to be
-  wider.** The register's reader was text over Rust and not exhaustive over the language: a byte char
-  literal, a raw string, or a closure whose parameter list spanned two lines could desynchronise a
-  character-by-character scan entirely, producing a site the reader neither parsed nor counted as
-  unparseable — invisible to both of its readings at once, which was the unsafe direction this bound named,
-  since a missed citation fails loud while a missed construction reports clean over a site nothing holds.
-  Reading this repository's own Rust with a real parser instead of scanning it closes that floor: every
+- **THEN** the reference is read as a construction, whichever it actually names. **The floor is name
+  resolution and nothing narrower, and a real parser is what keeps it there.** A text scan over Rust is not
+  exhaustive over the language: a byte char literal, a raw string, or a closure whose parameter list spans
+  two lines desynchronises a character-by-character scan entirely, producing a site such a reader neither
+  parses nor counts as unparseable — invisible to both of its readings at once, which is the unsafe
+  direction, since a missed citation fails loud while a missed construction reports clean over a site
+  nothing holds. Reading this repository's own Rust with a real parser closes that floor: every
   syntactically valid construction is seen by construction, not by an arm added the day a shape was found
   wrong. **What remains is not lexical.** Whether a bare reference names the constructor taken by value or a
   local variable that happens to share its spelling is not written down anywhere a parse tree carries —
@@ -161,6 +161,7 @@ was a shell script and its refusal was an exit code, and it is why retiring the 
 - **THEN** it SHALL be declared unheld — with why, an owner and a tracker — or the register refuses. There
   is no third state: a site is held or declared. The declaration is the escape hatch and is deliberately
   expensive, because an escape hatch nothing forces you through is the prose that drifted
+- **PINNED-BY** `a_site_declared_unheld_exists_and_is_not_observed`
 
 #### Scenario: An input the wrapper never supplied is not a message that disagrees
 
@@ -292,12 +293,14 @@ uses; the check SHALL NOT claim to interpret arbitrary GitHub Actions.
 - **WHEN** the DoD contains `cargo deny check` and CI contains an `EmbarkStudios/cargo-deny-action` step whose
   `with.command` is `check`
 - **THEN** the coherence check recognizes the effective command and does not report it missing
+- **PINNED-BY** `cargo_deny_action_contributes_its_effective_command`
 
 #### Scenario: The supply-chain step is absent or misconfigured
 
 - **WHEN** the DoD contains `cargo deny check` and CI omits the cargo-deny action or gives it a different or
   absent command
 - **THEN** the coherence check fails and names `cargo deny check` as missing from CI
+- **PINNED-BY** `a_missing_supply_chain_action_leaves_cargo_deny_missing`
 
 ### Requirement: A hand-maintained pin SHALL carry the window it is good for
 
@@ -405,12 +408,20 @@ declared figure disagreeing with a produced one was fabricating the declared fig
   sweep being asleep
 - **PINNED-BY** `a_figure_this_sweep_cannot_represent_refuses_rather_than_reading_as_absent`
 
-### Requirement: A backticked name SHALL have one reader, and an unpaired marker SHALL refuse
+### Requirement: A marked span SHALL have one reader, and an unpaired marker SHALL refuse
 
 Reading backticked identifiers out of prose SHALL go through one implementation, and that implementation SHALL
 decide the marker count before it takes a pair. Pairing markers as they arrive means one unpaired marker
 shifts every pair after it, and a shifted pairing is **readable** — it yields names, just not the document's —
 so no site doing it can report the condition.
+
+**Deciding whether a phrase sits inside a mark SHALL go through the same implementation, and the marker
+classes it pairs are the backtick and single emphasis.** That question is *membership*, and the parity of the
+markers preceding the phrase is not it: the two agree only where every marker pairs, and after one that
+closes nothing parity answers *marked* for every remaining phrase in the passage. A caller suppressing a
+finding on a marked phrase therefore suppresses all of them. An unpairable passage SHALL answer
+*undecidable*, distinct from *nothing is marked*, so a caller can choose the direction that over-reacts
+rather than the one that goes quiet.
 
 **Measured at both sites that had this shape.** A `## Capabilities` section listing `` `alpha` ``, a stray
 marker, then `` `beta` `` answered `{" here\n- ", "alpha"}`: the prose between the stray marker and `beta`'s
@@ -440,15 +451,28 @@ gave one rule two answers, and the correct half could tell the other nothing.
 - **THEN** the reaction refuses, naming the file and the line. Those are the two primitives `reading`'s own
   doc names as the shapes it replaced — a `find` twice in a loop, and a `split` with `step_by(2)` — and the
   first reader closed only the second. Measured when this was written: no site outside `reading` uses either
-- **PINNED-BY** `no_source_outside_the_shared_reader_pairs_backticks_by_hand`
+- **PINNED-BY** `no_source_outside_the_shared_reader_pairs_markers_by_hand`
+
+#### Scenario: A source outside the shared reader decides a pairing by a marker count's parity
+
+- **WHEN** any tracked Rust source outside `reading` tests a marker count for parity — a `matches` on a
+  backtick or asterisk literal whose count is taken modulo two
+- **THEN** the reaction refuses, naming the file and the line, and names the reader whose answer is the spans
+  themselves. Counting is honest and the refusal of an unpaired marker says how many were found; a
+  **parity** of that count is a pairing reached by another route, and it answers *do these markers pair*
+  while its caller reads *is this phrase inside a mark*. Both marker classes the shared reader pairs are
+  read, because a door one character wide is a door
+- **PINNED-BY** `no_source_outside_the_shared_reader_pairs_markers_by_hand`
 
 #### Scenario: A marker is reached through some other primitive — a stated bound
 
-- **WHEN** a source pairs markers using `split_once`, `strip_prefix`, `strip_suffix`, `trim_matches` or
-  `matches` with a backtick literal
-- **THEN** the reaction reports nothing. Those are in live use for reading a *single* delimited value
-  rather than pairing a sequence, and none of their live uses is a pairing — so refusing them would refuse
-  the honest use, and telling the two apart needs the expression's shape rather than the primitive's name
+- **WHEN** a source pairs markers using `split_once`, `strip_prefix`, `strip_suffix` or `trim_matches` with a
+  backtick literal
+- **THEN** the reaction reports nothing. Those four are in live use for reading a *single* delimited value
+  rather than pairing a sequence, and none of their live uses is a pairing — so refusing them by name would
+  refuse the honest use, and telling the two apart needs the expression's shape rather than the primitive's
+  name. Which is what the parity scenario above does for the one shape where the expression settles it: a
+  count modulo two is a pairing whatever primitive produced the count
 - **UNPINNED** `BACKLOG.md` — *the backtick primitives the pairing reader names*
 
 #### Scenario: A code span wraps a line
@@ -827,8 +851,8 @@ correcting the commit afterwards decouples the two. This is the local half of th
 makes remotely: a pull request that moved is refused, and an input that moved on disk is never read a second
 time.
 
-The obligation is stated over the whole set because three of the four inputs already satisfied it while the
-fourth did not, and nothing said they were one set: the subject travelled as a value, the repository was
+The obligation is stated over the whole set because every other judged input already satisfied it while the
+body did not, and nothing said they were one set: the subject travelled as a value, the repository was
 resolved once and named on every call, the head was captured before the commit set and supplied as
 `--match-head-commit`, and the live commit subjects were pinned through that head — while the body was handed
 over as the path it had been read from. The wrapper's own allowlist already refuses a **caller's** body flag
@@ -848,6 +872,13 @@ repository's law and then merge it. The two worktrees SHALL be compared before a
   from one worktree while the pull request resolves from another
 - **THEN** it refuses as a cannot-judge before reading any evidence, naming both trees: applying one
   repository's law to another repository's pull request is a judgement about neither
+
+#### Scenario: An ambient GitHub repository selector names another repository
+
+- **WHEN** `GH_REPO` names a repository other than the checkout the wrapper is run in
+- **THEN** the selector is cleared before repository identity is resolved, and every subsequent `gh` call
+  explicitly names the repository resolved from the checkout
+- **PINNED-BY** `an_ambient_gh_repository_selector_cannot_move_the_judged_repository`
 
 #### Scenario: A squash subject carries the pull request's number
 
@@ -1015,15 +1046,38 @@ second is not a merge, so the wrapper would run its gate, reach the tool, and ex
 An argument the wrapper supplies as a default SHALL be supplied as a default and not written over an argument the
 caller gave.
 
-**Enumerating what to forbid is the shape that failed, four times across both wrappers.** At the merge: a
-`--repo` flag, a positional pull-request URL, and every short spelling of the flags the long-form arms named —
-the last the sharpest, since `gh` accepts `-t` for `--subject` and `-F` for `--body-file`, the wrapper splices
-forwarded arguments after its own, and `gh` reads the last occurrence of a repeated flag, so one unlisted
-spelling replaced the message the gate had just approved. At the publish: everything but `--manifest-path` was
-forwarded, so `--no-verify`, `--allow-dirty`, `--exclude`, `--config` naming a whole configuration file, and a
-flag no cargo has all reached `cargo publish` with the wrapper exiting `0`. Both scripts carried the sentence *a
-guard catching one would be a guard catching neither* while arguments walked past them. Refusing arms MAY remain
-for the diagnostics they carry, but they SHALL decide nothing the default refusal would not.
+**Enumerating what to forbid is the shape that breaks.** At the merge an enumeration has to admit `--repo`, a
+positional pull-request URL, and every short spelling of the flags the long-form arms name — the last the
+sharpest, since `gh` accepts `-t` for `--subject` and `-F` for `--body-file`, the wrapper splices forwarded
+arguments after its own, and `gh` reads the last occurrence of a repeated flag, so one unlisted spelling
+replaces the message the gate approved. At the publish, forwarding everything but `--manifest-path` lets
+`--no-verify`, `--allow-dirty`, `--exclude`, `--config` naming a whole configuration file, and a flag no cargo
+has reach `cargo publish` with the wrapper exiting `0`. A sentence saying *a guard catching one would be a
+guard catching neither* decides nothing while arguments walk past it. Refusing arms MAY remain for the
+diagnostics they carry, but they SHALL decide nothing the default refusal would not.
+
+#### Scenario: The one message exception is identified by where the squash lands
+
+- **WHEN** a squash message's subject is `chore(release): X.Y.Z` and its body is empty, and any part of the triple
+  is not that squash — the base is not `main`, the head is not `release/X.Y.Z`, or the head's version is not
+  the subject's
+- **THEN** the gate refuses the empty body. `AGENTS.md` fixes the role as `release/X.Y.Z` against a subject
+  reading `chore(release): X.Y.Z`, so the exception is **one version across three positions**, which is what makes
+  them an identity rather than three shapes that happen to co-occur. A `release/` prefix admits
+  `release/not-a-version`, and admits `release/0.4.0` carrying `chore(release): 0.5.0` — a branch whose whole
+  purpose is one version, squashing a message about another
+- **AND** each narrower reading of this clause admitted the next case: the subject alone admitted any
+  branch, the subject and the destination admitted any source, and the destination with a prefix admitted a
+  branch that is not the role. A partial marker standing for a full identity is the shape, and the repair is
+  the identity rather than one more marker
+- **AND** the retired `release: X.Y.Z` subject is refused on this path. It remains history input only and is
+  not a Conventional Commit from which a new canonical snapshot may be created
+- **AND** a base the wrapper cannot read stops it before the gate and the merge, because not knowing where a
+  squash lands is not the same fact as knowing it lands somewhere ordinary — a wrapper that guessed would
+  decide the exception by default
+- **PINNED-BY** `the_release_snapshot_may_carry_the_empty_body_the_ritual_requires`
+- **PINNED-BY** `an_unreadable_base_stops_before_the_gate_and_merge`
+- **PINNED-BY** `an_unreadable_head_branch_stops_before_the_gate_and_merge`
 
 #### Scenario: An argument the wrapper does not name
 
@@ -1127,6 +1181,7 @@ judged.
 
 - **WHEN** a wrapper names a channel the gate cannot write to, and the gate reaches a verdict
 - **THEN** the gate fails naming the channel and the error, rather than continuing with the class discarded
+- **PINNED-BY** `a_verdict_that_cannot_reach_the_channel_is_not_an_absent_one`
 
 #### Scenario: A refused verdict whose class could not be delivered
 
@@ -1166,6 +1221,7 @@ wrapper exiting `91` in silence.
 A direction holding any of these stops SHALL assert the **class**, not merely that the wrapper failed. Asserting
 non-zero cannot see `1` from `2`, which is how five could-not-read conditions were split across both classes while
 every direction covering them passed.
+- **PINNED-BY** `a_refused_verdict_that_cannot_reach_the_channel_still_reads_as_unjudged`
 
 #### Scenario: An input the wrapper could not read
 
@@ -1188,6 +1244,7 @@ every direction covering them passed.
 - **WHEN** a wrapper's variable name or class spelling differs from the judgement's, or a gate fails without
   reporting on the channel it was given
 - **THEN** a repository check fails naming which, because every violation would otherwise be reported as unjudged
+- **PINNED-BY** `the_channel_this_helper_names_is_the_one_it_reads`
 
 #### Scenario: An input that exists and cannot be read
 
@@ -1227,6 +1284,7 @@ record that cannot be amended.
 
 - **WHEN** a commit is pushed to the pull request after the gate has read its commit subjects
 - **THEN** the merge is refused, because the head no longer matches the one the evidence came from
+- **PINNED-BY** `the_merge_is_pinned_to_the_head_the_gate_read`
 
 #### Scenario: A caller supplies the pin
 
@@ -1237,6 +1295,7 @@ record that cannot be amended.
 
 - **WHEN** the pull request's head commit cannot be obtained
 - **THEN** the wrapper stops before the gate and the merge, saying the merge could not be pinned
+- **PINNED-BY** `an_unreadable_head_stops_before_the_gate_and_merge`
 
 ### Requirement: The squash wrapper SHALL judge the complete live pull-request commit set
 
@@ -1253,6 +1312,7 @@ NOT construct an endpoint from the unresolved selector or fall back to a local s
 - **WHEN** the live pull request contains a commit absent from the local base-to-head ref range
 - **THEN** the wrapper supplies the live commit's full subject to the squash-message gate, so a default body
   containing it cannot escape as an unrecognized shape
+- **PINNED-BY** `live_pull_request_commits_reach_the_gate_without_local_refs`
 
 #### Scenario: Pull-request commits span multiple API pages
 
@@ -1264,12 +1324,14 @@ NOT construct an endpoint from the unresolved selector or fall back to a local s
 - **WHEN** the pull-request commits read fails or yields no commit subjects
 - **THEN** the wrapper exits non-zero before invoking the squash-message gate or `gh pr merge`, without
   substituting local refs
+- **PINNED-BY** `a_failed_live_commit_read_stops_before_the_gate_and_merge`
 
 #### Scenario: The accepted selector does not resolve to one canonical number
 
 - **WHEN** `gh pr view` does not return a positive numeric pull-request identity for the accepted selector
 - **THEN** the wrapper exits non-zero before constructing the commits endpoint, invoking the squash-message
   gate, or invoking `gh pr merge`
+- **PINNED-BY** `an_unresolved_canonical_pull_request_number_stops_before_live_acquisition`
 
 ### Requirement: A capability SHALL declare the subject it governs
 
@@ -1297,9 +1359,9 @@ the join below, and the check SHALL say so rather than imply a coverage it does 
   it unfalsifiable
 
 **A bullet the reader cannot understand SHALL be refused, never dropped.** The form read is one backticked
-glob and nothing else. A `- ` bullet the reader cannot parse used to fall out of a `filter_map`, so the
-capability's declared subject shrank by exactly the bullets that failed to parse and the filing join then
-missed every file those globs claimed — a capability quietly governing less than it says, which is the
+glob and nothing else. A `- ` bullet the reader cannot parse must not fall out of a `filter_map`: the
+capability's declared subject would shrink by exactly the bullets that fail to parse, and the filing join
+would then miss every file those globs claim — a capability quietly governing less than it says, which is the
 condition this requirement exists to make falsifiable, produced by the reader enforcing it. This is the same
 obligation `adopter-surface` states for the prelude's members, for the same reason: a reader that narrows a
 claim by the amount it failed to read reports the narrowed claim as the whole one.
@@ -1483,13 +1545,11 @@ both regions run the identical rule. The rule now has one owner and the divergen
 - **PINNED-BY** `a_shell_marker_inside_quotes_is_cut_from_the_region`
 
 **A command a tracked document hands a reader SHALL name a target that exists.** The obligation above is
-about the commands a *wrapper* runs; this is the same claim reaching the audience that cannot debug it. The
-instance: `COOKBOOK.md` told an adopter to run the examples suite under the `tianheng` package, where that
-target lives in `shengmo`, so cargo answered that no test target of that name exists in that package — it
-arrived in the `0.5.0` window when the shell suite migrated, while `AGENTS.md` and `BACKLOG.md` both carried
-the correct package. The set of targets SHALL be **produced** by `cargo metadata`, never modelled by mapping a package and a
+about the commands a *wrapper* runs; this is the same claim reaching the audience that cannot debug it. Where
+documentation instructs a reader to run a test target under a specific package, cargo fails if the target
+resides in another workspace package. The set of targets SHALL be **produced** by `cargo metadata`, never modelled by mapping a package and a
 target name onto a path under that crate's `tests/` directory: that mapping reimplements cargo's target
-resolution in string form, which this repository has already shipped a false negative from doing.
+resolution in string form, which risks shipping a false negative.
 
 The corpus is tracked Markdown. A Rust source carries these pairs as **fixture input** — a parser direction
 plants a package-and-target pair as text — and admitting them would report a test asserting its own parser as a broken
@@ -1679,30 +1739,72 @@ before that.
   rather than using it unguarded
 - **UNPINNED** `BACKLOG.md` — *a merge or publish made outside the wrapper is not observed*
 
-The subject SHALL be re-read against the pull request's title **after** the gate, and a title that moved
-SHALL be a **cannot-judge**. The wrapper judges three inputs and pins two of them by construction — the body
-travels as the value the gate judged, and the commit set through `--match-head-commit`, which the server
-decides atomically. The title was captured once, so an edit during the gate left the merge recording a
-subject that is no longer the title. The class is cannot-judge rather than violation because the gate did not
-find the subject wrong: it found it right, against a title that no longer exists.
+**Every judged input the merge is decided AGAINST SHALL be re-read after the gate, and one that moved SHALL
+be a cannot-judge.** The division is by that question rather than by a count of inputs: what the merge
+**records** is pinned by construction — the body travels as the value the gate judged, and the commit set
+through `--match-head-commit`, which the server decides atomically — while what the merge is **judged
+against** holds only for as long as nobody edits it. The title is one such input: `subject == title` is a
+relation, and it was captured once, so an edit during the gate left the merge recording a subject that is no
+longer the title. The **base** is another: `gh pr merge` takes no base of its own and lands wherever the pull
+request points at merge time, so a base edited after the gate leaves an approved empty-body release message
+landing on a destination nothing judged — and carries the one message exception to a squash that is not one.
+The class is cannot-judge rather than violation in both cases, because the gate did not find the input wrong:
+it found it right, against something that no longer exists.
+
+The **head branch** is re-read on the same terms, and the premise that would excuse it does not hold.
+GitHub cannot **repoint** an open pull request at a different head — which is what makes *no guard is
+reachable* look true — but renaming a branch retargets the pull requests on it: `headRefName` moves while
+`headRefOid` does not, so
+`--match-head-commit` pins the object and observes nothing about the name. The exception names both endpoints,
+so both are judged and both are re-read.
 
 #### Scenario: A title edited while the gate ran
 
 - **WHEN** the pull request's title differs between the wrapper's evidence read and its post-gate re-read
 - **THEN** the wrapper stops before `gh pr merge`, exits `2`, and names both titles
 - **PINNED-BY** `a_title_edited_while_the_gate_ran_stops_before_the_merge`
-- **PINNED-BY** `an_unchanged_title_still_reaches_the_merge`
+- **PINNED-BY** `an_unmoved_pull_request_still_reaches_the_merge`
 
-#### Scenario: A title edited inside the re-read itself — a stated bound
+#### Scenario: A base edited while the gate ran
 
-- **WHEN** the pull request's title changes between the wrapper's post-gate re-read of it and `gh pr merge`
-- **THEN** nothing observes it, and the merge records the subject the gate approved against a title that has
-  since moved. The wrapper judges three inputs and pins two of them by construction — the body travels as
-  the value the gate judged, and the commit set is pinned through `--match-head-commit`, which GitHub
-  decides atomically. `gh` offers no `--match-title`, so the third can only be re-read, which shrinks the
-  exposure from a whole `cargo test` to one API call rather than closing it. Closing it needs a
-  server-decided precondition this tool does not offer
-- **UNPINNED** `BACKLOG.md` — *the title race the wrapper can only narrow*
+- **WHEN** the pull request's base branch differs between the wrapper's evidence read and its post-gate
+  re-read
+- **THEN** the wrapper stops before `gh pr merge`, exits `2`, and names both bases
+- **AND** a re-read that cannot be performed is its own cannot-judge: not knowing where the squash lands is a
+  different fact from knowing it moved
+- **PINNED-BY** `a_base_changed_while_the_gate_ran_stops_before_the_merge`
+- **PINNED-BY** `an_unmoved_pull_request_still_reaches_the_merge`
+
+#### Scenario: A head branch renamed while the gate ran
+
+- **WHEN** the pull request's head branch differs between the wrapper's evidence read and its post-gate
+  re-read — which a branch rename produces, since renaming retargets the pull requests on a branch while the
+  head object it points at is unchanged
+- **THEN** the wrapper stops before `gh pr merge`, exits `2`, and names both branches
+- **AND** the exception can only be **lost** this way and never gained: the gate refuses an empty body up
+  front where the head is not a release branch, so what this closes is a verdict about an origin the merge
+  will not have rather than a false negative
+- **PINNED-BY** `a_head_branch_renamed_while_the_gate_ran_stops_before_the_merge`
+- **PINNED-BY** `an_unmoved_pull_request_still_reaches_the_merge`
+
+#### Scenario: An input edited inside its own post-gate re-read — a stated bound
+
+- **WHEN** an input the wrapper re-reads after the gate changes between that re-read and `gh pr merge`
+- **THEN** nothing observes it, and the merge proceeds against the value the gate approved. What the merge
+  records is pinned by construction — the body travels as the value the gate judged, and the commit set
+  through `--match-head-commit`, which GitHub decides atomically. What it is judged against can only be
+  re-read, `gh` offering no equivalent precondition for any of it, which shrinks the exposure rather than
+  closing it. Closing it needs a server-decided precondition this tool does not offer
+- **AND** the WHEN names the class rather than the inputs, because the clause below says the count is not
+  written and this one used to write it: it read *title, base branch or head branch* while a fourth input —
+  what CI said — was added to the re-read set, leaving the enumeration short by one and the two halves of
+  one bound disagreeing about their own subject
+- **AND** this is one bound rather than one per input. The stop is a property of a **client-side re-read** —
+  it cannot be atomic with the act it precedes — so it is reached through whichever inputs are re-read, and
+  declaring it per input would be one record of one fact for each, which must then all agree. The count is
+  deliberately not written: the set has grown once already, and a bound stated over a number goes stale the
+  next time it does
+- **UNPINNED** `BACKLOG.md` — *the re-read races the wrapper can only narrow*
 
 ### Requirement: The squash-message gate SHALL refuse a shape by what it is, not by what it resembles
 
@@ -1742,19 +1844,21 @@ The gate holds the marks `AGENTS.md` names. That document also forbids "any othe
 not enumerable, so the open clause SHALL remain a reviewer's obligation and SHALL be stated as such rather than
 implied by a list that reads as complete.
 
-Case-sensitivity was the live defect: the canonical spellings are not the ones the check listed — git writes the
-trailer with only its first letter capitalised and GitHub renders it that way — so the form most likely to appear
-was the form not caught. Measured before the widening, two canonical spellings were accepted.
+Case-sensitivity is the whole of it: git writes the trailer with only its first letter capitalised and GitHub
+renders it that way, so any list of spellings omits the form most likely to appear. The rule is therefore
+**any ASCII case** rather than an enumeration.
 
 #### Scenario: An attribution mark in the case the tool actually writes
 
 - **WHEN** a squash message carries a line that is an attribution trailer in any ASCII case
 - **THEN** the gate refuses it as a violation
+- **PINNED-BY** `a_line_that_is_an_agent_attribution_is_a_violation`
 
 #### Scenario: A sentence naming an attribution mark
 
 - **WHEN** a body names a trailer mark inside a sentence, as prose about the rule
 - **THEN** the gate accepts it, because naming a mark is not carrying one
+- **PINNED-BY** `a_sentence_naming_an_attribution_mark_is_not_carrying_one`
 
 #### Scenario: A glyph mid-line
 
@@ -1769,6 +1873,7 @@ to the shape, because falling back is the false refusal being removed.
 - **WHEN** a subject carries `!` after the `": "` and its head does not end in one
 - **THEN** the message is accepted without a `BREAKING CHANGE:` footer, while a head ending in `!` still
   requires one
+- **PINNED-BY** `a_bang_in_the_summary_is_not_a_breaking_marker`
 
 #### Scenario: A terse body written entirely as bullets
 
@@ -1776,6 +1881,7 @@ to the shape, because falling back is the false refusal being removed.
   subjects
 - **THEN** the message is accepted: the body is self-contained, and its formatting is not what the rule is
   about
+- **PINNED-BY** `a_bullet_body_that_is_not_the_commit_subjects_is_accepted`
 
 #### Scenario: GitHub's default body
 
@@ -1787,6 +1893,7 @@ to the shape, because falling back is the false refusal being removed.
 - **WHEN** the wrapper supplies no commit subjects
 - **THEN** the judgement refuses as a cannot-judge naming what it could not read, rather than falling back to
   the shape it was refusing before
+- **PINNED-BY** `a_body_judged_without_the_commit_subjects_cannot_be_judged`
 
 ### Requirement: The prelude promise SHALL be held against the contract compiled from outside
 
@@ -1879,6 +1986,320 @@ and the parse failure passed over: 389 tracked files, **zero** inspected, and th
 - **THEN** the check reports it as a violation naming the path, and the line for trailing whitespace
 - **PINNED-BY** `each_offence_shape_is_named_when_it_is_shown`
 
+### Requirement: Which paths git tracks SHALL have one reader
+
+A repository check enumerating the tracked paths of the repository under judgement SHALL obtain them from
+one owner, which decides three things once:
+
+- **`-z`.** `core.quotePath` defaults on, so a line-oriented listing answers a non-ASCII path as
+  `"\344\270\255.md"` — a spelling that names no file. Measured on a scratch repository: a tracked
+  `圭表.md` reads back quoted and the quoted spelling opens nothing. This repository's whole vocabulary is
+  those characters and its crates are named for them, so the shape is one edit away rather than hypothetical.
+- **No lossy decode.** `ls-files -z` promises nothing about encoding, so a path that is not UTF-8 decoded
+  lossily is a different path than the one on disk, and every read below is made against that name.
+- **The hermetic builder**, so a verdict does not move with configuration outside the repository being
+  judged.
+
+**The rule exists because the question had no owner and was answered nineteen times.** Each site decided all
+three for itself, and the property was independently discovered and written down three separate times —
+`release_coherence_gate`'s walk, `projection_register`'s reader and `repeated_paragraph`'s enumeration each
+carried their own sentence about `core.quotePath` — while eight sites were line-oriented, eleven decoded
+lossily and nine bypassed the builder. Nothing was red: every one of them is correct on a tree whose paths
+are all ASCII, which is what a latent class looks like from inside a green run.
+
+A check that cannot reach the owner SHALL hold the property in place and say why it is spelled again. Two
+do: `shengmo`'s test targets cannot depend on `kanhe`, because `kanhe` depends on `shengmo` and the edge
+would close a cycle. That is a fact about the dependency graph rather than a site anyone declined to
+converge, which is the disposition this repository already gives the same shape elsewhere.
+
+**No reaction holds this**, and that is stated rather than left to be inferred. The question *is this
+invocation an enumeration* is not decidable from the argument list: the same command answers membership
+(`--error-unmatch`) and is the subject of directions about the runner itself, so a reader keyed on the
+spelling would refuse those. The rule is carried by review, like the rows `AGENTS.md` disposes the same way.
+
+#### Scenario: A tracked path git would quote
+
+- **WHEN** the repository under judgement tracks a path carrying a non-ASCII byte
+- **THEN** the owner answers the path the repository holds, rather than the quoted spelling a line-oriented
+  listing produces, which names no file
+- **PINNED-BY** `a_tracked_path_git_would_quote_reads_back_as_its_own_name`
+
+#### Scenario: A tracked path the reader cannot represent
+
+- **WHEN** `git ls-files -z` answers bytes no `String` holds
+- **THEN** the owner refuses, rather than decoding lossily into a name the repository does not hold
+- **PINNED-BY** `both_accessors_report_an_undecodable_answer_in_the_same_words`
+
+### Requirement: A `git` this repository constructs SHALL be the builder's, or SHALL be declared
+
+A tracked file constructing its own `git` SHALL be named in a declared set with why, and a site that cannot
+reach the builder SHALL name the child-process direction that proves its isolation, which SHALL exist in
+that file.
+
+**Isolation SHALL be proven by a run, not modelled from the source.** It was modelled: a reader compared the
+environment operations a copy makes against the builder's. Ten rounds of review walked that model through a
+rename, a macro, a literal compared by its rendering, a constant kept while its loop was deleted, and a
+removal made on a decoy receiver — each a different way to write the same program, each closed, each
+followed by the next. The responsibility is split instead: a reader of syntax answers only the ownership
+question it can answer — which files construct their own `git`, and whether a declared site names an
+existing direction — and the isolation is what a run says.
+
+**Each channel SHALL be injected alone, with a reading that channel moves.** A case setting all three
+repository selectors and reading `git log` demonstrates `GIT_DIR` alone: measured, with `GIT_WORK_TREE` or
+`GIT_INDEX_FILE` pointed at a decoy and `GIT_DIR` cleared, `log` still answers the judged subject, so a
+builder clearing one of three passed. Each case SHALL carry the bare-command control, without which a pass
+proves only that the channel never arrived.
+
+`kanhe::hermetic_git::hermetic` decides what a `git` behind a verdict may inherit — the configuration files,
+the `GIT_CONFIG_*` channels, and `GIT_DIR` / `GIT_WORK_TREE` / `GIT_INDEX_FILE`, which move **which
+repository** the command acts on and so reach past `current_dir` entirely.
+
+**The class is not a bare invocation; it is a copy that inherits nothing.** Two sites cannot reach the
+builder — `shengmo`'s test targets, because `kanhe` depends on `shengmo` and the edge would close a cycle —
+so they hold its isolation by transcription, and transcription is partial by nature: the first pass carried
+the framing and the decode across and left the isolation behind, **in both copies**, unmentioned in either
+comment.
+
+**The cases SHALL come from one tracked inventory, not from each site.** Written out per site, the matrix
+covered three repository selectors and one configuration channel in each of three files while `GIT_CONFIG`,
+the two configuration-file channels and the indexed channel were in none of them: a matrix per site is a
+matrix that diverges per site, which is the transcription failure one level up from the one it was built to
+end. `crates/shengmo/tests/fixtures/hermetic_channels.tsv` holds them once and every builder consumes it, so a
+channel added there is a case every builder starts owing.
+
+**Each case SHALL run from a cleared baseline, and the inventory SHALL name each channel once.** Injected
+onto the environment the test binary inherited, a case ran under whatever `GIT_*` the host carried, so what
+its control demonstrated was *a* channel rather than *the* channel. And a row count is not a set: held as a
+minimum, a row could be replaced by a second row for a channel already listed, leaving the count intact and
+the channel it displaced asked about by nobody.
+
+**What may be attacked and what must be emptied SHALL be two sets.** Deriving the baseline from the attack
+cases left `GIT_CONFIG_NOSYSTEM` inherited — a variable the builder sets and no case attacks, which
+suppresses the system-config channel and so changes what the `GIT_CONFIG_SYSTEM` case's control reads. The
+inventory carries both, and a channel attacked without being cleared is refused.
+
+**The owner SHALL hold the inventory too.** Kept under a consumer's fixtures, the module that owns the
+evidence reached into a crate that depends on it — so the owner was not one: the downstream crate could move
+or delete the file, and a consumer that cannot reach that crate at all was reading a path inside it.
+
+**The baseline SHALL be a set by type.** Held as a list, a variable repeated in the inventory was accepted
+and kept — a state *two sets, not one* calls impossible, spellable anyway.
+
+**One owner SHALL hold the evidence, and each site only its builder.** Three runners parsed the inventory,
+checked it their own way and assembled the child's environment by hand; what drifted was not the builders
+but the evidence — one baseline missed a variable another's had. `shengmo::hermetic_probe` owns the parse,
+the validation, the injection, the report's shape and the judgement. It lives there because `shengmo` ships
+in no package and is the one member both consumers reach: `kanhe` depends on it, and the copies are its own
+test targets.
+
+**Each reading SHALL carry its exit status.** Folded into stdout, a `git` that failed produced an empty
+reading — and the worktree case's isolated value *is* the empty string, so a failure passed as isolation.
+
+#### Scenario: A file constructs a `git` without the builder
+
+- **WHEN** a tracked Rust file constructs `Command::new("git")`
+- **THEN** it is named in the declared set with why, and the comparison is two-directional — a site that
+  gains one must be named, and a name that outlives its site must go
+- **PINNED-BY** `every_git_this_repository_constructs_is_the_builders_or_is_declared`
+
+#### Scenario: A declared copy names a direction that runs and passes
+
+- **WHEN** a site cannot reach the builder and declares the direction that proves its isolation
+- **THEN** that direction is **run**, under the features the Definition of Done runs, with ignored tests
+  included, and it passes — and the run reports exactly one test, because a filter matching nothing also
+  exits zero — and that count SHALL come from a **parsed** libtest summary rather than a token found in the
+  output, since `1 passed` is carried by any line that says those words and cannot tell one passing test
+  from one passing test beside a failure. Executability is an execution result: comparing the name alone
+  admitted an ordinary function,
+  requiring `#[test]` and refusing `#[ignore]` admitted `#[cfg(any())] #[test]`, and asking the harness to
+  *list* the direction admitted an ignored test under whichever features the listing was taken with. Each
+  repair closed the spelling a review brought and left the next
+- **PINNED-BY** `every_declared_site_names_a_direction_that_runs_and_passes`
+
+#### Scenario: An ambient channel moves what a builder reads
+
+- **WHEN** one channel — a repository selector or a configuration channel — is injected alone into a child
+  process that runs a builder against a known repository
+- **THEN** the builder answers about that repository, while a bare `Command` in the same environment answers
+  about the decoy; the second is the control, without which the first proves only that the channel never
+  arrived
+- **PINNED-BY** `no_ambient_channel_moves_what_a_hermetic_command_reads`
+- **PINNED-BY** `no_ambient_channel_moves_what_the_family_coverage_builder_reads`
+- **PINNED-BY** `no_ambient_channel_moves_what_the_examples_suite_builder_reads`
+
+#### Scenario: A `git` constructed through a program value is not read — a stated bound
+
+- **WHEN** a `git` is constructed as `Command::new(<value>)` rather than with the program written out
+- **THEN** nothing reads it. Whether a value names `git` is not decidable from the line that constructs it,
+  and a detector keyed on how a spawn is written is the shape `gate_exit_classes`' own header records being
+  one form short three rounds running. Measured across the tracked Rust: two sites take a program as a
+  value, and one of them **is** the builder every other read is routed through while the other names an
+  `ssh-keygen` signature verifier. A site cannot be invisible either way — any target spawning a process is
+  already declared — so what this stop leaves unclassified is *which program* that spawn is, not that it
+  happens
+- **PINNED-BY** `a_construction_through_a_program_value_is_not_read`
+
+#### Scenario: A `git` named in prose is not read — a stated bound
+
+- **WHEN** a `git` construction is written inside a comment rather than executed
+- **THEN** nothing reads it. This repository's own documentation names the shape it forbids in order to
+  explain it, and a reader counting those sentences would refuse the rule's own statement of itself. What
+  the stop costs is that a construction commented out rather than deleted is also unread, and
+  `unreachable_branch` is where commented-out code is the subject
+- **PINNED-BY** `a_construction_named_in_prose_is_not_read`
+
+#### Scenario: A `git` constructed inside a string literal is not read — a stated bound
+
+- **WHEN** a tracked file carries a `git` construction inside a string literal — ordinary or raw — as a file
+  that emits Rust and compiles it carries one
+- **THEN** nothing reads it: a literal is one token, so what it carries is that token's text and not a
+  call
+- **AND** reading lines split this in two — an ordinary literal escaped its quotes and dropped out on its
+  own, while a raw string carried the spelling verbatim and **was** reported. That over-report is closed by
+  reading tokens rather than declared, and one stop remains, in both forms
+- **AND** the two forms are one stop reached two ways, not two stops, so both directions defend this bound
+  and neither is a bound of its own
+- **PINNED-BY** `a_construction_inside_an_ordinary_string_literal_is_not_read`
+- **PINNED-BY** `a_construction_inside_a_raw_string_is_not_read`
+
+#### Scenario: A `git` constructed through a name bound elsewhere is not read — a stated bound
+
+- **WHEN** a `git` is constructed through a name the file does not bind to `Command` — a rename in another
+  module, a type alias, a re-export
+- **THEN** nothing reads it. A rename is decidable inside one file, where `use std::process::Command as Cmd`
+  is written down, and the reader binds those; what a name means when it is bound somewhere else is not
+  written down anywhere a parse tree carries, and answering it needs name resolution — the floor this
+  repository's other reader of its own Rust already names, reached here by the same road
+- **PINNED-BY** `a_construction_through_a_rename_or_inside_a_macro_is_read`
+
+### Requirement: A comment paragraph SHALL NOT be written twice in a row
+
+No tracked Rust file SHALL carry a comment paragraph immediately followed by a copy of itself. The
+comparison is over **line content, not line bytes** — `str::lines` drops `\r\n` and `\n` alike, so a block
+terminated one way and its copy terminated the other are one repetition. That is deliberate and is stated
+here in place of *byte-identical*, which claimed a precision the reader does not have: a paste an editor
+re-terminated is still a paste, and requiring the terminators to agree would let it through, which is a
+silent false negative. Membership SHALL be produced by `git ls-files -z`, so a path git quotes is read as git holds it
+rather than as a quoted spelling that names no file, and SHALL be read through the runner that refuses
+bytes it cannot represent: `-z` promises nothing about encoding, so a lossy decode answers a path the
+repository does not hold and every read below it is made against that name.
+
+**The reason is what this repository's prose is for.** Its rules are carried by weight rather than by
+enforcement — what sits in an agent's context is what gets imitated — so a paragraph standing twice is that
+weight doubled by accident, and nothing else in the toolchain has an opinion about it: a pasted paragraph
+compiles, formats, lints and reads as deliberate. It is also invisible to the person who made it, for the
+same reason it was made. The defect this requirement was written for stood in `release_coherence_gate`,
+where six lines naming why presence is asked by `ls-tree` rather than `show` stood twice, byte-identical,
+and were found by review rather than by anything that ran.
+
+The check SHALL answer with the shared kinded refusal, so a file it could not read is separated from a file
+that disagrees, and SHALL assert that it inspected at least one file before reaching its verdict — the
+corpus can collapse both by the enumeration answering nothing and by the extension filter matching nothing,
+and neither is visible in an empty offence set.
+
+**A comment-shaped line inside a string literal SHALL NOT be read as a comment.** This repository holds Rust
+fixtures as Rust strings, so a reader keyed on the trimmed line cannot tell the two apart — and the first
+spelling of this check's own fixture was such a string, which the sweep reported. Comments are what a lexer
+discards, so the classification SHALL be taken from a real lexer: a line strictly inside a literal's span is
+that literal's text. A doc comment reaches the lexer as a synthesised `#[doc = "…"]`, and SHALL still be
+read as a comment — shadowing those would stop the check reading `///` at all, which is a false negative
+over most of this repository's prose. A file that does not lex SHALL be refused as a cannot-judge, because a
+comment it cannot separate from a string is a question it did not decide.
+
+Every line of a repeated block SHALL carry content after its marker. Without that, two consecutive bare
+`//` lines — a paragraph break spelled twice, which is formatting — are a one-line block repeated, and the
+check would report text exactly as its author wrote it.
+
+**A block SHALL be as short as one line.** That requirement, not a minimum length, is what keeps formatting
+out, and a one-line comment paragraph is a paragraph. The reader's floor stood at two lines while nothing
+declared it and this requirement claimed every paragraph — a stop in the reader and in none of its
+declarations. Measured over the whole tracked Rust corpus at both floors: zero either way, so the wider
+reach costs no report an author would argue with.
+
+#### Scenario: A comment paragraph is pasted twice
+
+- **WHEN** a tracked Rust file carries one or more comment lines immediately followed by a copy of them
+- **THEN** the check reports a violation naming the path, the line the second copy begins at, and how many
+  lines it spans; the longest run at a position is reported and the reader resumes past both copies, so the
+  paste is named once rather than once per nested half
+- **PINNED-BY** `a_paragraph_pasted_twice_is_read_and_its_neighbours_are_not`
+
+#### Scenario: A tracked path is not UTF-8
+
+- **WHEN** `git ls-files -z` names a tracked path carrying a byte this reader cannot decode
+- **THEN** the enumeration refuses as a cannot-judge naming the command, rather than decoding the path
+  lossily — a replaced name is one the repository does not hold, so the file opened under it is not the file
+  tracked, and the resulting *could not be read* would be honest about the wrong file
+- **PINNED-BY** `a_tracked_path_that_is_not_utf8_is_refused_rather_than_renamed`
+
+#### Scenario: A tracked Rust file cannot be read
+
+- **WHEN** a file `git ls-files` names ends in `.rs` and cannot be opened, or is not UTF-8
+- **THEN** the check refuses as a cannot-judge naming the path, because an unread file is not a file that
+  repeats nothing, and a lossy decode would compare text this repository does not hold
+- **PINNED-BY** `an_unreadable_tracked_rust_file_is_refused_rather_than_skipped`
+
+#### Scenario: No Rust file was inspected
+
+- **WHEN** the enumeration answers nothing, or no enumerated path ends in `.rs`
+- **THEN** the check fails on the vacuity, naming how many tracked paths it enumerated, rather than
+  reporting the empty offence set as cleanliness
+
+#### Scenario: A copy is terminated differently from the block it copies
+
+- **WHEN** a comment block and the copy immediately following it differ only in their line terminators
+- **THEN** the check reports it, because the comparison is over line content: a paste an editor
+  re-terminated is still a paste, and requiring the terminators to agree would let it through
+- **PINNED-BY** `a_copy_terminated_differently_is_still_read`
+
+#### Scenario: A one-line comment paragraph is written twice
+
+- **WHEN** a single comment line carrying content is immediately followed by a copy of itself
+- **THEN** the check reports it — a one-line paragraph is a paragraph, and the content requirement rather
+  than a minimum length is what keeps a repeated paragraph break out
+- **PINNED-BY** `a_one_line_paragraph_written_twice_is_read`
+
+#### Scenario: A comment-shaped line inside a string literal
+
+- **WHEN** a tracked Rust file carries a duplicated comment paragraph inside a string or raw-string literal
+- **THEN** nothing reacts, because those lines are that literal's text — while a duplicated `///` paragraph
+  is still read, since a doc comment is a comment however the lexer carries it
+- **PINNED-BY** `a_comment_shaped_line_inside_a_literal_is_not_a_comment`
+
+#### Scenario: A tracked Rust file does not lex
+
+- **WHEN** a tracked `.rs` file cannot be tokenised
+- **THEN** the check refuses as a cannot-judge naming the path, because a comment it cannot separate from a
+  string literal is a question it did not decide
+
+#### Scenario: A paragraph break is spelled twice
+
+- **WHEN** consecutive comment lines carrying no content after their marker repeat
+- **THEN** the check is silent, because a repeated blank comment line is formatting rather than a paste
+- **PINNED-BY** `consecutive_empty_comment_lines_are_not_a_repetition`
+
+#### Scenario: A paragraph repeated out of line is not read — a stated bound
+
+- **WHEN** a comment paragraph is repeated somewhere other than immediately after itself — twenty lines
+  down, in another function, or in another file
+- **THEN** nothing reads it. Adjacency is what a paste leaves behind, and it is also what can be judged
+  without deciding whether a repetition is deliberate: two paragraphs that read the same in different places
+  are as often two sites documented alike as one pasted twice, and this repository keeps both. Widening past
+  adjacency would buy the rarer defect with a report the author has to argue with, which is the permanent
+  authoring tax this repository refuses
+- **PINNED-BY** `a_repetition_split_by_code_is_not_read`
+
+#### Scenario: A paragraph repeated in prose is not read — a stated bound
+
+- **WHEN** a paragraph is repeated in a tracked file that is not Rust, including this repository's own
+  governance prose
+- **THEN** nothing reads it. The corpus is Rust comments, where an identical adjacent pair has one cause;
+  Markdown repeats identical adjacent lines for its own reasons — a table's rule row, two list items that
+  read the same — so the same rule there reports text its author wrote. The prose corpora carry the weight
+  this check exists to protect, which makes this the stop worth revisiting first if a shape with no false
+  positive is found for them
+- **PINNED-BY** `a_repeated_paragraph_in_a_prose_file_is_outside_the_corpus`
+
 ### Requirement: An amendment to the self-law is named before it lands
 
 The set of boundaries `shengmo::law::constitution()` declares SHALL be declared in this repository as text,
@@ -1955,10 +2376,28 @@ law itself did not change, and nothing refused them.
 ### Requirement: The merge wrapper reads what CI said, not only what ran locally
 
 The wrapper standing in front of `gh pr merge` SHALL read the pull request's check conclusions and refuse to
-reach the tool unless every check agrees. It SHALL separate four states: a check that disagreed, a check that
+reach the tool unless every check agrees. **That read SHALL be the last guard before the merge**, after every
+other local and API check the wrapper makes. A rollup is one end of a relation whose other end is the moment
+the merge happens, and the wrapper records nothing from it — so a read placed among the recorded values
+leaves a window in which a required check re-run on the **same head** turns the rollup red while every later
+guard still passes: the head object has not moved, so `--match-head-commit` is satisfied, and the title, base
+and head branch have not moved either. It SHALL be read once and last rather than twice, there being no value
+to record from an earlier read. What remains is the post-gate re-read bound this capability already declares
+— a client-side read cannot be atomic with the act it precedes, and that stop is reached through whichever
+inputs are read that way rather than through any one of them. It SHALL separate four states: a check that disagreed, a check that
 has not finished, a check that finished and produced **no evidence**, and a head no workflow has claimed — an
 unfinished run is not a failed one, and merging on *not success* would refuse a pull request nobody has
 answered yet.
+
+#### Scenario: What CI said is read after every other guard
+
+- **WHEN** the wrapper reaches the merge
+- **THEN** the rollup read is the last of its API reads — after the title, the base, the head branch, the
+  head object and the changed-file count — so the window between *every check agrees* and the act is this
+  wrapper's own remaining calls rather than those plus a whole `cargo test`
+- **AND** the order is what is held, not the presence of the call: the call was always made, and it was made
+  among the values the merge records rather than among the relations it is judged against
+- **PINNED-BY** `what_ci_said_is_read_last_before_the_merge`
 
 **A check that did not run agreed with nothing.** `NEUTRAL` and `SKIPPED` classified as agreement, beside
 `SUCCESS`, with no measurement — while the `EXPECTED` classification was reasoned onto the unfinished side because
@@ -1979,9 +2418,7 @@ well. **It did not**: the classification reads a check's conclusion and nothing 
 the workflow in exactly that one sentence. A claim about the world needs something holding it; a claim about
 what to do next does not, and buys the same thing.
 
-Removing it ends a class rather than closing an instance. A reader was built to hold that sentence, and seven
-review rounds found five positions in it — two failing open — each of which was a hole in something
-load-bearing only because the sentence was load-bearing. The reader SHALL be kept as a **convenience** and
+Removing it ends a class rather than closing an instance. The reader SHALL be kept as a **convenience** and
 stated as one: it decides **when** an operator learns a job may now skip, not **whether**, since a skipping
 job reports `SKIPPED` and the wrapper refuses regardless. Its remaining blind spots SHALL be
 recorded at that severity rather than as false negatives — **per mechanism, since the five keys reach the
@@ -2200,11 +2637,10 @@ The wrapper standing in front of `gh pr merge` SHALL read how many files the pul
 to reach the tool when that count is zero. A count it cannot read SHALL be its own refusal, never treated as
 a count of some.
 
-Measured: this wrapper merged a squash whose message asserted seven repairs across five files and whose tree
-was byte-identical to its parent's. The content had been committed onto the release branch itself while the
-branch the pull request named still pointed at an already-merged commit, so every other guard was satisfied —
-the live commit set was non-empty, the message gate judged it against that set, CI was green because nothing
-had changed, and the head pin named a real commit. The message is curated separately from the tree and
+A squash can carry a message asserting repairs over a tree byte-identical to its parent's: where the content
+was committed onto the release branch itself and the branch the pull request names still points at an
+already-merged commit, every other guard is satisfied — the live commit set is non-empty, the message gate
+judges it against that set, CI is green because nothing changed, and the head pin names a real commit. The message is curated separately from the tree and
 travels through `argv`, which is what lets the squash message be the record; the pull request's diff is the
 only thing tying the two together, and nothing read it.
 
@@ -2391,8 +2827,8 @@ rather than reasoned about — an ignore query answers *ignored*, and a fixture'
 file untracked, until it is named.
 
 The shared command builder SHALL name it, so the property holds for every caller rather than for whichever
-call site was last edited. That the builder did not was found by a read that had been fixed on its own: the
-same channel was silently omitting files from fixtures across the crate. The builder's guarantee SHALL be held
+call site was last edited: a builder that does not name it leaves the same channel silently omitting files
+from fixtures across the crate. The builder's guarantee SHALL be held
 by a case comparing a command that closes the channel against one that does not, and the control SHALL leave
 the channel open — a control that closed it would compare a value against itself.
 
@@ -2485,12 +2921,16 @@ third scenario's, one layer up.
 - **THEN** the empty field between them is counted, so a reader asking for three fields refuses four
 - **PINNED-BY** `a_character_separator_keeps_the_empty_field_a_collapsing_reader_would_drop`
 
-#### Scenario: A TOML escape is not a value a manifest reader can read
+#### Scenario: A TOML escape is decoded, because a real parser decodes it
 
 - **WHEN** a quoted manifest value carries any escape — `\uXXXX`, `\UXXXXXXXX`, `\\`, `\n`, or an escaped quote
-- **THEN** the reader refuses rather than answering with the undecoded source, because cargo decodes the
-  escape and this reader decodes none — and decoding it here would be a second hand-rolled TOML grammar
-- **PINNED-BY** `a_toml_escape_is_refused_rather_than_returned_undecoded`
+- **THEN** the value reads as cargo reads it. Refusing an escape is the answer of a reader with no
+  decoder, and hand-rolling one would be a second TOML grammar; this reader has cargo's, so it decodes.
+  A path written `cr\u0078tes/xuanji`
+  is now compared as `crxtes/xuanji`, and a `package` written `xuan\u006ai` is matched against the family as
+  `xuanji`
+- **PINNED-BY** `an_escaped_path_is_decoded_and_compared_and_an_ordinary_sibling_does_not_cover_for_it`
+- **PINNED-BY** `an_escaped_renamed_package_names_its_crate_and_its_pin_is_judged`
 
 #### Scenario: The interpreter support window reads its declaration through it
 

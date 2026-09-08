@@ -14,19 +14,9 @@ use register::{Citation, parse_bounds, workspace_root};
 use std::collections::BTreeSet;
 
 fn tracked(root: &std::path::Path) -> Vec<String> {
-    let out = std::process::Command::new("git")
-        .args(["ls-files"])
-        .current_dir(root)
-        .output()
-        .expect("run git ls-files");
-    assert!(
-        out.status.success(),
-        "`git ls-files` failed; a failed enumeration is not a repository holding no documents"
-    );
-    String::from_utf8_lossy(&out.stdout)
-        .lines()
-        .map(str::to_string)
-        .collect()
+    kanhe::hermetic_git::tracked_paths(root, &[]).unwrap_or_else(|failure| {
+        panic!("`git ls-files` did not answer ({failure:?}); a failed enumeration is not a repository holding no documents")
+    })
 }
 
 #[test]

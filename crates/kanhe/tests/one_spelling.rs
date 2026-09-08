@@ -190,19 +190,12 @@ fn declared_dependencies(text: &str) -> Vec<String> {
 
 /// Every tracked `.rs` file under `dirs`, as `(path, text)`.
 fn tracked(root: &Path, dirs: &[&str]) -> Vec<(String, String)> {
-    let listing = std::process::Command::new("git")
-        .args(["ls-files"])
-        .args(dirs)
-        .current_dir(root)
-        .output()
-        .expect("git must be runnable to enumerate the corpus a constant reaches");
-    assert!(
-        listing.status.success(),
-        "`git ls-files` did not enumerate {dirs:?}: {}",
-        String::from_utf8_lossy(&listing.stderr)
-    );
-    let files: Vec<(String, String)> = String::from_utf8_lossy(&listing.stdout)
-        .lines()
+    let listing = kanhe::hermetic_git::tracked_paths(root, dirs).unwrap_or_else(|failure| {
+        panic!("`git ls-files` did not enumerate {dirs:?} ({failure:?})")
+    });
+    let files: Vec<(String, String)> = listing
+        .iter()
+        .map(String::as_str)
         .filter(|path| path.ends_with(".rs"))
         .map(|path| {
             let text = std::fs::read_to_string(root.join(path))

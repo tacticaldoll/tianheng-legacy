@@ -11,7 +11,6 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 use kanhe::capability_subjects::{
     Declared, Named, declaration_offences, join_offences, proposal_capabilities, subject_globs,
@@ -26,16 +25,22 @@ fn workspace_root() -> Option<PathBuf> {
     )
 }
 
+/// One git read for this check, through the runner that owns what a read behind a verdict may inherit.
+///
+/// **The sweep that gave `ls-files` one owner routed this file's callers past this helper and left the
+/// helper.** Converging the callers is not converging the question: five reads still came through here —
+/// `rev-parse --abbrev-ref @{upstream}`, `for-each-ref`, `merge-base`, `rev-list --count`, and the
+/// `diff --name-only` that selects which capability subjects a change touches — each on a bare
+/// `Command::new("git")` and each decoded lossily.
+///
+/// `GIT_DIR`, `GIT_WORK_TREE` and `GIT_INDEX_FILE` take precedence over discovery from `current_dir`, which
+/// is why [`kanhe::hermetic_git::hermetic`] clears them: set in the environment, these five reads describe
+/// another repository and answer, and this check reports a subject set for a tree nobody asked about.
 fn git(root: &Path, args: &[&str]) -> Result<String, String> {
-    let out = Command::new("git")
-        .args(args)
-        .current_dir(root)
-        .output()
-        .map_err(|err| format!("cannot run git {args:?}: {err}"))?;
-    if !out.status.success() {
-        return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
-    }
-    Ok(String::from_utf8_lossy(&out.stdout).to_string())
+    kanhe::hermetic_git::run(root, &[], args).map_err(|failure| match failure {
+        kanhe::hermetic_git::Failure::Exit { stderr, .. } => stderr.trim().to_string(),
+        other => format!("cannot run git {args:?}: {other:?}"),
+    })
 }
 
 fn lines(text: &str) -> Vec<String> {
@@ -47,10 +52,10 @@ fn lines(text: &str) -> Vec<String> {
 
 /// Every capability spec, keyed by capability.
 fn specs(root: &Path) -> BTreeMap<String, String> {
-    let listing = git(root, &["ls-files", "openspec/specs/*/spec.md"])
+    let listing = kanhe::hermetic_git::tracked_paths(root, &["openspec/specs/*/spec.md"])
         .expect("the capability specs are enumerable; a failed enumeration is not an empty set");
     let mut specs = BTreeMap::new();
-    for path in lines(&listing) {
+    for path in listing {
         let capability = path
             .trim_start_matches("openspec/specs/")
             .trim_end_matches("/spec.md")
@@ -108,14 +113,15 @@ fn claimed(
             }
         };
         for glob in globs {
-            let listing = git(root, &["ls-files", "--", &glob]).map_err(|err| {
+            let listing = kanhe::hermetic_git::tracked_paths(root, &[&glob]).map_err(|err| {
                 cannot_judge(format!(
-                    "`{capability}` declares the subject glob `{glob}` and it could not be resolved ({err}); \
+                    "`{capability}` declares the subject glob `{glob}` and it could not be resolved \
+                     ({err:?}); \
                      an unresolved glob is not a glob claiming nothing, and treating it as one would let a \
                      change touching this capability's subject read as filed"
                 ))
             })?;
-            paths.extend(lines(&listing));
+            paths.extend(listing);
         }
         claimed.insert(capability.clone(), paths);
     }
@@ -129,7 +135,7 @@ fn every_capability_declares_the_subject_it_governs() {
         return;
     };
     let offences = declaration_offences(&specs(&root), |glob| {
-        git(&root, &["ls-files", "--", glob]).map(|listing| lines(&listing))
+        kanhe::hermetic_git::tracked_paths(&root, &[glob]).map_err(|err| format!("{err:?}"))
     });
     assert!(
         offences.is_empty(),
@@ -196,9 +202,8 @@ fn a_change_names_every_capability_whose_subject_it_touches() {
     let Some(root) = workspace_root() else {
         return;
     };
-    let changes = git(&root, &["ls-files", "openspec/changes/*/proposal.md"])
+    let changes = kanhe::hermetic_git::tracked_paths(&root, &["openspec/changes/*/proposal.md"])
         .expect("the active changes are enumerable");
-    let changes = lines(&changes);
     if changes.is_empty() {
         // No filing decision is in front of this check. An ordinary checkout is asking no such question,
         // and refusing one would be noise rather than governance.
@@ -305,7 +310,8 @@ fn files_no_capability_claims_are_reported_rather_than_implied_judged() {
         panic!("capability subjects (cannot judge): {}", refusal.message)
     });
     let every: BTreeSet<String> = claimed.values().flatten().cloned().collect();
-    let tracked = lines(&git(&root, &["ls-files"]).expect("the tracked set is enumerable"));
+    let tracked =
+        kanhe::hermetic_git::tracked_paths(&root, &[]).expect("the tracked set is enumerable");
     let unclaimed = tracked.len() - every.len();
     assert!(
         every.len() < tracked.len(),

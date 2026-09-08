@@ -61,7 +61,7 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
-          # State classification follows the latest exact `release: X.Y.Z` commit. A shallow
+          # State classification follows the latest exact release snapshot commit. A shallow
           # checkout cannot observe that release spine and must not masquerade as coherent.
           fetch-depth: 0
       - name: repository release surfaces agree
@@ -75,7 +75,7 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           # The workspace suite now carries the release-coherence check, whose state classification
-          # follows the latest exact `release: X.Y.Z` commit. A shallow checkout cannot see that spine and
+          # follows the latest exact release snapshot commit. A shallow checkout cannot see that spine and
           # the check refuses rather than masquerading as coherent — which is the contract working, and
           # the reason this job needs the whole history.
           fetch-depth: 0
@@ -85,12 +85,21 @@ jobs:
       - name: whitespace hygiene across every tracked text file
         run: |
           TIANHENG_WORKSPACE_TESTS=1 cargo test -p kanhe --test whitespace_hygiene
+      - name: no comment paragraph is written twice
+        run: |
+          TIANHENG_WORKSPACE_TESTS=1 cargo test -p kanhe --test repeated_paragraph
+      - name: a git this repository constructs is the builder's, or declared
+        run: |
+          TIANHENG_WORKSPACE_TESTS=1 cargo test -p kanhe --test hermetic_invocations
       - name: in-repository references resolve
         run: |
           TIANHENG_WORKSPACE_TESTS=1 cargo test -p kanhe --test reference_integrity
       - name: every declared mutation kills the pin it names
         run: |
           TIANHENG_PIN_BITES=1 TIANHENG_WORKSPACE_TESTS=1 cargo test -p kanhe --test pin_bites
+      - name: every generated attribute spelling is answered the same way by every dimension
+        run: |
+          TIANHENG_SPELLING_DIFFERENTIAL=1 cargo test -p tianheng --test attribute_spelling_differential
       - name: build / test / clippy / fmt / doc
         run: |
           cargo build --workspace

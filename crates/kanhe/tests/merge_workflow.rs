@@ -69,7 +69,7 @@ fn read_if_present(path: &Path) -> std::io::Result<String> {
     }
 }
 
-/// The wrapper run from the workspace it lives in, which is how every direction but one exercises it.
+/// The wrapper run from the workspace it lives in, which is how every direction but two exercises it.
 fn run_wrapper(root: &Path, mode: &str, extra: &[&str]) -> Run {
     run_wrapper_in(root, mode, extra, None)
 }
@@ -79,6 +79,23 @@ fn run_wrapper(root: &Path, mode: &str, extra: &[&str]) -> Run {
 /// Split because the wrapper reads its gate from its own tree and its evidence from the working directory,
 /// and a harness that never varies the second cannot construct the case where they differ.
 fn run_wrapper_in(root: &Path, mode: &str, extra: &[&str], cwd: Option<&Path>) -> Run {
+    run_wrapper_with_ambient(root, mode, extra, cwd, &[])
+}
+
+/// The wrapper run with `ambient` in its environment.
+///
+/// **Split for the same reason the `cwd` variant was, one channel over.** The wrapper reads its gate and its
+/// evidence through git, and `GIT_DIR`/`GIT_WORK_TREE`/`GIT_INDEX_FILE` move which repository git answers
+/// about — so a harness that never sets them cannot construct the case where both reads are redirected and
+/// the guard's comparison passes about a third tree. Every other direction passes `&[]` and inherits this
+/// process's environment, which is what they were exercising before this parameter existed.
+fn run_wrapper_with_ambient(
+    root: &Path,
+    mode: &str,
+    extra: &[&str],
+    cwd: Option<&Path>,
+    ambient: &[(&str, &Path)],
+) -> Run {
     static NEXT: AtomicUsize = AtomicUsize::new(0);
     let scratch = loop {
         let candidate = std::env::temp_dir().join(format!(
@@ -135,7 +152,43 @@ set -eu
 argv=$*
 printf '%s\n' "${argv//$'\n'/\\n}" >> "$FAKE_GH_LOG"
 if [[ $1 == repo && $2 == view ]]; then
-    printf '%s\n' 'tacticaldoll/tianheng'
+    printf '%s\n' "${GH_REPO:-tacticaldoll/tianheng}"
+elif [[ $1 == pr && $2 == view && $* == *"--json headRefName"* ]]; then
+    # The branch the squash comes from. The contract names both endpoints, so the gate takes both.
+    if [[ $FAKE_GH_MODE == unreadable-head-branch ]]; then
+        printf 'gh: cannot read the head branch\n' >&2
+        exit 1
+    fi
+    # Read twice, like the title and the base. Renaming a branch retargets the pull requests on it, so
+    # `headRefName` moves while `headRefOid` does not -- and `--match-head-commit` is satisfied either way.
+    calls=$(cat "$FAKE_HEAD_BRANCH_CALLS" 2>/dev/null || printf '0')
+    calls=$((calls + 1))
+    printf '%s' "$calls" > "$FAKE_HEAD_BRANCH_CALLS"
+    if [[ $FAKE_GH_MODE == head-branch-moved ]] && ((calls >= 2)); then
+        printf '%s\n' 'renamed/after-the-gate'
+    else
+        printf '%s\n' "${FAKE_GH_HEAD_BRANCH:-fix/some-repair}"
+    fi
+elif [[ $1 == pr && $2 == view && $* == *"--json baseRefName"* ]]; then
+    if [[ $FAKE_GH_MODE == unreadable-base ]]; then
+        printf 'gh: cannot read the base branch\n' >&2
+        exit 1
+    fi
+    # The base the squash lands on. The gate takes it as evidence because `AGENTS.md` states the one message
+    # exception as the release-branch-to-`main` squash, and a subject is not a destination. These fixtures
+    # merge onto a release branch, which is what an ordinary squash does.
+    #
+    # Read TWICE, for the same reason the title is: it is one end of a relation the gate judged, and a base
+    # edited between the two makes the verdict in hand a verdict about a destination the merge will not use.
+    # The counter lives on disk because "the second call" has to mean second across two separate processes.
+    calls=$(cat "$FAKE_BASE_CALLS" 2>/dev/null || printf '0')
+    calls=$((calls + 1))
+    printf '%s' "$calls" > "$FAKE_BASE_CALLS"
+    if [[ $FAKE_GH_MODE == base-moved ]] && ((calls >= 2)); then
+        printf '%s\n' 'main'
+    else
+        printf '%s\n' "${FAKE_GH_BASE:-release/0.0.0}"
+    fi
 elif [[ $1 == pr && $2 == view && $* == *"--json title"* ]]; then
     # The wrapper reads the title TWICE: once as evidence for the gate, once after it, so the subject it is
     # about to record is still the title. Answering the same string both times is what left the second read
@@ -207,7 +260,12 @@ elif [[ $1 == pr && $2 == view && $* == *"--json headRefOid"* ]]; then
     if [[ $FAKE_GH_MODE == unreadable-head ]]; then
         printf '%s\n' ''
     else
-        printf '%s\n' '81c9ef062fafee9fafe2ebfaacf68288f5554747'
+        # A head this fixture invents, and deliberately one that resolves to no object in **any** repository:
+        # the value here was a real commit of this tree until the 0.5.0 window, squashed away and reachable
+        # from no branch, so it resolved for whoever still held it and for nobody else. What the assertions
+        # below need is that the wrapper pins the head the evidence came from — an opaque token, whose one
+        # requirement is that a reader cannot mistake it for a reference.
+        printf '%s\n' 'feedfacedeadbeefcafebabe0123456789abcdef'
     fi
 elif [[ $1 == api ]]; then
     case $FAKE_GH_MODE in
@@ -218,7 +276,7 @@ elif [[ $1 == api ]]; then
     empty)
         :
         ;;
-    subjects | invalid-number | unreadable-head | unreadable-body | body-moved | title-moved | clean | no-verdict | ci-red | ci-red-status | ci-expected-status | ci-no-evidence | ci-pending | ci-unclaimed | empty-diff | unreadable-count)
+    subjects | ambient-gh-repo | invalid-number | unreadable-head | unreadable-base | unreadable-head-branch | unreadable-body | body-moved | title-moved | base-moved | head-branch-moved | clean | no-verdict | ci-red | ci-red-status | ci-expected-status | ci-no-evidence | ci-pending | ci-unclaimed | empty-diff | unreadable-count)
         if [[ $* != *"--paginate"* ]]; then
             printf '%s\n' 'feat(x): live first subject'
         else
@@ -302,9 +360,14 @@ printf '%s\n' 'test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 fil
         .env("FAKE_CARGO_LOG", &cargo_log)
         .env("FAKE_COMMITS", &commits)
         .env("FAKE_TITLE_CALLS", scratch.join("title-calls"))
+        .env("FAKE_BASE_CALLS", scratch.join("base-calls"))
+        .env("FAKE_HEAD_BRANCH_CALLS", scratch.join("head-branch-calls"))
         .env("TMPDIR", &tmp);
     if let Some(cwd) = cwd {
         command.current_dir(cwd);
+    }
+    for (name, value) in ambient {
+        command.env(name, value);
     }
     if mode == "no-verdict" {
         command.env("FAKE_GATE_VERDICT", "none");
@@ -313,6 +376,9 @@ printf '%s\n' 'test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 fil
         command
             .env("FAKE_BODY_REWRITE", &body)
             .env("FAKE_BODY_REWRITE_TEXT", REWRITTEN_BODY);
+    }
+    if mode == "ambient-gh-repo" {
+        command.env("GH_REPO", "other/project");
     }
     let output = command.output().expect("run controlled merge workflow");
 
@@ -361,15 +427,9 @@ fn a_pull_request_from_another_worktree_is_refused_before_any_evidence_is_read()
     ));
     let _ = std::fs::remove_dir_all(&elsewhere);
     xingbiao::claim_scratch(&elsewhere).expect("create an unrelated worktree");
-    let init = Command::new("git")
-        .args(["init", "-q", "-b", "main"])
-        .current_dir(&elsewhere)
-        .output()
-        .expect("run git init");
-    assert!(
-        init.status.success(),
-        "the unrelated worktree is a git repository"
-    );
+    // Through the builder, like every other fixture here: `hermetic_git::fixture` exists for exactly this,
+    // and a fixture built under an ambient `GIT_DIR` is not the worktree this direction believes it made.
+    kanhe::hermetic_git::fixture(&elsewhere, "git", &["init", "-q", "-b", "main"]);
 
     let run = run_wrapper_in(&root, "subjects", &[], Some(&elsewhere));
     let _ = std::fs::remove_dir_all(&elsewhere);
@@ -396,6 +456,79 @@ fn a_pull_request_from_another_worktree_is_refused_before_any_evidence_is_read()
         run.cargo_log.trim().is_empty(),
         "the gate ran before the wrapper knew whose pull request it was judging: {}",
         run.cargo_log
+    );
+}
+
+/// The same refusal under an ambient repository selector, which defeated the guard rather than the read.
+///
+/// **This is the sibling above with one channel added, and the sibling's own comment named the hazard while
+/// the wrapper under test carried it.** That comment says a fixture built under an ambient `GIT_DIR` is not
+/// the worktree the direction believes it made — so the fixture builder was made hermetic and the wrapper
+/// was not. `GIT_DIR`, `GIT_WORK_TREE` and `GIT_INDEX_FILE` move which repository git answers about, past
+/// `current_dir` and past `-C`. Measured on this machine's git with the two pointed at a third repository:
+///
+/// ```text
+/// no selectors:     git -C gate rev-parse --show-toplevel -> .../gate    git (cwd=other) -> .../other
+/// pointed at decoy: git -C gate rev-parse --show-toplevel -> .../decoy   git (cwd=other) -> .../decoy
+/// ```
+///
+/// Both answer the decoy, so the guard's comparison passes in exactly the arrangement it exists to refuse
+/// and vouches for an equality about a tree that is neither the gate's nor the evidence's. What it would
+/// then do is what the sibling's own header says: apply this repository's law to a stranger's pull request
+/// and merge it.
+///
+/// Negative run, with the wrapper's `unset` removed:
+///
+/// ```text
+/// assertion `left == right` failed: an ambient selector made both reads answer a third repository, so the
+/// guard compared two spellings of the decoy and passed — the wrapper owes the cannot-judge class instead:
+///   left: Some(0)
+///  right: Some(2)
+/// ```
+///
+/// **`Some(0)`, not a passed guard followed by some later refusal.** The wrapper ran to completion and
+/// merged. That is the failure the guard was written for, reached by three environment variables that were
+/// removed from every git this repository builds in Rust and left in the one script standing in front of
+/// the act.
+#[test]
+fn an_ambient_repository_selector_does_not_make_two_worktrees_one() {
+    let Some(root) = workspace_root() else {
+        return;
+    };
+    let scratch = std::env::temp_dir().join(format!(
+        "tianheng-merge-workflow-ambient-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&scratch);
+    xingbiao::claim_scratch(&scratch).expect("create the fixture root");
+    let elsewhere = scratch.join("elsewhere");
+    let decoy = scratch.join("decoy");
+    for tree in [&elsewhere, &decoy] {
+        std::fs::create_dir_all(tree).expect("create a worktree");
+        // Through the builder, like every other fixture here, and for the reason the sibling records.
+        kanhe::hermetic_git::fixture(tree, "git", &["init", "-q", "-b", "main"]);
+    }
+
+    let run = run_wrapper_with_ambient(
+        &root,
+        "subjects",
+        &[],
+        Some(&elsewhere),
+        &[("GIT_DIR", &decoy.join(".git")), ("GIT_WORK_TREE", &decoy)],
+    );
+    let _ = std::fs::remove_dir_all(&scratch);
+
+    assert_eq!(
+        run.status.code(),
+        Some(2),
+        "an ambient selector made both reads answer a third repository, so the guard compared two \
+         spellings of the decoy and passed — the wrapper owes the cannot-judge class instead: {}",
+        run.stderr
+    );
+    assert!(
+        run.gh_log.is_empty(),
+        "the refusal must land before any evidence is read, as its non-ambient sibling requires: {}",
+        run.gh_log
     );
 }
 
@@ -714,6 +847,43 @@ fn every_call_names_one_repository_and_another_one_is_refused() {
     }
 }
 
+/// `GH_REPO` is a repository selector on the same side of the identity boundary as the Git selectors:
+/// without an explicit `--repo`, `gh repo view` answers it instead of the checkout. The repository read is
+/// the source passed explicitly to every later call, so an ambient value otherwise moves the whole workflow
+/// consistently and no later equality can expose the substitution.
+///
+/// Negative run, with the wrapper's `unset GH_REPO` removed:
+///
+/// ```text
+/// every gh call must name the repository resolved from the checkout, but this one does not:
+/// pr view 42 --repo other/project --json number --jq .number
+/// ```
+#[test]
+fn an_ambient_gh_repository_selector_cannot_move_the_judged_repository() {
+    let Some(root) = workspace_root() else {
+        return;
+    };
+
+    let run = run_wrapper(&root, "ambient-gh-repo", &[]);
+    assert!(
+        run.status.success(),
+        "clearing an ambient gh repository selector must preserve the accepted path: {}",
+        run.stderr
+    );
+
+    for invocation in run
+        .gh_log
+        .lines()
+        .filter(|line| !line.starts_with("repo view"))
+    {
+        assert!(
+            invocation.contains("tacticaldoll/tianheng"),
+            "every gh call must name the repository resolved from the checkout, but this one does not: \
+             {invocation}"
+        );
+    }
+}
+
 /// Only an allowlisted flag reaches the merge; every other spelling is refused before anything runs.
 ///
 /// **The property is not "these six are refused" — it is that an unlisted flag is refused by default.** This
@@ -865,7 +1035,7 @@ fn the_merge_is_pinned_to_the_head_the_gate_read() {
         .find(|line| line.starts_with("pr merge"))
         .unwrap_or_else(|| panic!("the merge must be reached:\n{}", run.gh_log));
     assert!(
-        merge.contains("--match-head-commit 81c9ef062fafee9fafe2ebfaacf68288f5554747"),
+        merge.contains("--match-head-commit feedfacedeadbeefcafebabe0123456789abcdef"),
         "the merge must pin the head the evidence came from, got {merge}"
     );
 
@@ -883,6 +1053,66 @@ fn the_merge_is_pinned_to_the_head_the_gate_read() {
         head_at < commits_at,
         "the head must be read BEFORE the commit set, or the pin fails open; gh log was:\n{}",
         run.gh_log
+    );
+}
+
+/// A head branch that cannot be read stops before the gate and the merge.
+///
+/// The exception names the release-branch-to-`main` squash, so the branch a squash comes from is evidence
+/// too. Not knowing it is not the same fact as knowing it is ordinary.
+#[test]
+fn an_unreadable_head_branch_stops_before_the_gate_and_merge() {
+    let Some(root) = workspace_root() else {
+        return;
+    };
+    let run = run_wrapper(&root, "unreadable-head-branch", &[]);
+    assert_eq!(
+        run.status.code(),
+        Some(2),
+        "an unreadable head branch must stop the wrapper; got {:?} with stderr {:?}",
+        run.status.code(),
+        run.stderr
+    );
+    assert!(
+        run.cargo_log.is_empty() && !run.gh_log.lines().any(|line| line.starts_with("pr merge")),
+        "neither the gate nor the merge may be reached:\ngh:\n{}\ncargo:\n{}",
+        run.gh_log,
+        run.cargo_log
+    );
+}
+
+/// A base that cannot be read stops before the gate and the merge.
+///
+/// The one message exception is the release-branch-to-`main` squash, so the base is evidence the gate judges
+/// by and not a convenience. Not knowing where a squash lands is not the same fact as knowing it lands
+/// somewhere ordinary: a wrapper that guessed would decide the exception by default, which is the direction
+/// the subject-only reading already got wrong.
+///
+/// Negative run: with the base's acquisition unguarded, the wrapper carried an empty value into the gate and
+/// the gate read it as a base that is not `main` — a verdict reached on a value nobody supplied.
+#[test]
+fn an_unreadable_base_stops_before_the_gate_and_merge() {
+    let Some(root) = workspace_root() else {
+        return;
+    };
+    let run = run_wrapper(&root, "unreadable-base", &[]);
+    assert_eq!(
+        run.status.code(),
+        Some(2),
+        "an unreadable base must stop the wrapper; got {:?} with stderr {:?}",
+        run.status.code(),
+        run.stderr
+    );
+    assert!(
+        run.stderr.contains("one message exception"),
+        "the refusal must say what the base decides, got {:?}",
+        run.stderr
+    );
+    assert!(
+        run.cargo_log.is_empty() && !run.gh_log.lines().any(|line| line.starts_with("pr merge")),
+        "neither the gate nor the merge may be reached:\ngh:\n{}\ncargo:\n{}",
+        run.gh_log,
+        run.cargo_log
     );
 }
 
@@ -1042,9 +1272,9 @@ fn no_temporary_file_survives_the_wrapper() {
 /// file and is the defect wearing the fix's clothes. So the controlled `gh` resolves its body the way the real
 /// tool does and records what would be written, and this reads that.
 ///
-/// Three of the four judged inputs already held this property — the subject travels as a value, the repository
-/// is resolved once, the head is pinned with `--match-head-commit` and the commit set through it — and nothing
-/// said they were one set, which is how the fourth sat here through the rounds that built this wrapper.
+/// Every other judged input already held this property — the subject travels as a value, the repository is
+/// resolved once, the head is pinned with `--match-head-commit` and the commit set through it — and nothing
+/// said they were one set, which is how the body sat here through the rounds that built this wrapper.
 #[test]
 fn the_merge_records_the_body_the_gate_judged_not_the_file_it_came_from() {
     let Some(root) = workspace_root() else {
@@ -1085,10 +1315,12 @@ fn the_merge_records_the_body_the_gate_judged_not_the_file_it_came_from() {
 
 /// A title edited while the gate ran stops the wrapper, as a cannot-judge.
 ///
-/// **The guard this exercises was shipped without one.** The wrapper judges three inputs and pins two of them
-/// by construction — the body travels as the value the gate judged, the commit set through
-/// `--match-head-commit` — and the third was captured once. Re-reading it closed that, and the controlled
-/// `gh` answered the same string on every call, so no direction could tell the guard from its absence.
+/// **The guard this exercises was shipped without one.** The wrapper pins what the merge records by
+/// construction — the body travels as the value the gate judged, the commit set through
+/// `--match-head-commit` — and what the merge is judged against has to be re-read instead. The title was
+/// captured once; re-reading it closed that, and the controlled `gh` answered the same string on every call,
+/// so no direction could tell the guard from its absence. `a_base_changed_while_the_gate_ran_stops_before_the_merge`
+/// is the same shape, found by reading this comment's own criterion against what the wrapper had grown.
 ///
 /// The class is a **cannot-judge**, not a disagreement: the gate did not find the subject wrong, it found it
 /// right against a title that no longer exists, so what the wrapper holds is a verdict about a vanished
@@ -1121,12 +1353,114 @@ fn a_title_edited_while_the_gate_ran_stops_before_the_merge() {
     );
 }
 
-/// The control: an unchanged title still reaches the merge.
+/// A base changed while the gate ran stops the wrapper, as a cannot-judge.
 ///
-/// Without it the direction above is satisfied by a wrapper that refuses every run, and the re-read would be
-/// indistinguishable from a stop-everything guard.
+/// **The base is the other end of the same relation the title is, and it was filed on the value side.** The
+/// one message exception is the release-branch-to-`main` squash, so admission to it is decided by the base
+/// and the head branch together — not by the subject, which is not a destination. The base is therefore
+/// evidence the gate judged, and `gh pr merge` takes no base of its own: it lands wherever the pull request
+/// points **at merge time**. A base edited after the gate ran leaves an approved empty-body release message
+/// landing on a destination that was never judged, and the reverse — a release triple approved, then
+/// re-pointed at a development branch — carries the exception to a squash that is not one.
+///
+/// The head branch is deliberately **not** re-read beside it. GitHub offers no way to change an existing pull
+/// request's head, and `--match-head-commit` already pins the head object; a guard for it could be made to
+/// fail only against this stub, never against the tool, so it would be a guard nothing has been seen to
+/// refuse.
+///
+/// Negative run, before the post-gate base re-read existed:
+///
+/// ```text
+/// assertion `left == right` failed: a moved base is a cannot-judge, not a disagreement; got Some(0) with stderr ""
+///   left: Some(0)
+///  right: Some(2)
+/// ```
+///
+/// Exit `0`: the wrapper reached `pr merge` and completed, recording the message it had approved for the
+/// old base. The panic's own header is left out rather than quoted, because it carries a pid and a line
+/// number of this file — a reference that moves whenever anything above it does, which is the one thing a
+/// pasted record must not acquire. The first version of this block was composed from the intention instead
+/// of pasted, and lost the `left`/`right` pair that is the actual evidence.
 #[test]
-fn an_unchanged_title_still_reaches_the_merge() {
+fn a_base_changed_while_the_gate_ran_stops_before_the_merge() {
+    let Some(root) = workspace_root() else {
+        return;
+    };
+    let run = run_wrapper(&root, "base-moved", &[]);
+    assert_eq!(
+        run.status.code(),
+        Some(2),
+        "a moved base is a cannot-judge, not a disagreement; got {:?} with stderr {:?}",
+        run.status.code(),
+        run.stderr
+    );
+    assert!(
+        run.stderr.contains("release/0.0.0") && run.stderr.contains("main"),
+        "the refusal must name both bases so an operator can see what moved, got {:?}",
+        run.stderr
+    );
+    assert!(
+        !run.gh_log.lines().any(|line| line.starts_with("pr merge")),
+        "the merge must not be reached, got {:?}",
+        run.gh_log
+    );
+}
+
+/// A head branch renamed while the gate ran stops the wrapper, as a cannot-judge.
+///
+/// **This direction exists because the argument for not having it was wrong.** The exclusion was written as
+/// *GitHub offers no way to change an existing pull request's head*, so a guard could only ever refuse
+/// against a fixture — which `AGENTS.md` does not count as a guard. GitHub cannot **repoint** an open pull
+/// request at a different head, but renaming a branch retargets the pull requests on it: `headRefName` moves
+/// while `headRefOid` does not, so `--match-head-commit` pins the object and observes nothing about the name.
+///
+/// What the name decides is the one message exception, which names both endpoints. A
+/// `release/X.Y.Z` -> `main` squash approved with an empty body, whose head branch is then renamed, lands
+/// that empty body from a branch that is no longer a release branch. The exception can only be **lost** this
+/// way and never gained — the gate refuses an empty body up front when the head is not `release/X.Y.Z` — so
+/// this is not a false negative; it is a verdict about an origin the merge will not have.
+///
+/// Negative run, before this re-read existed:
+///
+/// ```text
+/// assertion `left == right` failed: a renamed head branch is a cannot-judge, not a disagreement; got Some(0) with stderr ""
+///   left: Some(0)
+///  right: Some(2)
+/// ```
+#[test]
+fn a_head_branch_renamed_while_the_gate_ran_stops_before_the_merge() {
+    let Some(root) = workspace_root() else {
+        return;
+    };
+    let run = run_wrapper(&root, "head-branch-moved", &[]);
+    assert_eq!(
+        run.status.code(),
+        Some(2),
+        "a renamed head branch is a cannot-judge, not a disagreement; got {:?} with stderr {:?}",
+        run.status.code(),
+        run.stderr
+    );
+    assert!(
+        run.stderr.contains("fix/some-repair") && run.stderr.contains("renamed/after-the-gate"),
+        "the refusal must name both branches so an operator can see what moved, got {:?}",
+        run.stderr
+    );
+    assert!(
+        !run.gh_log.lines().any(|line| line.starts_with("pr merge")),
+        "the merge must not be reached, got {:?}",
+        run.gh_log
+    );
+}
+
+/// The control: a pull request none of whose re-read inputs moved still reaches the merge.
+///
+/// Without it every direction above is satisfied by a wrapper that refuses every run, and a re-read would be
+/// indistinguishable from a stop-everything guard. It is the control for all three — title, base and head
+/// branch — because they sit on one path, so a wrapper refusing everything would satisfy any one of them
+/// alone. It was named for the title while the title was the only one, and the name is what a `PINNED-BY`
+/// carries into three scenarios: an identifier is a claim with no room for a caveat.
+#[test]
+fn an_unmoved_pull_request_still_reaches_the_merge() {
     let Some(root) = workspace_root() else {
         return;
     };
@@ -1134,7 +1468,7 @@ fn an_unchanged_title_still_reaches_the_merge() {
     assert_eq!(
         run.status.code(),
         Some(0),
-        "an unchanged title must not be refused; stderr {:?}",
+        "a pull request none of whose re-read inputs moved must not be refused; stderr {:?}",
         run.stderr
     );
     assert!(
@@ -1426,7 +1760,8 @@ fn the_workflow_reader_decides_every_shape_of_the_block() {
             2,
             1,
         ),
-        // A column-0 comment inside the block: the round-3 defect, kept as a row so it cannot come back.
+        // A column-0 comment inside the block: a defect this reader once had, kept as a row so it cannot
+        // come back.
         (
             "a column-0 comment does not end the block",
             "name: ci\n\njobs:\n  alpha:\n    name: A\n# --- divider ---\n  beta:\n    name: B\n    if: x\n"
@@ -2253,5 +2588,73 @@ fn shell_strictness_is_declared_once_for_the_whole_workflow() {
         lax.is_empty(),
         "the workflow declares its shell strictness once, and these lines decide it again:\n{}",
         lax.join("\n")
+    );
+}
+
+/// What CI said is read last, after every other guard and immediately before the merge.
+///
+/// **A rollup is one end of a relation, not a value being recorded.** The other end is the moment the merge
+/// happens, and nothing downstream reads the rollup's value — so a read placed early buys no record and
+/// leaves a window. In it, a required check re-run on the SAME head turns the rollup red while every guard
+/// after it still passes: `--match-head-commit` pins an object that did not move, and the title, base and
+/// head branch did not move either. The wrapper's own sorting criterion puts a judged relation with the
+/// re-reads, and this one was filed with the recorded values.
+///
+/// This direction asserts the position in the log rather than the presence of the call, because presence
+/// was never the question — the call was always there, in the wrong place.
+///
+/// **It asserts adjacency rather than an enumeration, and the enumeration is what it replaced.** The first
+/// form listed the wrapper's five other reads and required each to come before the rollup, taking each
+/// one's FIRST occurrence — and three of them occur twice, an early capture and a post-gate re-read. So
+/// the comparison was against the early capture, and moving the rollup to *after* the changed-file count
+/// but *before* the three re-reads — one of the positions this ordering exists to exclude — satisfied all
+/// five while three `pr view` calls still followed the rollup. The negative run recorded for that form
+/// moved the rollup a slot further back and went red on the changed-file count, which is a weaker property
+/// wearing the same colour.
+///
+/// Adjacency has neither defect: it says the thing the requirement says, it needs no list to keep in step
+/// with the wrapper's reads, and every read the wrapper makes is before the rollup by construction rather
+/// than by enumeration. The second assertion is the *once* half — a rollup read twice would be two calls,
+/// and only the later one could be adjacent, so the count is asserted rather than inferred.
+///
+/// The residual is stated where the other three state theirs: a client-side read cannot be atomic with the
+/// act it precedes, and `gh` offers no server-decided precondition for checks. What the order buys is that
+/// the window is this block's own API calls rather than those plus a whole `cargo test`.
+#[test]
+fn what_ci_said_is_read_last_before_the_merge() {
+    let Some(root) = workspace_root() else {
+        return;
+    };
+    let run = run_wrapper(&root, "subjects", &[]);
+    assert!(
+        run.status.success(),
+        "controlled workflow failed:\nstdout:\n{}\nstderr:\n{}",
+        run.stdout,
+        run.stderr
+    );
+    let lines: Vec<&str> = run.gh_log.lines().collect();
+    let rollup: Vec<usize> = lines
+        .iter()
+        .enumerate()
+        .filter(|(_, line)| line.contains("--json statusCheckRollup"))
+        .map(|(at, _)| at)
+        .collect();
+    assert_eq!(
+        rollup.len(),
+        1,
+        "the rollup is read once, there being no value to record from an earlier read; gh log was:\n{}",
+        run.gh_log
+    );
+    let merge_at = lines
+        .iter()
+        .position(|line| line.starts_with("pr merge"))
+        .unwrap_or_else(|| panic!("the merge must be reached:\n{}", run.gh_log));
+    assert_eq!(
+        merge_at,
+        rollup[0] + 1,
+        "the rollup must be the LAST call before the merge, and {} call(s) sit between them; gh log \
+         was:\n{}",
+        merge_at.saturating_sub(rollup[0] + 1),
+        run.gh_log
     );
 }

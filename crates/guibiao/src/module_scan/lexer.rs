@@ -167,6 +167,15 @@ fn word_before(bytes: &[u8], at: usize) -> Option<(usize, &[u8])> {
 
 /// Whether the macro invocation at `bang` is a **transparent control-flow macro** (specifically
 /// `cfg_if!`), whose structural contents should be preserved during macro stripping.
+///
+/// **`r#cfg_if!` is the same macro, and this reader answers so because the walk runs backwards.**
+/// `cfg_if` is not a keyword, so the prefix escapes nothing and only changes the spelling — measured
+/// against rustc 1.96.0, edition 2021, `--crate-type lib`, an item declared inside `r#cfg_if! { … }` is
+/// produced and can be referenced. [`word_before`] steps back over identifier bytes and `#` is not one, so
+/// it stops after the prefix and reads `cfg_if`. That is a property of the direction of travel rather than
+/// a decision, which is why it is written down: a forward reader here would have to consume the prefix
+/// with its segment explicitly, as this crate's attribute-name readers do. 渾儀 compares through `syn` and
+/// did not, which `cfg_if_transparency_conformance` now holds all three to.
 fn is_transparent_macro_name(bytes: &[u8], bang: usize) -> bool {
     word_before(bytes, bang).is_some_and(|(_, word)| word == b"cfg_if")
 }
@@ -548,10 +557,10 @@ pub(super) enum UseStatementScan {
 }
 
 /// Classify what follows a keyword-confirmed `use` at `bytes[i]` (see [`keyword_starts_at`]).
-/// Shared by `use_statements` (symbol_scan.rs, flat glob detection) and `use_trees_with_modules`
-/// (use_scan.rs's inline-module-aware walk) — the one place both interpret "what is a `use`
-/// statement's body" identically; each still owns its own surrounding loop, since their
-/// module/brace tracking around this scan genuinely differs.
+/// Shared by `use_statements` and `pub_use_statements` (symbol_scan.rs, flat glob detection and the
+/// re-export closure's feed) and `use_trees_with_modules` (use_scan.rs's inline-module-aware walk) — the
+/// one place all three interpret "what is a `use` statement's body" identically; each still owns its own
+/// surrounding loop, since their module/brace and visibility tracking around this scan genuinely differ.
 pub(super) fn scan_use_statement(bytes: &[u8], source: &str, i: usize) -> UseStatementScan {
     let start = i + 3;
     // A precise-capturing bound `-> impl Trait + use<'a, T>` (stable Rust) puts a `use` token

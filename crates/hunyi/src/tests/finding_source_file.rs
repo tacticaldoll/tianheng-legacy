@@ -41,8 +41,7 @@ pub(super) fn module_file_is_the_file_module_source() {
 /// A mutually-exclusive `#[cfg]` per-platform shim — an inline arm plus a file-form sibling
 /// arm whose file is absent on this build — now resolves via the inline arm instead of hard
 /// erroring on the sibling's missing file, aligning `descend` with `scan::resolve_child_modules`'s
-/// identical `#[cfg]`-tolerance for a missing plain module file (previously the two walkers
-/// silently disagreed on this exact shape — the 0.2.2 lesson).
+/// identical `#[cfg]`-tolerance for a missing plain module file.
 #[test]
 pub(super) fn descend_tolerates_a_cfg_gated_missing_sibling_when_an_inline_arm_resolves() {
     let file = resolve_file(
@@ -282,10 +281,9 @@ pub(super) fn a_cfg_attr_decorated_dual_backed_declaration_is_still_an_ambiguity
 
 /// The crate-wide walk (`scan::resolve_child_modules`, behind trait-impl locality, forbidden marker,
 /// unsafe confinement, and signature-coupling's own alias/extern scan) reacts on the same shape as
-/// the anchored descent — the two walkers must not disagree on it, the 0.2.2 lesson that their
-/// missing-file policies once silently had. The dual-backed module here is unrelated to the
-/// boundary's own trait, so this also pins the wider blast radius: a crate whose module graph cannot
-/// be resolved cannot be judged, rather than the one module being quietly excluded.
+/// the anchored descent, ensuring both walkers share one missing-file policy. The dual-backed module
+/// here is unrelated to the boundary's own trait, so this also pins the wider blast radius: a crate
+/// whose module graph cannot be resolved cannot be judged, rather than the one module being quietly excluded.
 #[test]
 pub(super) fn the_crate_wide_walk_reacts_on_a_dual_backed_module_elsewhere_in_the_crate() {
     let err = locality_findings(
@@ -746,7 +744,7 @@ pub(super) fn cfg_mixed_plain_and_path_remapped_file_form_siblings_are_both_gove
 #[test]
 pub(super) fn a_cfg_mixed_single_module_violation_names_the_offending_sibling_not_the_first_branch()
 {
-    // Round-5 finding: resolve_module_root unions every surviving branch's ITEMS (fixed above —
+    // `resolve_module_root` unions every surviving branch's ITEMS (fixed above —
     // the violation still fires) but used to always report `branches[0]`'s FILE regardless of
     // which branch actually produced the finding. Here the plain, clean `platform;` arm is
     // declared FIRST (branches[0]) and the offending #[path]-remapped `win_platform.rs` arm is
@@ -791,7 +789,7 @@ pub(super) fn a_cfg_mixed_single_module_violation_names_the_offending_sibling_no
 
 #[test]
 pub(super) fn a_cfg_split_module_does_not_let_one_arms_use_alias_shadow_the_others() {
-    // Round-6 finding: module_findings called collect_uses ONCE over the flattened union of every
+    // `module_findings` called `collect_uses` ONCE over the flattened union of every
     // #[cfg] branch's items, so two mutually-exclusive branches each declaring `use <different
     // path> as Handle;` collided in one shared use-map -- the branch unioned LAST silently
     // overwrote the earlier branch's mapping, misresolving the FIRST branch's own bare `Handle`
@@ -836,15 +834,12 @@ pub(super) fn a_cfg_split_module_does_not_let_one_arms_use_alias_shadow_the_othe
 
 #[test]
 pub(super) fn a_cfg_sibling_child_module_does_not_shadow_a_different_branchs_own_extern_reexport() {
-    // Round-7 finding: module_findings still computed child_mods/externs_type/externs_reexport/
-    // renames_bare ONCE over the flattened union of every #[cfg] branch's items -- the identical
-    // conflation round 6 fixed for the use-map, left unfixed here. The "u" branch (platform.rs)
+    // `module_findings` must not compute child_mods/externs_type/externs_reexport/renames_bare
+    // over the flattened union of mutually-exclusive #[cfg] branches. The "u" branch (platform.rs)
     // declares a LOCAL `mod net { .. }`; the mutually-exclusive "w" branch (win_platform.rs) has
-    // no local `mod net` at all and its own `pub use net::Something;` genuinely names the real
-    // extern crate `net` -- verified against real rustc/cargo (win_platform.rs alone, with the
-    // `net` dependency declared, compiles cleanly). Before the fix, the "u" branch's local `mod
-    // net` silently suppressed the "w" branch's own genuine extern re-export, since child_mods
-    // (computed over the union) always contained "net".
+    // no local `mod net` at all and its `pub use net::Something;` genuinely names the extern
+    // crate `net` (verified against real rustc/cargo). The "u" branch's local `mod net` must not
+    // suppress the "w" branch's extern re-export.
     let out = findings_with_deps(
         "cfg-sibling-childmod-shadow",
         &[
@@ -875,17 +870,11 @@ pub(super) fn a_cfg_sibling_child_module_does_not_shadow_a_different_branchs_own
 #[test]
 pub(super) fn a_cfg_split_module_with_two_inline_siblings_does_not_let_one_arms_use_alias_shadow_the_others()
  {
-    // Round-8 finding: `descend()` used to MERGE every same-named inline `#[cfg]` occurrence into
-    // one shared `Branch` before this whole per-file fix (round 6) even had a chance to run, so
-    // the round-6/7 "per-file" use-map/shadow-set grouping was structurally a no-op for two INLINE
-    // siblings — they always shared one `Branch`, one merged items list, one merged use-map,
-    // regardless of which file's identity that fix grouped by. `descend()` now gives each inline
-    // occurrence its OWN branch (mirroring the file-form loop), but two inline siblings still
-    // share the identical ENCLOSING file (lib.rs here) — so `resolve_module_items_with_files`
-    // pairs each item with a BRANCH INDEX, not just a file, and `module_findings` groups by that
-    // index. This is the identical `a_cfg_split_module_does_not_let_one_arms_use_alias_shadow_the_others`
-    // scenario (round 6), but with BOTH arms declared INLINE in the SAME file rather than as two
-    // separate file-form siblings — exercising the file-keyed grouping's own blind spot.
+    // Two inline `#[cfg]` siblings declared in the SAME enclosing file (lib.rs here) share that
+    // file's identity. `resolve_module_items_with_files` pairs each item with a BRANCH INDEX,
+    // not just a file, and `module_findings` groups by that index so each inline sibling receives
+    // its own use-map. Both arms are declared inline in the same file rather than as separate
+    // files, exercising the file-keyed grouping's blind spot.
     let out = findings(
         "cfg-split-inline-inline-use-alias-collision",
         &[
@@ -917,13 +906,10 @@ pub(super) fn a_cfg_split_module_with_two_inline_siblings_does_not_let_one_arms_
 #[test]
 pub(super) fn a_cfg_split_module_with_two_inline_siblings_child_module_does_not_shadow_the_others_extern_reexport()
  {
-    // Round-8 finding, the childmod/extern-reexport analogue of the test above (round 7's own
-    // file-form version is `a_cfg_sibling_child_module_does_not_shadow_a_different_branchs_own_extern_reexport`).
-    // The "u" arm declares a LOCAL `mod net { .. }` inline; the mutually-exclusive "w" arm — also
-    // inline, sharing the identical lib.rs — has no local `mod net` at all, so its own `pub use
-    // net::Something;` genuinely names the real extern crate `net`. Grouping by file alone would
-    // let the "u" arm's local `mod net` suppress the "w" arm's genuine extern re-export merely
-    // because both share one file; grouping by branch index keeps them apart.
+    // The childmod/extern-reexport analogue for inline siblings: the "u" arm declares a LOCAL
+    // `mod net { .. }` inline; the mutually-exclusive "w" arm — also inline in lib.rs — has no local
+    // `mod net`, so its `pub use net::Something;` genuinely names the extern crate `net`. Grouping
+    // by branch index ensures the "u" arm's local mod does not shadow the "w" arm's re-export.
     let out = findings_with_deps(
         "cfg-split-inline-inline-childmod-shadow",
         &[(
@@ -949,7 +935,7 @@ pub(super) fn a_cfg_split_module_with_two_inline_siblings_child_module_does_not_
 
 #[test]
 pub(super) fn a_bare_cfg_negated_sibling_child_module_does_not_shadow_the_others_extern_reexport() {
-    // Round-9 finding, in `build_file_scopes` of `crates/hunyi/src/exposure.rs`: rounds 6-8 fixed child_mods
+    // In `build_file_scopes` of `crates/hunyi/src/exposure.rs`. Earlier repairs fixed child_mods
     // being computed once over the UNION of every #[cfg]-*branch*'s items (a branch = a distinct
     // candidate resolution of the governed MODULE ITSELF, produced by `descend()`'s per-occurrence
     // splitting). This finding is one level finer: `#[cfg(unix)] mod serde;` and
@@ -984,11 +970,9 @@ pub(super) fn a_bare_cfg_negated_sibling_child_module_does_not_shadow_the_others
 
 #[test]
 pub(super) fn a_cfg_if_sibling_child_module_does_not_shadow_the_other_arms_extern_reexport() {
-    // The `cfg_if!` form of the round-9 finding above: `mod serde;` and `pub use serde::Value;`
-    // are declared in two arms of the SAME invocation, flattened into one shared item list by
-    // `flatten_transparent_macro_items` before `module_findings` ever sees them -- so, like the
-    // bare-#[cfg] form, there is no branch split to lean on and `child_module_names` must instead
-    // recognize the two arms as mutually exclusive on its own.
+    // `cfg_if!` form: `mod serde;` and `pub use serde::Value;` are declared in two arms of the
+    // SAME invocation, flattened into one shared item list before `module_findings` sees them.
+    // `child_module_names` recognizes the two arms as mutually exclusive on its own.
     let out = findings_with_deps(
         "cfg-if-sibling-childmod-shadow",
         &[
@@ -1014,15 +998,10 @@ pub(super) fn a_cfg_if_sibling_child_module_does_not_shadow_the_other_arms_exter
 
 #[test]
 pub(super) fn a_bare_cfg_negated_sibling_child_module_does_not_shadow_a_facades_extern_reexport() {
-    // The crate-wide-closure sibling of the two round-9 findings above: `crate::a`'s two
-    // mutually-exclusive sibling items are reached only THROUGH a local facade
-    // (`crate::domain`'s `pub use crate::a::Value;`), not directly by the governed module itself
-    // -- so this exercises `scan.rs`'s `collect_reexports`/`walk_module`, not `module_findings`'s
-    // own direct-head resolution. `collect_reexports` computed its child-module shadow the
-    // identical cfg-blind way `module_findings` used to, so `crate::a`'s own local `mod serde`
-    // (cfg(unix)) must not suppress recording `crate::a::Value -> serde::Value` in the crate-wide
-    // reexport closure just because a mutually-exclusive `cfg(not(unix))` sibling in the SAME
-    // file happens to declare it.
+    // Re-export closure through a facade: `crate::a`'s two mutually-exclusive sibling items are
+    // reached through `crate::domain`'s facade (`pub use crate::a::Value;`). `collect_reexports`
+    // must recognize that `crate::a`'s local `mod serde` (cfg(unix)) does not suppress recording
+    // `crate::a::Value -> serde::Value` for the `cfg(not(unix))` sibling in the same file.
     let out = findings_with_deps(
         "cfg-negated-sibling-childmod-shadow-facade",
         &[
@@ -1050,15 +1029,10 @@ pub(super) fn a_bare_cfg_negated_sibling_child_module_does_not_shadow_a_facades_
 #[test]
 pub(super) fn a_mutually_exclusive_sibling_child_module_does_not_shadow_a_rename_aliased_reexport()
 {
-    // The crate-root-rename-alias sibling of the round-9 finding above (found by an independent
-    // adversarial review of the fix, not the original audit): `renames_bare` -- the shadow applied
-    // to a bare head that resolves through a crate-root `extern crate X as Y;` alias, per
-    // `extern_verbatim_renamed`'s rename-map-before-externs-set precedence -- was left cfg-blind
-    // even after `mod_decls`/`reexport_externs_for` made the plain extern-name shadow cfg-aware.
-    // `#[cfg(unix)] mod wc;` beside `#[cfg(not(unix))] pub use wc::Value;`, with a crate-root
-    // `extern crate serde as wc;` rename, is never compiled together (verified against real rustc:
-    // api.rs alone compiles cleanly on every platform) -- so the unix arm's own local `mod wc` must
-    // not shadow the not(unix) arm's own genuine `wc::Value` (== `serde::Value`) re-export.
+    // Renamed alias shadow: `#[cfg(unix)] mod wc;` beside `#[cfg(not(unix))] pub use wc::Value;`,
+    // with a crate-root `extern crate serde as wc;` rename, is never compiled together (verified
+    // against real rustc). The unix arm's local `mod wc` must not shadow the not(unix) arm's
+    // genuine `wc::Value` (== `serde::Value`) re-export.
     let out = findings_with_deps(
         "cfg-negated-sibling-childmod-shadow-rename-alias",
         &[
@@ -1119,13 +1093,9 @@ pub(super) fn a_mutually_exclusive_sibling_child_module_does_not_shadow_a_rename
 
 #[test]
 pub(super) fn async_subtree_observes_both_arms_of_a_two_inline_sibling_cfg_split_anchor() {
-    // Round-8 finding (b): when the async-exposure subtree boundary is anchored DIRECTLY at a
-    // module reached through two mutually-exclusive INLINE `#[cfg]` siblings sharing one file,
-    // `walk_subtree_modules` must observe EACH arm's own async fn — never merging the two arms'
-    // items into one shared list (which happened to still union both fns correctly under the old
-    // pre-round-8 `descend()`, since shape-only observation over a union list drops nothing) nor
-    // dropping either arm now that `descend()` gives each its own `Branch` and its own
-    // `collect_subtree` call (two entries sharing one file, each with only its own arm's items).
+    // When the async-exposure subtree boundary is anchored directly at a module reached through
+    // two mutually-exclusive inline `#[cfg]` siblings sharing one file, `walk_subtree_modules`
+    // must observe each arm's own async fn without merging or dropping either arm.
     let files = &[(
         "lib.rs",
         "#[cfg(feature = \"u\")] pub mod platform { pub async fn unix_seam() {} }\n\
@@ -1470,5 +1440,46 @@ pub(super) fn path_remapped_semantic_module_is_governed_at_its_target_not_the_or
     assert!(
         file.ends_with("weird.rs"),
         "the reaction is in the #[path] target weird.rs, never the conventional orphan domain.rs: {file}"
+    );
+}
+
+#[test]
+pub(super) fn a_raw_spelled_negation_is_the_negation_and_still_lifts_the_sibling_shadow() {
+    // **`r#not` is `not`, and the carve-out above is a suppression this reader must lift.**
+    // `provably_mutually_exclusive` decides whether a same-named child `mod` genuinely shadows a
+    // `pub use`'s own bare head; when it answers wrongly, the shadow STANDS and the re-export is
+    // never resolved against the extern prelude at all. So a spelling this reader misses does not
+    // over-report — it drops a genuine exposure, which is the one outcome the contract forbids.
+    //
+    // Measured against rustc 1.96.0, edition 2021, `--crate-type lib`, with `a.rs` absent:
+    //
+    //   #[cfg(r#not(unix))]   pub mod a;   compiles          -- the predicate is FALSE on linux
+    //   #[cfg(r#not(windows))] pub mod a;  E0583             -- the predicate is TRUE on linux
+    //   #[cfg(not(windows))]  pub mod a;   E0583, verbatim   -- the control
+    //
+    // The raw spelling and the plain one answer identically, so `r#not(unix)` IS the negation of
+    // `unix` and the pair below never compiles together — exactly the premise the sibling test
+    // above states for the plain spelling.
+    let out = findings_with_deps(
+        "raw-spelled-negation-sibling-childmod-shadow",
+        &[
+            ("lib.rs", "pub mod api;\n"),
+            (
+                "api.rs",
+                "#[cfg(unix)]\nmod serde;\n#[cfg(r#not(unix))]\npub use serde::Value;\n",
+            ),
+            ("api/serde.rs", "pub struct Local;\n"),
+        ],
+        "crate::api",
+        &["serde"],
+        &["serde"],
+    )
+    .unwrap();
+    assert_eq!(
+        out,
+        ["serde::Value exposed by pub use crate::api::Value"],
+        "the r#not(unix) arm's own genuine extern re-export must react, exactly as the not(unix) \
+         spelling does: a raw identifier changes a spelling and not the name it spells, so the \
+         unix-gated mod serde does not shadow it: {out:?}"
     );
 }

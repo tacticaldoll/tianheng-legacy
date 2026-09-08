@@ -1,4 +1,4 @@
-use crate::reading::{Sep, backticked, backticked_by_paragraph, date, fields};
+use crate::reading::{Sep, backticked, backticked_by_paragraph, date, fields, marked_spans};
 use crate::refusal::Kind;
 
 /// Both ways [`fields`] refuses, and the one way it answers.
@@ -212,4 +212,66 @@ fn a_span_wrapping_a_line_pairs_inside_its_paragraph() {
     assert!(backticked_by_paragraph("no markers at all").is_empty());
     // The refusing reading is unchanged for the three consumers that want it.
     assert!(backticked("clause", "a `--format").is_err());
+}
+
+/// A mark encloses a phrase, and an unpaired marker encloses nothing.
+///
+/// **Parity is not membership, and the gap between them is a false negative.** A caller deciding *is this
+/// phrase marked* by the parity of the markers before it answers yes for every phrase following a marker
+/// that closes nothing — so one stray marker suppresses every finding after it in the passage. Measured over
+/// this repository's own Markdown: a paragraph opening a fenced block has an odd count by construction, which
+/// made the whole of its remaining text read as quoted.
+///
+/// The subject is a phrase's *position*, so each case names where the phrase sits and what encloses it.
+#[test]
+fn a_mark_encloses_a_phrase_and_an_unpaired_marker_encloses_nothing() {
+    let inside = |text: &str, at: usize| {
+        marked_spans(text)
+            .is_some_and(|spans| spans.iter().any(|span| span.start <= at && at < span.end))
+    };
+
+    // A closed pair of either mark encloses what is between them, and nothing outside it.
+    let backticks = "a `held` and b held";
+    assert!(inside(
+        backticks,
+        backticks.find("held").expect("the marked one")
+    ));
+    assert!(!inside(
+        backticks,
+        backticks.rfind("held").expect("the bare one")
+    ));
+    let emphasis = "a *held* and b held";
+    assert!(inside(
+        emphasis,
+        emphasis.find("held").expect("the marked one")
+    ));
+    assert!(!inside(
+        emphasis,
+        emphasis.rfind("held").expect("the bare one")
+    ));
+
+    // Bold is not a mark of this kind: it emphasises a sentence, and a sentence containing the phrase is
+    // still asserting it. The doubles are masked, so what remains pairs on its own.
+    let bold = "**a sentence saying held** and *held* again";
+    assert!(!inside(bold, bold.find("held").expect("the bold one")));
+    assert!(inside(
+        bold,
+        bold.rfind("held").expect("the emphasised one")
+    ));
+
+    // A marker inside a backticked span is masked with it, so it leaves no lone marker behind.
+    assert!(marked_spans("`a*b` and *held*").is_some());
+
+    // An unpaired marker of either class answers `None` — undecidable, which a caller reads as nothing
+    // marked. Parity would have called the trailing phrase quoted in all three.
+    for text in [
+        "a stray ` marker precedes held",
+        "a stray * marker precedes held",
+        "``` a fence opens and held follows",
+    ] {
+        assert!(
+            marked_spans(text).is_none(),
+            "one marker closes nothing here, so no pairing of this passage is the document's: {text:?}"
+        );
+    }
 }

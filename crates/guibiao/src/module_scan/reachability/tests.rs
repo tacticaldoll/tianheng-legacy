@@ -380,7 +380,7 @@ fn mixed_direct_and_conditional_path_attrs_union_both_sources_regardless_of_orde
 
 #[test]
 fn stacked_cfg_attr_path_only_targets_are_governed_without_a_plain_file() {
-    // The 0.3.1 audit trigger, reconstructed at the reachability-walk level: a single `pub mod
+    // The 0.4.0 audit trigger, reconstructed at the reachability-walk level: a single `pub mod
     // imp;` decorated with TWO STACKED `#[cfg_attr(.., path = ..)]` attributes, one per platform,
     // jointly exhaustive (`unix` / `not(unix)`) — every real rustc build compiles cleanly
     // through exactly one target, and neither a plain `imp.rs` nor `imp/mod.rs` exists (nor is

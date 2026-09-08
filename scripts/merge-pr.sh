@@ -26,6 +26,32 @@
 # A merge made in the GitHub web UI reaches no wrapper at all; that is a declared bound, not an oversight.
 set -Eeuo pipefail
 
+# **Ambient repository selectors are cleared before anything reads a repository.**
+#
+# `GIT_DIR`, `GIT_WORK_TREE` and `GIT_INDEX_FILE` move WHICH repository a git command acts on, past
+# `current_dir` and past `-C`. `kanhe::hermetic_git::hermetic` removes them for every git this repository
+# builds in Rust, and its doc says why in so many words; this wrapper — standing in front of the one
+# irreversible act — inherited them.
+# `GH_REPO` moves which repository an otherwise implicit `gh` command acts on past that same current
+# directory. The first `gh repo view` below supplies its answer explicitly to every later call, so an ambient
+# value would move the whole workflow consistently and leave no later mismatch to expose the substitution.
+#
+# What they defeat is the guard below, not merely a read. That guard compares the worktree holding this
+# wrapper's gate against the worktree its evidence comes from, so that a wrapper invoked by absolute path
+# from another checkout cannot judge one repository's pull request by another repository's law. Measured on
+# this machine's git, with the two pointed at a third repository:
+#
+#   no selectors:      git -C gate rev-parse --show-toplevel -> .../gate    git (cwd=other) -> .../other
+#   pointed at decoy:  git -C gate rev-parse --show-toplevel -> .../decoy   git (cwd=other) -> .../decoy
+#
+# Both answer the decoy, so the comparison PASSES in exactly the arrangement it was written to refuse, and
+# it vouches for an equality about a tree that is neither the gate's nor the evidence's. `gh` resolves its
+# repository through the local remote as well, which is why this is cleared here rather than at the guard.
+#
+# The configuration channels are not in scope and that is deliberate rather than an omission: this script's
+# git calls are `rev-parse --show-toplevel`, which configuration does not move. The selectors do.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GH_REPO
+
 usage() {
     printf 'usage: %s <pr-number> --body-file <path> [--subject <text>] [gh args…]\n' "${0##*/}" >&2
     printf '  The subject defaults to the pull request title, which is what the rule requires anyway.\n' >&2
@@ -214,9 +240,24 @@ while (($#)); do
     #
     # **What it no longer does is bypass CI, and the arm used to be reasoned from that.** It said this was
     # consistent with *whether CI is green stays a human's call*; `require_ci_green` refuses a red or
-    # unfinished rollup before `gh` is reached, so passing `--admin` to force a red merge through this path
-    # does not work and is not meant to. Use the web UI for that, and meet no gate at all — which is the
-    # declared bound the header names, not a loophole this arm opens.
+    # unfinished rollup, so passing `--admin` to force a red merge through this path does not work and is
+    # not meant to. Use the web UI for that, and meet no gate at all — which is the declared bound the
+    # header names, not a loophole this arm opens.
+    #
+    # **That sentence used to say `before gh is reached` and rest the whole claim on it, which is a claim
+    # about an ordering rather than about the flag.** It was true of the read and not of the merge: the
+    # rollup was read among the guards above the post-gate block, so a required check re-run on the same
+    # head could turn it red with every later guard still passing. The read is the last guard now, which is
+    # what makes the sentence about the flag again — and the residual is the declared post-gate bound rather
+    # than this arm.
+    #
+    # **Where the flag reaches at all is measured rather than assumed, because a review read it as a
+    # privilege escalation.** Asked of this repository on 2026-09-08: the development base every squash
+    # lands on answers `404 Branch not protected`, so there are no required checks there to bypass; and the
+    # release base is protected with seven required checks and `enforce_admins` **enabled**, so GitHub
+    # refuses an administrator's bypass of them. The flag reaches required reviews, which is the arm above,
+    # and reaches no check on either base. That is a fact about this repository's settings rather than about
+    # `gh`, so it is stated with its date and re-asked rather than trusted.
     #
     # It is the only flag admitted here, and the criterion above is why. `--delete-branch` shared this arm
     # with no sentence of its own: it changes neither whether the merge proceeds, nor what it records, nor
@@ -344,6 +385,17 @@ fi
 title=$(gh pr view "$pr_number" --repo "$repository" --json title --jq .title) || cannot_judge \
     "cannot read pull request $pr_number's title, so whether the subject is that title cannot be decided"
 : "${subject:=$title}"
+# The base the squash lands on. `AGENTS.md` states the one message exception as the release-branch-to-`main`
+# squash, and a subject is not a destination — deciding it on the subject alone made the exception's identity a
+# spelling any branch could write. The gate takes the base as evidence, exactly as it takes the title.
+base=$(gh pr view "$pr_number" --repo "$repository" --json baseRefName --jq .baseRefName) || cannot_judge \
+    "cannot read pull request $pr_number's base branch, so whether this squash is the one message exception \
+cannot be decided"
+# And the branch it comes from. The contract names **both** endpoints — the release-branch-to-`main` squash —
+# and taking only the destination left the exception reachable from any branch onto `main`.
+head_branch=$(gh pr view "$pr_number" --repo "$repository" --json headRefName --jq .headRefName) || cannot_judge \
+    "cannot read pull request $pr_number's head branch, so whether this squash is the one message exception \
+cannot be decided"
 # The head the gate is about to read its evidence from, captured BEFORE the commit set — the order is the guard.
 #
 # What this closes: the gate judges the body against the pull request's commit subjects as they are while it
@@ -601,6 +653,8 @@ gate_output=$(TIANHENG_GATE_VERDICT=$verdict_file \
     TIANHENG_MERGE_TITLE=$title \
     TIANHENG_MERGE_COMMITS=$commits \
     TIANHENG_MERGE_BODY=$body \
+    TIANHENG_MERGE_BASE=$base \
+    TIANHENG_MERGE_HEAD=$head_branch \
     cargo test --manifest-path "$repo/Cargo.toml" -p kanhe --test merge_message \
     -- --exact the_squash_message_is_the_pull_request_it_records 2>&1) || {
     printf '%s\n' "$gate_output" >&2
@@ -617,24 +671,33 @@ gate_output=$(TIANHENG_GATE_VERDICT=$verdict_file \
 }
 require_one_pass "$gate_output"
 require_a_verdict
-require_ci_green
 require_changed_files
 
-# The title is re-read, because it is the OTHER END OF A RELATION rather than a value being recorded.
+# The title, the base and the head branch are re-read, because each is the OTHER END OF A RELATION rather
+# than a value being recorded.
 #
-# This wrapper judges three inputs and treated them two ways, each with a reason of its own. The body travels
-# as the VALUE the gate judged, so a rewrite between the two cannot reach the record. The commit set is one
-# end of `body == their concatenation`, so a push in between makes the judged relation false and
-# `--match-head-commit` refuses. `subject == title` is a relation too — and the title was captured once and
-# never looked at again, so an edit during the gate left the merge recording a subject that is no longer the
-# title, which is the disagreement the rule exists to prevent. Sorted by the wrapper's own criterion, it was
-# filed on the wrong side.
+# The wrapper's judged inputs divide by that one question, and the division is the criterion rather than a
+# tally: an input the merge RECORDS travels as the value the gate saw, and an input the merge is JUDGED
+# AGAINST has to still hold when the merge happens. The body is recorded, so it travels as a value and a
+# rewrite between the two cannot reach the record. The commit set is one end of `body == their
+# concatenation`, so a push in between makes the judged relation false and `--match-head-commit` refuses.
+#
+# `subject == title` is a relation, and so is the release exception's `base` — `gh pr merge` takes no base of
+# its own and lands wherever the pull request points at merge time, so a base edited after the gate ran
+# leaves an approved empty-body release message landing on a destination nothing judged, and carries the
+# exception to a squash that is not one. Both were captured once and never looked at again. Sorted by the
+# wrapper's own criterion, both were filed on the wrong side; the title was moved first and the base was left
+# behind by the same reading that moved it.
+#
+# All three are read the same way, and an earlier version of this comment argued the head branch out of the
+# set on a premise that does not hold — see the re-read itself below.
 #
 # **This narrows the window; it does not close it, and the difference is the point.** `--match-head-commit`
 # is decided by the server, atomically. `gh` offers no `--match-title`, so a client-side re-read shrinks the
-# exposure from a whole `cargo test` — minutes on a cold target directory — to one API call, and a change
-# inside that call still lands. The residue is a declared bound of `repository-checks`, beside the one for a
-# merge made outside this wrapper, rather than a limit this comment implies away.
+# exposure from a whole `cargo test` — minutes on a cold target directory — rather than closing it, and a
+# change after a re-read but before the merge still lands. The residue is a declared bound of
+# `repository-checks`, beside the one for a merge made outside this wrapper, rather than a limit this comment
+# implies away.
 title_now=$(gh pr view "$pr_number" --repo "$repository" --json title --jq .title) || cannot_judge \
     "cannot re-read pull request $pr_number's title after the gate, so whether the subject the gate approved \
 is still that title cannot be decided — which is not the same fact as a subject that disagrees"
@@ -649,6 +712,53 @@ if [[ $title_now != "$title" ]]; then
 now \"$title_now\", so the verdict in hand is about a title that no longer exists rather than about a \
 subject that disagrees. Re-run this wrapper and it will judge the title that exists now"
 fi
+
+# The base, on the same terms and for the same reason. A read failing here is a cannot-judge on its own: not
+# knowing where the squash lands is not the same fact as knowing it moved.
+base_now=$(gh pr view "$pr_number" --repo "$repository" --json baseRefName --jq .baseRefName) || cannot_judge \
+    "cannot re-read pull request $pr_number's base branch after the gate, so whether this squash is still \
+the one the gate judged cannot be decided"
+if [[ $base_now != "$base" ]]; then
+    cannot_judge "the pull request's base branch changed while the gate ran. It judged a squash onto \
+\"$base\", the base is now \"$base_now\", so the verdict in hand is about a destination this merge will not \
+use — and the one message exception is named by where the squash lands, not by how its subject reads. \
+Re-run this wrapper and it will judge the base that exists now"
+fi
+
+# And the branch it comes from, the exception's other endpoint. This wrapper argued for a while that GitHub
+# offered no way to move it, so a guard here could only ever refuse against a fixture. That was wrong:
+# renaming a branch RETARGETS the pull requests on it, so `headRefName` moves while `headRefOid` does not —
+# and `--match-head-commit`, which pins the object, is satisfied either way. A premise that excused an
+# omission is worse than the omission, so the endpoint is read on the same terms as the other two.
+head_branch_now=$(gh pr view "$pr_number" --repo "$repository" --json headRefName --jq .headRefName) || cannot_judge \
+    "cannot re-read pull request $pr_number's head branch after the gate, so whether this squash still comes \
+from the branch the gate judged cannot be decided"
+if [[ $head_branch_now != "$head_branch" ]]; then
+    cannot_judge "the pull request's head branch changed while the gate ran. It judged a squash from \
+\"$head_branch\", the head branch is now \"$head_branch_now\", so the verdict in hand is about an origin \
+this merge will not have — and the one message exception names both endpoints. Re-run this wrapper and it \
+will judge the head branch that exists now"
+fi
+
+# **What CI said is the fourth judged relation, and it was read where the first three were captured.** It
+# sat with `require_a_verdict` and `require_changed_files`, before these re-reads — and nothing downstream
+# reads its value, so that read recorded nothing and existed only to refuse. A rollup is not a value being
+# recorded: it is one end of *every check agrees*, and the other end is the moment the merge happens. Read
+# early, a required check re-run on the SAME head between the two turns the rollup red while every guard
+# after it still passes — `--match-head-commit` pins the object and the object did not move, and the three
+# branch names above did not move either. Sorted by this wrapper's own criterion, it was filed on the wrong
+# side, which is the third time that sorting has been got wrong here.
+#
+# It is read last rather than twice. The title keeps its early capture because `subject` defaults to it, so
+# there is a value to record; a rollup has none, so a second read would be a second call buying no property
+# the one late read lacks.
+#
+# **This narrows the window; it does not close it, and the bound above names the shape.** A client-side read
+# cannot be atomic with the act it precedes, so `gh` offers no `--require-checks` and the residual is the one
+# already declared for the other three: whichever inputs are re-read, the stop is a property of reading from
+# a client rather than of any one input. The window is now the four API calls this block makes rather than
+# those plus a whole `cargo test`.
+require_ci_green
 
 # Removed here, not left to the trap. An EXIT trap does not run when `exec` replaces the shell image —
 # measured, `bash -c 'trap "echo T" EXIT; exec true'` prints nothing while the same script without `exec` prints
@@ -665,7 +775,7 @@ rm -f "$verdict_file"
 # that judged something else, permanently: the pull request's merge record cites the squash commit's hash, so
 # amending it afterwards decouples the two.
 #
-# The other three judged inputs already travelled this way and nothing said they were one set: the subject is a
+# The other judged inputs already travelled this way and nothing said they were one set: the subject is a
 # value, the repository is resolved once and named on every call, the head is captured before the commit set and
 # pinned with `--match-head-commit`, through which the live subjects are pinned too. This is the local half of
 # that pin — a pull request that moved is refused, and an input that moved on disk is never read a second time.

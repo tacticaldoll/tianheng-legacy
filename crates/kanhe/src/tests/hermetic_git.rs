@@ -64,6 +64,116 @@ fn hermetic_configuration_probe() {
     );
 }
 
+/// The workspace root, located the way every check here locates it.
+fn workspace_root_for_channels() -> Option<std::path::PathBuf> {
+    shengmo::workspace::locate(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."),
+        |root| root.join(shengmo::hermetic_probe::INVENTORY).is_file(),
+        shengmo::workspace::marker_set(),
+    )
+}
+
+/// The probe half of [`no_ambient_channel_moves_what_a_hermetic_command_reads`], reached as a child process.
+///
+/// This half is what cannot be shared: it runs **this** builder. Everything around it — the inventory, the
+/// baseline, the injection, the report's shape and the judgement — belongs to `shengmo::hermetic_probe`,
+/// because three runners held that job and drifted at it.
+#[test]
+fn hermetic_channel_probe() {
+    let Some(judged) = std::env::var_os("KANHE_HERMETIC_PROBE_JUDGED") else {
+        return;
+    };
+    let read =
+        std::env::var("KANHE_HERMETIC_PROBE_READ").expect("the parent names the observation");
+    let judged = std::path::Path::new(&judged);
+    let arguments = shengmo::hermetic_probe::arguments(&read);
+    let subject = |mut command: Command| {
+        let out = command
+            .args(&arguments)
+            .current_dir(judged)
+            .output()
+            .expect("run git");
+        (
+            out.status.code().unwrap_or(-1),
+            String::from_utf8_lossy(&out.stdout).trim().to_string(),
+            String::from_utf8_lossy(&out.stderr).trim().to_string(),
+        )
+    };
+    println!(
+        "{}",
+        shengmo::hermetic_probe::report(subject(hermetic("git")), subject(Command::new("git")))
+    );
+}
+
+/// No ambient channel moves what a hermetic command reads — **asked of a run, one channel at a time**.
+///
+/// **This is the question a source reader was modelling, and modelling is where ten rounds of findings came
+/// from.** Every round a review supplied a spelling that reading missed — a rename, a macro, a literal
+/// compared by its rendering, a constant kept while its loop was deleted, a removal made on a decoy
+/// receiver — and every one is a different way to write the same program. A run does not care how the
+/// program is written.
+///
+/// The cases, the baseline, the injection and the judgement come from `shengmo::hermetic_probe`; this
+/// direction supplies the fixtures and the builder.
+#[test]
+fn no_ambient_channel_moves_what_a_hermetic_command_reads() {
+    let Some(root_of) = workspace_root_for_channels() else {
+        return;
+    };
+    let inventory = shengmo::hermetic_probe::read(&root_of);
+
+    let root = std::env::temp_dir().join(format!("kanhe-hermetic-channels-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    xingbiao::claim_scratch(&root).expect("create the fixture root");
+    let build = |name: &str| {
+        let dir = root.join(name);
+        std::fs::create_dir_all(&dir).expect("create the fixture repository");
+        for args in [
+            &["init", "-q", "."][..],
+            &["config", "user.email", "fixture@example.invalid"][..],
+            &["config", "user.name", name][..],
+        ] {
+            crate::hermetic_git::fixture(&dir, "git", args);
+        }
+        std::fs::write(dir.join(format!("{name}.txt")), name).expect("write the fixture file");
+        crate::hermetic_git::fixture(&dir, "git", &["add", "-A"]);
+        crate::hermetic_git::fixture(&dir, "git", &["commit", "-qm", name]);
+        dir
+    };
+    let judged = build("judged");
+    let decoy = build("decoy");
+    let config = root.join("ambient.gitconfig");
+    std::fs::write(&config, "[probe]\n\tmarker = ambient-probe\n")
+        .expect("write the ambient config");
+
+    let mut readings = Vec::new();
+    for case in inventory.cases() {
+        let mut probe = Command::new(std::env::current_exe().expect("this test binary"));
+        probe.args([
+            "--exact",
+            "tests::hermetic_git::hermetic_channel_probe",
+            "--nocapture",
+            "--test-threads=1",
+        ]);
+        shengmo::hermetic_probe::prepare(&mut probe, &inventory, case, &decoy, &config);
+        let out = probe
+            .env("KANHE_HERMETIC_PROBE_JUDGED", &judged)
+            .env("KANHE_HERMETIC_PROBE_READ", &case.observation)
+            .output()
+            .expect("run the probe child");
+        readings.push((
+            case.clone(),
+            shengmo::hermetic_probe::reading(&String::from_utf8_lossy(&out.stdout), &case.channel),
+        ));
+    }
+
+    let _ = std::fs::remove_dir_all(&root);
+
+    for (case, reading) in readings {
+        shengmo::hermetic_probe::judge(&case, &reading);
+    }
+}
+
 /// No configuration reaches a hermetic command but this builder's own — asked of the run, not of a list.
 ///
 /// **Three rounds widened this builder by name, and a name list is as complete as the last person's memory.**
@@ -457,4 +567,294 @@ fn the_builder_writes_the_config_count_and_takes_index_zero() {
         Some("/dev/null"),
         "naming the setting without neutralising it would leave the XDG default in force"
     );
+}
+
+/// The conversation accessor refuses an undecodable answer, and the question that produced it was all text.
+///
+/// **This is the reachable instance behind the third accessor's strict decode**, and it is not the one the
+/// repair was reasoned from. `records: &[&str]` makes an undecodable *question* unconstructible, so the
+/// channel is the answer: `check-ignore -v` echoes the **pattern** that matched, and a `.gitignore` is
+/// arbitrary bytes. Measured on this machine's git before this direction existed — `.gitignore` holding
+/// `f[o\xff]o` against an untracked `foo`:
+///
+/// ```text
+/// exit=0
+/// 0000000   .   g   i   t   i   g   n   o   r   e  \0   1  \0   f   [   o
+/// 0000020 377   ]   o  \0   f   o   o  \0
+/// ```
+///
+/// So the byte reaches stdout with nothing undecodable ever having been sent, which is what makes the strict
+/// decode load-bearing here rather than a precaution inherited from the tracked-path reader.
+///
+/// Negative run, with `from_utf8_lossy` in place of the shared strict decode:
+///
+/// ```text
+/// thread '…::a_pattern_that_is_not_text_is_refused_rather_than_replaced' panicked at
+/// crates/kanhe/src/tests/hermetic_git.rs:623:18:
+/// git answered a pattern that is not text; got Ok(".gitignore\01\0f[o�]o\0foo\0")
+/// ```
+///
+/// The replacement character is what the fold produces and the whole reason this reader refuses: the pattern
+/// the repository holds is four bytes and the one that reached the caller is three characters, neither of
+/// which any `.gitignore` contains.
+#[test]
+#[cfg(unix)]
+fn a_pattern_that_is_not_text_is_refused_rather_than_replaced() {
+    let root = std::env::temp_dir().join(format!("kanhe-git-stdin-bytes-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    xingbiao::claim_scratch(&root).expect("create the fixture root");
+    for args in [
+        &["init", "-q", "."][..],
+        &["config", "user.email", "fixture@example.invalid"][..],
+        &["config", "user.name", "fixture"][..],
+    ] {
+        crate::hermetic_git::run(&root, &[], args).expect("the fixture repository is built");
+    }
+    std::fs::write(root.join(".gitignore"), b"f[o\xFF]o\n").expect("a gitignore is bytes");
+    std::fs::write(root.join("foo"), b"x").expect("the file the pattern hides");
+
+    // No `-c` for the excludes setting: [`hermetic`] already names it through `GIT_CONFIG_COUNT`, so the
+    // per-command flag the gate's two older call sites keep as their narrower statement would add nothing
+    // here — and `gate_exit_classes` reads a file that *spells* the setting as having closed the channel
+    // itself, which this file must not do. The fixture's exclusion is a `.gitignore`, which no excludes
+    // setting reaches either way.
+    let answered = crate::hermetic_git::run_with_stdin(
+        &root,
+        &[],
+        &["check-ignore", "-z", "-v", "--no-index", "--stdin"],
+        &["foo"],
+    );
+    let _ = std::fs::remove_dir_all(&root);
+
+    match answered {
+        Err(crate::hermetic_git::Failure::Unreadable(why)) => assert!(
+            why.contains("bytes this reader cannot represent as text"),
+            "the refusal says what it could not do, in the shared decoder's words: {why}"
+        ),
+        other => panic!("git answered a pattern that is not text; got {other:?}"),
+    }
+}
+
+/// Both accessors report the undecodable answer as the same fact, in the same words.
+///
+/// **The two are one operation with one difference — a trailing-whitespace trim — and they were spelled
+/// twice.** That is the class this module exists to close: its own header records taking `hermetic` and
+/// `run` out of two gates that had them byte-identical. The twin came back inside it, and it had already
+/// drifted where nothing was watching: one accessor named only what it could not do, the other went on to
+/// say why a replaced path would be the wrong answer. One fact reached an operator two ways depending on
+/// which accessor a caller happened to reach for, and no direction compared them.
+///
+/// This direction is the comparison. It does not assert the sentence — pinning wording would refuse an
+/// improvement to it — it asserts the two are the SAME sentence, which is the property the delegation
+/// makes structural rather than remembered.
+///
+/// Negative run, against the two hand-written bodies:
+///
+/// ```text
+/// assertion `left == right` failed: both accessors answer the same fact, so they must answer it in the same words; a caller should not learn more by reaching for one than for the other
+///   left: "git [\"ls-files\", \"-z\"] answered bytes this reader cannot represent as text — invalid utf-8 sequence of 1 bytes from index 0; a path that is not UTF-8 keeps its own identity, and reporting a replaced one would compare something the repository does not hold"
+///  right: "git [\"ls-files\", \"-z\"] answered bytes this reader cannot represent as text — invalid utf-8 sequence of 1 bytes from index 0"
+/// ```
+///
+/// The fuller sentence is the one kept, and it moved into the shared body rather than being dropped.
+#[test]
+#[cfg(unix)]
+fn both_accessors_report_an_undecodable_answer_in_the_same_words() {
+    use std::os::unix::ffi::OsStrExt;
+
+    let root = std::env::temp_dir().join(format!("kanhe-git-bytes-twin-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    xingbiao::claim_scratch(&root).expect("create the fixture root");
+    for args in [
+        &["init", "-q", "."][..],
+        &["config", "user.email", "fixture@example.invalid"][..],
+        &["config", "user.name", "fixture"][..],
+    ] {
+        crate::hermetic_git::run(&root, &[], args).expect("the fixture repository is built");
+    }
+    let name = std::ffi::OsStr::from_bytes(&[0xFF]);
+    std::fs::write(root.join(name), b"x").expect("a path may be bytes on unix");
+    crate::hermetic_git::run(&root, &[], &["add", "-A"]).expect("git stages what is there");
+
+    let trimmed = crate::hermetic_git::run(&root, &[], &["ls-files", "-z"]);
+    let exact = crate::hermetic_git::run_exact(&root, &[], &["ls-files", "-z"]);
+    let _ = std::fs::remove_dir_all(&root);
+
+    let sentence = |result| match result {
+        Err(crate::hermetic_git::Failure::Unreadable(why)) => why,
+        other => panic!("git answered bytes no `String` holds; got {other:?}"),
+    };
+    assert_eq!(
+        sentence(trimmed),
+        sentence(exact),
+        "both accessors answer the same fact, so they must answer it in the same words; a caller should \
+         not learn more by reaching for one than for the other"
+    );
+}
+
+/// A tracked path git would quote reads back as its own name, and a line-oriented read does not.
+///
+/// The property [`crate::hermetic_git::tracked_paths`] exists to own, held against the alternative rather
+/// than asserted alone. `core.quotePath` defaults on, so `git ls-files` answers a non-ASCII path as
+/// `"\344\270\255.md"` — a spelling that opens nothing. Nineteen invocations across this repository's checks
+/// asked *which paths does git track* and decided this for themselves; the ones that decided it wrong were
+/// correct only because no tracked path here needs quoting today, and this repository's whole vocabulary is
+/// those characters.
+#[test]
+fn a_tracked_path_git_would_quote_reads_back_as_its_own_name() {
+    let root = std::env::temp_dir().join(format!("kanhe-git-quoted-path-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    xingbiao::claim_scratch(&root).expect("create the fixture root");
+    for args in [
+        &["init", "-q", "."][..],
+        &["config", "user.email", "fixture@example.invalid"][..],
+        &["config", "user.name", "fixture"][..],
+    ] {
+        crate::hermetic_git::run(&root, &[], args).expect("the fixture repository is built");
+    }
+    std::fs::write(root.join("圭表.md"), b"x").expect("the probe is writable");
+    std::fs::write(root.join("plain.md"), b"x").expect("the control is writable");
+    crate::hermetic_git::run(&root, &[], &["add", "-A"]).expect("git stages what is there");
+
+    let owned =
+        crate::hermetic_git::tracked_paths(&root, &[]).expect("the tracked set is enumerable");
+    let line_oriented = crate::hermetic_git::run(&root, &[], &["ls-files"])
+        .expect("the line-oriented listing is readable");
+    let _ = std::fs::remove_dir_all(&root);
+
+    assert!(
+        owned.contains(&"圭表.md".to_string()),
+        "the owner answers the path the repository holds; got {owned:?}"
+    );
+    assert!(
+        owned.contains(&"plain.md".to_string()),
+        "and the control beside it, so the assertion above is not about an empty set: {owned:?}"
+    );
+
+    // The alternative, measured rather than described: the quoted spelling is not the name, and it opens
+    // nothing. This is what every line-oriented enumeration in this repository was reading.
+    let quoted: Vec<&str> = line_oriented
+        .lines()
+        .filter(|path| path.starts_with('"'))
+        .collect();
+    assert_eq!(
+        quoted.len(),
+        1,
+        "git quotes exactly the non-ASCII path in a line-oriented listing; got {line_oriented:?}"
+    );
+    assert_ne!(
+        quoted[0], "圭表.md",
+        "the quoted spelling is not the name the repository holds"
+    );
+}
+
+/// git answering in bytes no `String` holds is refused, never replaced.
+///
+/// **Measured rather than reasoned about.** A tracked path that is not UTF-8 is legal on Unix, and
+/// `ls-files -z` promises only that git will not quote it — the bytes are the repository's. Decoding them
+/// lossily replaced each undecodable byte with U+FFFD, so this reader compared a path the repository does not
+/// hold, silently. `xingbiao::path_identity` exists for the opposite property, and a reader here that
+/// collapses two such paths into one contradicts the product's own rule.
+///
+/// The fixture builds exactly that: a filename of one invalid byte, added to a real repository, then read
+/// back. What the runner owes is a refusal naming the fact, not a value.
+///
+/// Negative run: with the decode restored to `from_utf8_lossy`, this returns `Ok` carrying U+FFFD — a
+/// verdict reached over a path that is not the one on disk.
+#[test]
+#[cfg(unix)]
+fn git_output_that_is_not_utf8_is_refused_rather_than_replaced() {
+    use std::os::unix::ffi::OsStrExt;
+
+    let root = std::env::temp_dir().join(format!("kanhe-git-bytes-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    xingbiao::claim_scratch(&root).expect("create the fixture root");
+    for args in [
+        &["init", "-q", "."][..],
+        &["config", "user.email", "fixture@example.invalid"][..],
+        &["config", "user.name", "fixture"][..],
+    ] {
+        crate::hermetic_git::run(&root, &[], args).expect("the fixture repository is built");
+    }
+
+    // One byte that is not valid UTF-8, as a whole filename.
+    let name = std::ffi::OsStr::from_bytes(&[0xFF]);
+    std::fs::write(root.join(name), b"x").expect("a path may be bytes on unix");
+    crate::hermetic_git::run(&root, &[], &["add", "-A"]).expect("git stages what is there");
+
+    let read = crate::hermetic_git::run(&root, &[], &["ls-files", "-z"]);
+    let _ = std::fs::remove_dir_all(&root);
+
+    match read {
+        Err(crate::hermetic_git::Failure::Unreadable(why)) => assert!(
+            why.contains("cannot represent"),
+            "the refusal must name what it could not do, got {why:?}"
+        ),
+        other => panic!(
+            "git answered bytes no `String` holds; a replaced path is not the repository's: {other:?}"
+        ),
+    }
+}
+
+/// A write that failed because the child had already refused reports the child's refusal.
+///
+/// **Two facts were folded, and the fold is one this module's own [`Failure`] doc records paying for.**
+/// `run_with_stdin` writes records into a pipe the child may already have closed: `check-ignore` is fatal
+/// about a path outside the repository, and it exits on the first one. The parent then keeps writing until
+/// the write fails, and the failure reported was *cannot write records to git […]: Broken pipe* — a
+/// sentence about this process, for a fact about git's. The exit status and git's own `fatal:` were both
+/// discarded on that path, so a caller could not tell a git that refused from a pipe that broke for any
+/// other reason.
+///
+/// The direction feeds the fatal record first and enough ordinary records behind it that the write reaches
+/// a closed pipe rather than fitting in the buffer, then asserts the answer is git's: an exit class, with
+/// git's own words in it.
+///
+/// [`Failure`]: crate::hermetic_git::Failure
+#[test]
+#[cfg(unix)]
+fn a_refusal_during_the_conversation_is_reported_as_the_refusal_it_is() {
+    let root = std::env::temp_dir().join(format!("kanhe-git-stdin-refusal-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    xingbiao::claim_scratch(&root).expect("create the fixture root");
+    for args in [
+        &["init", "-q", "."][..],
+        &["config", "user.email", "fixture@example.invalid"][..],
+        &["config", "user.name", "fixture"][..],
+    ] {
+        crate::hermetic_git::run(&root, &[], args).expect("the fixture repository is built");
+    }
+
+    // The fatal first, then more records than a pipe buffer holds, so the write is still running when the
+    // child is already gone. A short conversation would fit and never fail, which is why the count is the
+    // fixture rather than a detail of it.
+    let mut records = vec!["/etc/passwd".to_string()];
+    records.extend((0..50_000).map(|i| format!("p{i}.log")));
+    let refs: Vec<&str> = records.iter().map(String::as_str).collect();
+
+    let answered = crate::hermetic_git::run_with_stdin(
+        &root,
+        &[],
+        &["check-ignore", "-z", "-v", "--no-index", "--stdin"],
+        &refs,
+    );
+    let _ = std::fs::remove_dir_all(&root);
+
+    match answered {
+        Err(crate::hermetic_git::Failure::Exit { code, stderr }) => {
+            assert_eq!(
+                code,
+                Some(128),
+                "git refused, so the answer carries git's own exit class: {stderr}"
+            );
+            assert!(
+                stderr.contains("outside repository"),
+                "the refusal carries git's own words rather than this process's: {stderr}"
+            );
+        }
+        other => panic!(
+            "a refusal during the conversation must be reported as the refusal, not as a broken pipe; \
+             got {other:?}"
+        ),
+    }
 }

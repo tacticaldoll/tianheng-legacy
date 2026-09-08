@@ -1063,7 +1063,7 @@ pub(super) fn workspace_rule_flags_only_unlisted_workspace_members() {
 
 #[test]
 pub(super) fn workspace_rule_never_flags_a_crates_own_self_referential_dev_dependency() {
-    // Round-11 finding: Cargo genuinely permits (and real projects use, e.g. a doctest/
+    // Cargo genuinely permits (and real projects use, e.g. a doctest/
     // dogfooding pattern) a crate declaring itself as a `[dev-dependencies]` path dependency
     // on itself (`main = { path = "." }`), and `cargo metadata --no-deps` emits this edge
     // verbatim (verified against real cargo). `workspace_member_names` trivially includes the
@@ -1091,15 +1091,11 @@ pub(super) fn workspace_rule_never_flags_a_crates_own_self_referential_dev_depen
 
 #[test]
 pub(super) fn no_dependency_rule_ever_flags_a_crates_own_self_referential_dependency() {
-    // Round-12 finding: round 11 excluded a crate's own self-referential dependency (Cargo's
-    // legal `[dev-dependencies] main = { path = "." }` doctest/dogfooding pattern) ONLY inside
-    // Rule::RestrictWorkspaceDependenciesTo's own arm — leaving the IDENTICAL false positive live
-    // in every sibling rule reading the same `dependencies()` / `dependencies_with_disallowed_source()`
-    // observation (ForbidDependencyOn, RestrictDependenciesTo, RestrictDependencySourcesTo, and
-    // the feature-granularity rules when the boundary happens to name the target's own crate).
-    // A self-dependency is never a CROSS-crate concern any of these rules exist to govern, so the
-    // exclusion is now at the shared observation source (`cargo_metadata.rs::is_self_dependency`),
-    // closing every rule at once rather than one at a time.
+    // A crate's self-referential dependency (Cargo's legal `[dev-dependencies] main = { path = "." }`
+    // doctest/dogfooding pattern) is never a cross-crate concern. The exclusion is at the shared
+    // observation source (`cargo_metadata.rs::is_self_dependency`), so every dependency rule
+    // (`ForbidDependencyOn`, `RestrictDependenciesTo`, `RestrictDependencySourcesTo`, etc.) is
+    // protected against false positives consistently.
     let package = serde_json::json!({
         "name": "main",
         "dependencies": [

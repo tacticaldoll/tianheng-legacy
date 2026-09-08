@@ -37,13 +37,11 @@ set **as arguments to the judgement**, so a fixture and the real workspace run t
 inputs. The required governance-document set SHALL NOT be narrowable at all — not by an option, not by the
 environment, not for a fixture.
 
-**This requirement was rewritten to describe what the port does.** It used to require the gate to *accept an
-explicit fixture-only governance-document set*, refused on the real workspace, with an unreadable or surplus
-input naming what could not be read — a CLI-shaped option the shell-era gate carried. The shell-to-Rust
-migration removed it and gave the fixtures a stronger shape instead: `offences_in` takes the corpus root, the
+**The fixtures reach the corpus by parameter, not by an option.** `offences_in` takes the corpus root, the
 tracked paths and the corpus as parameters, and `GOVERNANCE_DOCUMENTS` is a compile-time `const` no caller can
-reach. The three scenarios below replace three that described the option's behaviour, which nothing had
-implemented for two windows.
+reach. So there is no input for a caller to supply, and therefore no surplus or unreadable one for this
+requirement to refuse: the fixture shape is stronger than an option would be, because a test cannot reach the
+real workspace's set at all.
 
 The direction the old wording was protecting survives, and is stronger: a narrowing that cannot be expressed
 cannot be requested on the real workspace, so the refusal it demanded is unreachable by construction rather
@@ -83,12 +81,9 @@ file's lines are read, SHALL both derive from that one declaration. Outside acti
 gate SHALL inspect every classified format's prose, including Rust rustdoc forms. A Rust test source SHALL NOT be
 excluded wholesale; its admitted comment lines are judged through the same region rule as other Rust.
 
-**Two lists is the shape that failed.** An extension filter decided what to open while a marker rule decided
-which lines to read, so a format could sit in one and not the other — and shell did, for a whole window, while
-the marker rule had known `#` all along. The files that left unread are the sanctioned merge and publish
-wrappers, which cite the Rust gate they sequence *by path*, where a renamed test target is exactly what rots a
-citation; YAML, where this repository's own gate list is duplicated, was unread the same way. Adding one
-extension per discovery is the denylist shape the 0.5.0 window replaced twice elsewhere. A tracked script's shebang
+**Two lists is the shape that breaks.** An extension filter deciding what to open while a marker rule decides
+which lines to read risks formats sitting in one and not the other. Discovery by declared format classifies
+what to open and which comment syntax to read in one mapping, rather than accumulating extensions piecemeal. A tracked script's shebang
 SHALL NOT be a reference: it names an absolute path outside every prefix this gate recognizes. Before judging references it SHALL require the repository's
 governance-document surface, at least one tracked workspace member under `crates/`, and at least one inspected
 source; absence of any prerequisite SHALL fail loudly rather than read as clean.
@@ -104,9 +99,8 @@ source; absence of any prerequisite SHALL fail loudly rather than read as clean.
 - **WHEN** a required governance document, every tracked workspace member, or every inspectable source is absent
 - **THEN** the reaction fails, naming the missing prerequisite instead of reporting clean. **The reaction is
   the gate — the whole test target — not each direction inside it.** A prerequisite may therefore be held by
-  a sibling direction rather than by the resolution walk calling it, and two independent reviews read this
-  line as requiring the second before it said so. What the requirement forbids is the gate reporting clean
-  over absent evidence; how the directions divide that work between them is not a claim this makes
+  a sibling direction rather than by the resolution walk calling it. What the requirement forbids is the gate
+  reporting clean over absent evidence; how the directions divide that work between them is not a claim this makes
 
 #### Scenario: An untracked manifest cannot create a workspace member
 
@@ -189,10 +183,10 @@ end, and it left `.toml`, `.yml`, `Cargo.lock`, `CODEOWNERS` and `.gitignore` un
 covers every one of them. A format admitted to the corpus SHALL be swept for both properties or for neither.
 
 **The ladder this sits at the bottom of.** An intra-doc link is checked by the compiler; a path is checked by the
-sweep above; a path with a line number is checked by nothing; a position is not even a name. Measured on this
-repository, two such references were off by 86 and 98 lines, and the second was written after the first had been
-corrected — the criterion `scripts/publish.sh` states for itself, that a rule stated and then missed needs a
-check rather than another sentence.
+sweep above; a path with a line number is checked by nothing; a position is not even a name. It rots the
+moment anything above it moves, and the rot is invisible because the reference still resolves to *a* line —
+which is why a rule stated and then missed needs a check rather than another sentence, the criterion
+`scripts/publish.sh` states for itself.
 
 The corpus SHALL be comment lines, by the same rule that decides the sibling sweep's corpus, so a specimen
 written as a string literal sits on an executed line and cannot be read as a reference. That is a position rather
@@ -212,10 +206,8 @@ declined judgement. The ladder's own argument reaches it without help — a posi
 one in any tense, so a record citing a coordinate serves its reader no better than a live reference does. Naming
 the entry costs a clause and cannot rot.
 
-Measured before this was written: two existed, both in one `BACKLOG.md` clause, both correct when written and
-both since landed mid-paragraph in unrelated entries — one of them moved by the very window that repaired the
-source instances. After their repair the reaction holds an empty set, which is kept rather than pruned, by the
-same rule that keeps a recognizer asserting its own emptiness elsewhere here.
+Line numbers are moving coordinates that rot when adjacent content moves. The reaction holds an empty set,
+kept to ensure newly introduced coordinates are rejected immediately.
 
 #### Scenario: A coordinate in whole-document prose
 
@@ -284,24 +276,44 @@ covering the rest. `BACKLOG.md`, `AGENTS.md` and the specifications carry no dat
 later by design, so the rule stated for prose generally reaches them and no reaction does. That residue is
 declared as a bound below rather than closed, and the reason is measured rather than asserted.
 
-#### Scenario: A relative phrase in non-record Markdown is not observed — a stated bound
+#### Scenario: The duration phrase in non-record Markdown is not observed — a stated bound
 
-- **WHEN** a tracked Markdown document outside the record set writes one of the declared phrases without
-  anchoring it
-- **THEN** nothing reacts. Extending the sweep to whole-document prose was measured against the tree it would
-  judge, and most of what it would report is not an offence: some occurrences are `AGENTS.md`'s own row
-  **declaring** the phrases, some are duration rather than pointer — *admitted it for a window*, which
-  narrates how long something lasted — some are a generated projection's copy of either, and some are already
-  anchored, by a commit or by naming the release. A reader over text separates none of those groups: telling
-  a phrase that points at a moving window from one that measures a span is a judgement about the sentence,
-  which is the prose instrument `AGENTS.md` records as designed, measured three times and rejected
+- **WHEN** a tracked Markdown document outside the record set writes *for a window* without anchoring it
+- **THEN** nothing reacts, because that phrase alone is the group a reader over text cannot separate: it is
+  as often **duration** — *admitted it for a window*, narrating how long something lasted — as it is a
+  pointer at a moving window, and telling the two apart is a judgement about the sentence, which is the prose
+  instrument `AGENTS.md` records as designed, measured three times and rejected. It is the same ground on
+  which *the same window* is absent from the declared phrases entirely
+- **AND** every other group a widened sweep reports is separable by **shape** rather than by meaning, which
+  is why the bound is one phrase and not the corpus: a **record** carrier by path and by dated section, a
+  **marked quotation** — the phrase in backticks or single emphasis, which is how this repository quotes a
+  phrase to define it rather than to point with it — and a **generated projection's copy** of either, which
+  is a marked quotation by the same test. Duration is what no shape separates
 - **AND** how many fall in each group SHALL NOT be written here, because **this passage is itself in the
   corpus it describes**: a bound about a phrase has to quote the phrase, so stating the breakdown moves it,
-  and its two generated projections move it again. The measurement belongs in the tracker's *Observation
-  source*, where it is dated by the entry that carries it
-- **AND** the rule is wider than its reaction and SHALL stay so rather than being narrowed to fit: a comment
-  format is where the reaction can decide, and prose is where a reviewer must
-- **UNPINNED** `BACKLOG.md` — *a relative phrase in non-record Markdown*
+  and its two generated projections move it again. The measurement belongs in the record that carries it
+- **UNPINNED** `BACKLOG.md` — *the duration phrase in non-record Markdown*
+
+#### Scenario: Markdown prose anchors to a moving reference
+
+- **WHEN** a tracked Markdown document outside the record set carries a declared phrase other than the
+  duration one, unanchored and not marked as a quotation
+- **THEN** the reaction fails, naming the file, the line the phrase ends on, and the phrase. The corpus is
+  every tracked Markdown document less `docs/history/` and less the dated sections of `CHANGELOG.md`, which
+  are the record carriers `AGENTS.md` enumerates; a commit message is the third and is not a file
+- **AND** the record carrier SHALL be decided by path as well as by section shape. A dated `## [X.Y.Z] - date`
+  heading is a shape any Markdown document can carry, and exempting the span under one wherever it appears
+  exempts a live document from a rule stated for live documents — `AGENTS.md` enumerates three carriers and a
+  level-2 heading in a live file is none of them
+- **AND** paragraphs SHALL be joined before matching, for the reason the comment sweep joins comment runs: a
+  phrase whose words fall either side of a line break is one phrase, and a per-line reader sees neither half
+- **AND** whether the phrase is marked as a quotation SHALL be decided by the **span that encloses it**,
+  through the shared marked-span reader, and not by the parity of the markers before it. Parity answers
+  *do these markers pair*, so after one that closes nothing it answers *marked* for every remaining phrase in
+  the paragraph — measured, one live offence in `BACKLOG.md` stood behind a stray marker while this reaction
+  was green. A paragraph the shared reader cannot pair is read as marking nothing, which over-reacts rather
+  than going quiet
+- **PINNED-BY** `no_markdown_prose_names_a_relative_anchor`
 
 #### Scenario: A comment anchors to a moving reference
 
@@ -320,6 +332,39 @@ declared as a bound below rather than closed, and the reason is measured rather 
 A live governance document SHALL NOT cite a commit object. The anchor SHALL be the release window, which
 survives because `main` is made of releases, or the change's own name, which is text.
 
+**The reader's corpus SHALL be the claim's corpus.** A citation is refused wherever it stands **inside** a
+code span, not only where it is the whole of one, and not only where whitespace separates it: a citation
+sits beside punctuation more often than beside a space, because a revision expression glues it to `..`, `^`,
+`~` or `{` and prose glues it to a bracket or a comma. The reader SHALL therefore test every maximal run of
+lowercase hex characters whose neighbours are not alphanumeric. The shape predicate — four to forty
+lowercase hex characters carrying both a letter and a digit — is what keeps the noise out rather than the
+run's boundary, and the alphanumeric bound is what keeps the tail of an ordinary word from being read as an
+object.
+
+**A third party's object is not this requirement**, and the reader SHALL classify the syntax containing a
+run before classifying the run. `AGENTS.md` sanctions an action pinned as `owner/action@<sha>` by name as
+correct supply-chain practice — and states the criterion that excludes it: *that sha does not resolve here*.
+That criterion is not one a reaction can run. A development commit of this tree does not resolve in a fresh
+clone either, which is the whole reason this requirement exists, so a reader keyed on resolution would
+report clean in CI over exactly the citations it is there to find and loud on the author's machine.
+Resolution is the criterion a person applies; the shape is what a reader can. The sanctioned shape is
+`<owner>/<name>[/<path>]@<forty lowercase hex>`, and the forty is required: a pin shortened is not the
+practice the rule sanctions, and this rule's default is to refuse.
+
+**A third party's, and the sanction SHALL read whose.** The exception is for *somebody else's* object, so
+the reader SHALL exclude this repository's own `<owner>/<name>` — taken from the `repository` field the
+workspace manifest already declares, not from a list. Read by shape alone the sanction covered
+`<this owner>/<this name>@<sha>`, which is GitHub's canonical cross-reference for a commit of this tree and
+so is exactly what this requirement exists to refuse. An unread manifest leaves the exclusion empty, which
+is indistinguishable in a green run from the exclusion working, so it SHALL be refused rather than passed
+over.
+
+**Every segment SHALL be non-empty, and the object SHALL close the reference.** `owner//action@<sha>`
+resolves for nobody, and `owner/action@<sha>^{commit}` or `owner/action@<sha>..HEAD` name a commit *reached
+from* the pin — a citation of a moment, which is the prohibited form wearing the sanctioned one's prefix.
+What may follow the object is therefore an allowlist of sentence-closing punctuation, in which a single `.`
+counts only where a second does not follow it.
+
 **A hosting serial is the same rule and deliberately has no reaction here.** `AGENTS.md` dispositions it as
 provenance and enforces that by review, alongside its other rows, and a reader over text cannot do better:
 the bare serial shape *is* the fixture for the squash-serial check, so a reader over Rust would refuse the
@@ -328,7 +373,7 @@ what the sentence means. A reaction was built for the Markdown half, needed **th
 describe what it could not decide, and caught nothing once the citations were swept — a narrow instrument
 defending a wide rule, which is the shape this repository removes rather than declares. It was withdrawn.
 
-`main` carries one commit per release: a whole development window squashes into a single `release: X.Y.Z`
+`main` carries one commit per release: a whole development window squashes into a single `chore(release): X.Y.Z`
 commit, so no development commit is reachable from it — not eventually, but by construction. A citation to
 such a commit in a document that is read *later, against the tree* is therefore dead the moment its window
 closes, and a hosting platform's serial was never in the tree at all. `AGENTS.md` already dispositions both
@@ -358,16 +403,26 @@ being one. A floor this reader invents is a floor it misses every shorter citati
   window or move the citation into a record
 - **PINNED-BY** `no_live_document_cites_a_moment_a_fresh_clone_cannot_reach`
 
+#### Scenario: A commit object cited inside a longer code span is read
+
+- **WHEN** a live document's prose carries the object inside a longer code span in any of three shapes — separated by whitespace (`git show <object>`), glued to a revision operator (`<object>..release/X.Y.Z`), or wrapped in punctuation (`(<object>)`)
+- **THEN** the reaction fails naming the object in **each** of the three, because a predicate asked of the whole span answers *no* for every span carrying anything else, and one asked of whitespace tokens answers *no* for the two that carry no space
+- **PINNED-BY** `a_citation_glued_to_punctuation_is_read`
+
 #### Scenario: A code span shaped like an object is refused though it names none — a stated bound
 
 - **WHEN** live prose writes a code span of 4 to 40 lowercase hex characters carrying both a letter and a
   digit, which names something other than a commit
 - **THEN** the reaction fails anyway. It decides by **shape**, and nothing in the tree distinguishes a value
   of that shape from a citation without resolving it against an object database
-- **AND** resolving was measured and declined: CI checks out one commit, so the objects a citation names are
-  absent there — the reader would answer clean over every citation, or refuse to judge the whole gate,
-  depending on which way its floor was written. A shape test that over-reacts on a value nobody writes is the
-  better trade, and measured over the live corpus no span of this shape names anything but a commit
+- **AND** resolving is declined because the verdict would then depend on the **object store** rather than on
+  the tracked text: jobs in this workflow that check out at the default depth answer clean over every
+  citation, so a reader placed in one of them — or a job whose full-history checkout is dropped for cost —
+  reports clean for a reason unrelated to the content. That is a false negative produced by configuration,
+  the one direction this family forbids. **Not** because the objects are absent under CI: the job that runs
+  this reader checks out with `fetch-depth: 0`, for a reason that job's own checkout block states. A shape
+  test that over-reacts on a value nobody writes is the better trade, and measured over the live corpus no
+  span of this shape names anything but a commit
 - **UNPINNED** `BACKLOG.md` — *a code span shaped like an object that names none*
 
 #### Scenario: A dated changelog section is a record, and an undated one is not
@@ -378,6 +433,24 @@ being one. A floor this reader invents is a floor it misses every shorter citati
   and it made `## [Unreleased]` — which is live text by construction — exempt for standing in the same file as
   the releases below it
 - **PINNED-BY** `no_live_document_cites_a_moment_a_fresh_clone_cannot_reach`
+
+#### Scenario: A third party's action pin is not this repository's object
+
+- **WHEN** a live document carries a code span naming an action pinned as `owner/action@<forty lowercase
+  hex>`, including under a path such as `owner/name/sub@<sha>`
+- **THEN** nothing reacts to that sha, because governance sanctions the form by name — while each of these
+  is still reported: a bare object in the same document, a **shortened** pin, `<this repository's
+  owner>/<its name>@<sha>`, a pin carrying a revision suffix such as `^{commit}` or `..HEAD`, and a pin with
+  an empty path segment
+- **PINNED-BY** `a_third_partys_action_pin_is_not_read_as_this_repositorys_object`
+
+#### Scenario: The workspace declares the repository the sanction excludes
+
+- **WHEN** the sweep reads a corpus root
+- **THEN** the `<owner>/<name>` the exclusion is taken from resolves from that root's manifest, rather than
+  evaluating to nothing — an exclusion that excludes nothing is indistinguishable in a green run from one
+  that works
+- **PINNED-BY** `the_workspace_declares_the_repository_the_sanction_excludes`
 
 #### Scenario: An abbreviation carrying no letter, or no digit, is not observed — a stated bound
 
@@ -464,12 +537,10 @@ was deleted when it migrated to Rust.
 
 **The exemption SHALL be exactly this, and SHALL NOT extend to a document because of where it lives.**
 `docs/history/` was exempt as a whole directory, and the exemption was declared nowhere — not in this
-specification, not as a scenario, not as a bound. Measured, it hid exactly one reference: a present-tense
-pointer at a gate that had moved crates inside the `0.5.0` window, in the document the CHANGELOG advertises
-to adopters as the provenance authority for verifying published tarballs. Fourteen of that directory's
-fifteen path references already resolved. The facts a record must keep are shas, dates, versions and counts,
-and none of those is a path — so a record document is judged like any other, and only a dated section within
-one is not.
+specification, not as a scenario, not as a bound. **A whole-directory exemption is wrong for a reason that
+holds without an example**: the facts a record must keep are shas, dates, versions and counts, and none of
+those is a path, so exempting the directory buys a record nothing it needs and costs every path reference
+in it. A record document is therefore judged like any other, and only a dated section within one is not.
 
 Both directions SHALL be held by one reaction. A reaction asserting only the silence is satisfied by a check
 that reads no CHANGELOG at all.

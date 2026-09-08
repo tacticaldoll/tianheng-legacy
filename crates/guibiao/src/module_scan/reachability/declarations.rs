@@ -133,13 +133,7 @@ impl TopLevelTracker {
 /// below extract identically from [`path_attr_before_item`], so a fix to one cannot silently
 /// diverge from the other.
 fn path_attr_pair(bytes: &[u8], mod_index: usize) -> (Option<usize>, Vec<usize>) {
-    match path_attr_before_item(bytes, mod_index) {
-        PathAttrKind::Remaps {
-            direct,
-            conditional,
-        } => (direct, conditional),
-        PathAttrKind::None | PathAttrKind::Excluded => (None, Vec::new()),
-    }
+    path_attr_before_item(bytes, mod_index).map_or_else(|| (None, Vec::new()), Remap::pair)
 }
 
 pub(super) fn declared_modules_in(
@@ -274,34 +268,74 @@ pub(super) fn declared_modules(source: &str) -> Vec<String> {
         .collect()
 }
 
-/// What the top-level item prefix before a `mod` keyword says about a `#[path]` remap. The
-/// static scanner intentionally does not read attributes in general, but `path` is a stated
-/// coverage concern either way: an unconditional, direct `#[path = "…"]` is now *followed*
-/// (`Direct`, carrying the cleaned-text position of its `=`, so the real value can be read from
-/// the untouched original source); a `cfg_attr`-wrapped one stays cfg-conditional and excluded,
-/// same as a bare `path`-named attribute with no followable value — both `Excluded`, matching the
-/// stated bound: a path-remapped module is not conventionally file-backed, so treating the `mod`
-/// token as an ordinary file declaration would govern the wrong file (or a same-named orphan).
-enum PathAttrKind {
-    None,
-    Remaps {
-        direct: Option<usize>,
-        conditional: Vec<usize>,
-    },
-    Excluded,
+/// A `#[path]` remap the prefix before a `mod` keyword carries — which, being one, remaps something.
+///
+/// The static scanner intentionally does not read attributes in general, but `path` is a stated coverage
+/// concern either way: an unconditional, direct `#[path = "…"]` is followed, carrying the cleaned-text
+/// position of its `=` so the real value can be read from the untouched original source, and a
+/// `cfg_attr`-wrapped one is a conditional candidate beside it. Every candidate physically written is
+/// unioned, because this scanner is deliberately cfg-blind and neither attribute order nor the active
+/// predicate may silently remove governed source.
+///
+/// **A remap that remaps nothing is unconstructible, and it used to be a runtime check.** The shape was a
+/// three-variant enum whose `Remaps` held an `Option` and a `Vec` — so `direct: None` with an empty
+/// `conditional` was a value the type admitted and only an `if` before the constructor kept out. Its
+/// siblings were `None` and an `Excluded` that no consumer acted on: the sole match folded the two into one
+/// arm, making the variant behaviourally identical to its neighbour while its doc claimed the opposite.
+/// `first` keeps the conditional state non-empty in the type, the way `xuanji::bound::Defence::PinnedBy`
+/// does for the same reason.
+///
+/// Measured by planting the construction the old shape admitted:
+///
+/// ```text
+/// error[E0308]: mismatched types
+///         let _ = Remap::Conditional { first: None, rest: Vec::new() };
+///                                             ^^^^ expected `usize`, found `Option<_>`
+/// ```
+///
+/// There is no negative *run* for this, and the reason is the property: a state the type cannot hold has no
+/// value to assert about. The compiler's refusal is the evidence, and the two rows this change adds to
+/// `both_readers_take_the_attribute_name_from_one_position` are what hold the behaviour that used to reach
+/// the deleted variant.
+///
+/// **What `Excluded` was for is not legal Rust.** It stood for a `path`-named attribute with no followable
+/// value, and its doc said such a module is excluded from conventional file backing. Measured against rustc
+/// 1.96.0, edition 2021, `--crate-type lib`: `#[path] mod m;` and `#[path("m.rs")] mod m;` are both
+/// `error: malformed 'path' attribute input`. A shape no configuration compiles is outside what a cfg-blind
+/// union of compilable candidates governs, so the answer is the same as no remap at all — which is what the
+/// fold already did, and is now what the type says.
+enum Remap {
+    /// An unconditional `#[path = "…"]`, with every cfg-conditional candidate written beside it.
+    Direct { at: usize, conditional: Vec<usize> },
+    /// Only cfg-conditional candidates. `first` is what keeps the state non-empty in the type.
+    Conditional { first: usize, rest: Vec<usize> },
 }
 
-fn path_attr_before_item(bytes: &[u8], mod_index: usize) -> PathAttrKind {
+impl Remap {
+    /// The direct/conditional pair a consumer reads, which is the shape both `mod` forms extract.
+    fn pair(self) -> (Option<usize>, Vec<usize>) {
+        match self {
+            Remap::Direct { at, conditional } => (Some(at), conditional),
+            Remap::Conditional { first, mut rest } => {
+                rest.insert(0, first);
+                (None, rest)
+            }
+        }
+    }
+}
+
+fn path_attr_before_item(bytes: &[u8], mod_index: usize) -> Option<Remap> {
     let start = attribute_prefix_start(bytes, mod_index);
-    match attr_prefix_path_kind(&bytes[start..mod_index]) {
-        PathAttrKind::Remaps {
-            direct,
-            conditional,
-        } => PathAttrKind::Remaps {
-            direct: direct.map(|rel| start + rel),
-            conditional: conditional.into_iter().map(|rel| start + rel).collect(),
-        },
-        other => other,
+    let shift = |positions: Vec<usize>| positions.into_iter().map(|rel| start + rel).collect();
+    match attr_prefix_remap(&bytes[start..mod_index])? {
+        Remap::Direct { at, conditional } => Some(Remap::Direct {
+            at: start + at,
+            conditional: shift(conditional),
+        }),
+        Remap::Conditional { first, rest } => Some(Remap::Conditional {
+            first: start + first,
+            rest: shift(rest),
+        }),
     }
 }
 
@@ -316,9 +350,44 @@ fn attribute_prefix_start(bytes: &[u8], item_index: usize) -> usize {
         .map_or(0, |i| i + 1)
 }
 
-fn attr_prefix_path_kind(bytes: &[u8]) -> PathAttrKind {
+/// Where the attribute's name begins, given the `#` at `hash` — or `None` where that `#` opens no attribute.
+///
+/// **Two readers ask this, and the position is one fact.** `attr_prefix_remap` looks for `path` here and
+/// `attr_prefix_has_bare_cfg` looks for `cfg`, and what each looks *at* has to be the same byte or the two
+/// disagree about the same source. Written out per site the preamble stood twice, byte-identical for
+/// twenty-three lines and diverging only at the terminal word — which is the shape where one copy gets a
+/// repair and the other keeps the defect. It got one: the raw-identifier skip below was added to both by
+/// hand, and a hand is what would have to add the next one.
+///
+/// **A raw identifier is ONE segment**, at the attribute's own name position as much as inside a
+/// `cfg_attr`'s argument list, where `cfg_attr_group_path_eqs` already consumes the prefix with the segment
+/// it belongs to. `r#` changes a lexical spelling and not the name it spells, so `#[r#path = "…"]` IS the
+/// built-in remap — measured against rustc 1.96.0, edition 2021, `--crate-type lib`, which compiles the
+/// remapped file for it even with the conventional file present. Reading the name as written left this
+/// scanner governing a file the build does not contain.
+///
+/// The `#` is not consumed on a miss: the caller advances by one and reads the next byte itself, so
+/// `##[path = "…"]` reaches the attribute its second `#` opens.
+fn attr_name_start(bytes: &[u8], hash: usize) -> Option<usize> {
+    let mut i = hash + 1;
+    while i < bytes.len() && bytes[i].is_ascii_whitespace() {
+        i += 1;
+    }
+    if bytes.get(i) != Some(&b'[') {
+        return None;
+    }
+    i += 1;
+    while i < bytes.len() && bytes[i].is_ascii_whitespace() {
+        i += 1;
+    }
+    if bytes[i..].starts_with(b"r#") && bytes.get(i + 2).is_some_and(|byte| is_ident_byte(*byte)) {
+        i += 2;
+    }
+    Some(i)
+}
+
+fn attr_prefix_remap(bytes: &[u8]) -> Option<Remap> {
     let mut i = 0;
-    let mut excluded = false;
     let mut direct = None;
     let mut conditional_eqs = Vec::new();
     while i < bytes.len() {
@@ -326,17 +395,21 @@ fn attr_prefix_path_kind(bytes: &[u8]) -> PathAttrKind {
             i += 1;
             continue;
         }
-        i += 1;
-        while i < bytes.len() && bytes[i].is_ascii_whitespace() {
+        let Some(name) = attr_name_start(bytes, i) else {
             i += 1;
-        }
-        if bytes.get(i) != Some(&b'[') {
             continue;
-        }
-        i += 1;
-        while i < bytes.len() && bytes[i].is_ascii_whitespace() {
-            i += 1;
-        }
+        };
+        i = name;
+        // **The two matching branches advance the cursor themselves, and the miss deliberately does not.**
+        // All three terminated before this, but by the loop head rather than locally: the cursor sits on
+        // the attribute's *name* from here rather than on the `#` that opened it, so `bytes[i] != b'#'`
+        // stepped it forward on the next iteration and no branch could re-enter for the same attribute.
+        // That invariant is true and it is not visible at the `continue` — four independent readings of
+        // these lines called this scanner non-terminating, each reading the `continue` and not the loop
+        // head. So where an advance is provable at the branch it is written there: `j` starts at `i + 4`
+        // and a matched `cfg_attr` is eight bytes, and `starts_with` guarantees no `#` among the bytes
+        // either one steps over, which is what makes the two identical to the walk they replace. The miss
+        // is the one case where that does not hold, and the comment below it says why.
         if bytes[i..].starts_with(b"path")
             && bytes.get(i + 4).is_none_or(|byte| !is_ident_byte(*byte))
         {
@@ -355,10 +428,12 @@ fn attr_prefix_path_kind(bytes: &[u8]) -> PathAttrKind {
                 i = j + 1;
                 continue;
             }
-            // A bare `#[path]`/`#[path(...)]` (not valid remap syntax) excludes on its own, but
-            // a later unconditional `#[path = "…"]` on the same item still wins — keep scanning
-            // rather than returning.
-            excluded = true;
+            // A bare `#[path]`/`#[path(...)]` is not valid remap syntax, and measured against rustc it is
+            // not valid Rust either — `error: malformed 'path' attribute input` for both spellings. So it
+            // contributes no candidate, and the scan continues rather than returning, because a later
+            // unconditional `#[path = "…"]` on the same item still wins. `j` is the first byte that is
+            // not whitespace after the name, so resuming there both advances and re-reads nothing.
+            i = j;
             continue;
         }
         // The combined `#[cfg_attr(<pred>, …, path = "…")]` spelling (equivalent to
@@ -369,18 +444,22 @@ fn attr_prefix_path_kind(bytes: &[u8]) -> PathAttrKind {
             && bytes.get(i + 8).is_none_or(|byte| !is_ident_byte(*byte))
         {
             cfg_attr_prefix_collect_path_eqs(&bytes[i + 8..], i + 8, &mut conditional_eqs);
+            i += 8;
             continue;
         }
+        // No advance here, and it is not an omission. The name position can itself be a `#` —
+        // `attr_name_start` skips `[` and whitespace and stops, so `#[#[path = "x.rs"]` answers the inner
+        // `#` — and the loop head reads it as an attribute opener and reaches the remap inside. Stepping
+        // over it would skip that attribute, which is a false negative in a scanner whose whole
+        // construction is the false-negative-safe union. A direction holds this shape.
     }
-    if direct.is_some() || !conditional_eqs.is_empty() {
-        PathAttrKind::Remaps {
-            direct,
-            conditional: conditional_eqs,
-        }
-    } else if excluded {
-        PathAttrKind::Excluded
-    } else {
-        PathAttrKind::None
+    match (direct, conditional_eqs) {
+        (Some(at), conditional) => Some(Remap::Direct { at, conditional }),
+        (None, mut conditional) if !conditional.is_empty() => Some(Remap::Conditional {
+            first: conditional.remove(0),
+            rest: conditional,
+        }),
+        (None, _) => None,
     }
 }
 
@@ -410,8 +489,19 @@ fn cfg_attr_group_path_eqs<'a>(
     i += 1;
     let mut depth = 1usize;
     let mut past_predicate = false;
+    // Whether the previous significant token was a path separator. The attribute admitting applied metas
+    // is the BUILT-IN `cfg_attr`, whose path is exactly that one segment: `foo::cfg_attr(a, path = "…")`
+    // ends in the same word while being somebody else's attribute, and descending into it reads a target
+    // no build compiles. Measured against this reader before the test existed: the span
+    // `(any(), foo::cfg_attr(a, path = "bogus"), path = "real.rs")` yielded two positions where one is
+    // right, and the raw spelling `foo::r#cfg_attr` yielded two as well.
+    let mut after_path_sep = false;
     while i < bytes.len() && depth > 0 {
         match bytes[i] {
+            b':' if bytes.get(i + 1) == Some(&b':') => {
+                after_path_sep = true;
+                i += 2;
+            }
             b'"' => {
                 i += 1;
                 while i < bytes.len() && bytes[i] != b'"' {
@@ -424,23 +514,47 @@ fn cfg_attr_group_path_eqs<'a>(
             }
             b'(' => {
                 depth += 1;
+                after_path_sep = false;
                 i += 1;
             }
             b')' => {
                 depth -= 1;
+                after_path_sep = false;
                 i += 1;
             }
             b',' if depth == 1 => {
                 past_predicate = true;
+                after_path_sep = false;
                 i += 1;
             }
             byte if depth == 1 && past_predicate && is_ident_byte(byte) => {
-                let start = i;
+                // A raw identifier is ONE segment: `r#` changes a lexical spelling and not a name, so
+                // `r#cfg_attr` names `cfg_attr`. Reading `r`, `#` and `cfg_attr` as separate events would
+                // clear a qualification the separator had set.
+                let mut start = i;
+                if bytes[i] == b'r' && bytes.get(i + 1) == Some(&b'#') {
+                    let after = i + 2;
+                    if after < bytes.len() && is_ident_byte(bytes[after]) {
+                        start = after;
+                    }
+                }
+                i = start;
                 while i < bytes.len() && is_ident_byte(bytes[i]) {
                     i += 1;
                 }
                 let ident = &bytes[start..i];
-                if ident == b"path" {
+                let qualified = after_path_sep;
+                after_path_sep = false;
+                // **The narrowing belongs to the target as much as to the wrapper.** `qualified` was
+                // computed here and spent on the `cfg_attr` arm alone, so `foo::path = "bogus.rs"` — an
+                // attribute belonging to somebody else — was collected as a module remap. Measured
+                // against rustc 1.96.0, edition 2021, `--crate-type lib`:
+                // `#[cfg_attr(any(), foo::path = "bogus.rs", path = "real.rs")] mod plat;` compiles,
+                // because a false predicate means no applied attribute is expanded and `foo::path` is
+                // never resolved. This scanner is cfg-blind, so it unions every candidate on disk — and a
+                // file named by nobody's `path` is not one. Reading it reports a violation against source
+                // the governed tree does not compile.
+                if ident == b"path" && !qualified {
                     let mut j = i;
                     while j < bytes.len() && bytes[j].is_ascii_whitespace() {
                         j += 1;
@@ -448,11 +562,16 @@ fn cfg_attr_group_path_eqs<'a>(
                     if bytes.get(j) == Some(&b'=') {
                         eqs.push(base_offset + j);
                     }
-                } else if ident == b"cfg_attr" {
+                } else if ident == b"cfg_attr" && !qualified {
                     pending.push((&bytes[i..], base_offset + i));
                 }
             }
-            _ => i += 1,
+            _ => {
+                if !bytes[i].is_ascii_whitespace() {
+                    after_path_sep = false;
+                }
+                i += 1;
+            }
         }
     }
 }
@@ -480,17 +599,11 @@ fn attr_prefix_has_bare_cfg(bytes: &[u8]) -> bool {
             i += 1;
             continue;
         }
-        i += 1;
-        while i < bytes.len() && bytes[i].is_ascii_whitespace() {
+        let Some(name) = attr_name_start(bytes, i) else {
             i += 1;
-        }
-        if bytes.get(i) != Some(&b'[') {
             continue;
-        }
-        i += 1;
-        while i < bytes.len() && bytes[i].is_ascii_whitespace() {
-            i += 1;
-        }
+        };
+        i = name;
         // The byte immediately after `cfg` must not continue the identifier (excludes `cfg_attr`,
         // whose next byte is `_`).
         if bytes[i..].starts_with(b"cfg")
@@ -505,7 +618,79 @@ fn attr_prefix_has_bare_cfg(bytes: &[u8]) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::cfg_attr_prefix_collect_path_eqs;
+    use super::{
+        attr_name_start, attr_prefix_has_bare_cfg, attr_prefix_remap,
+        cfg_attr_prefix_collect_path_eqs,
+    };
+
+    /// The two readers of an attribute prefix agree about where the name is, because they ask once.
+    ///
+    /// The position is what the two shared before it was extracted: twenty-three byte-identical lines in
+    /// each, diverging only at `path` versus `cfg`. This direction is over the position itself and over both
+    /// verdicts that stand on it, so a change to one reader's approach shows up as a disagreement here
+    /// rather than as a `cfg` scanner that learned a spelling the `path` scanner did not.
+    #[test]
+    fn both_readers_take_the_attribute_name_from_one_position() {
+        // (prefix, where the name starts, does it remap, is it a bare cfg)
+        for (prefix, name_at, remaps, bare_cfg) in [
+            (&b"#[path = \"x.rs\"]"[..], Some(2), true, false),
+            (&b"#[cfg(unix)]"[..], Some(2), false, true),
+            // Whitespace on either side of the bracket, which the preamble skips in two separate loops.
+            (&b"# [ path = \"x.rs\"]"[..], Some(4), true, false),
+            (&b"# [ cfg(unix)]"[..], Some(4), false, true),
+            // The raw spelling names the built-in, at the attribute's own name position.
+            (&b"#[r#path = \"x.rs\"]"[..], Some(4), true, false),
+            (&b"#[r#cfg(unix)]"[..], Some(4), false, true),
+            // `cfg_attr` is not a bare `cfg`, raw-spelled or not — the byte after `cfg` continues the
+            // identifier.
+            (
+                &b"#[r#cfg_attr(unix, path = \"x.rs\")]"[..],
+                Some(4),
+                true,
+                false,
+            ),
+            // A `path`-named attribute with no followable value contributes no candidate. Measured
+            // against rustc 1.96.0, edition 2021, `--crate-type lib`: both spellings are
+            // `error: malformed 'path' attribute input`, so no configuration compiles either, and a
+            // cfg-blind union of compilable candidates has nothing to union. The name position is still
+            // read, which is what keeps this row about the remap verdict rather than about the reader
+            // failing to find a name.
+            (&b"#[path]"[..], Some(2), false, false),
+            (&b"#[path(\"x.rs\")]"[..], Some(2), false, false),
+            // A lone `r#` is not a raw identifier, so the name starts at the `r`.
+            (&b"#[r#]"[..], Some(2), false, false),
+            // The `#` that opens nothing is stepped over, and the one after it is read.
+            (&b"##[path = \"x.rs\"]"[..], Some(3), true, false),
+            // A `#` at the NAME position, which is the one case where the scan must not step off a name
+            // it did not match. `attr_name_start` skips `[` and whitespace and stops, so it answers the
+            // inner `#` here — and the remap is inside the attribute that `#` opens. The union is
+            // false-negative-safe by construction, so a candidate physically written in the source counts
+            // whether or not any configuration compiles this spelling.
+            (&b"#[#[path = \"x.rs\"]"[..], Some(2), true, false),
+        ] {
+            let spelling = String::from_utf8_lossy(prefix).into_owned();
+            let hash = prefix
+                .iter()
+                .position(|byte| *byte == b'#')
+                .expect("every row opens with a hash");
+            let start = match attr_name_start(prefix, hash) {
+                Some(start) => Some(start),
+                None => attr_name_start(prefix, hash + 1),
+            };
+            assert_eq!(start, name_at, "the name position in {spelling}");
+
+            assert_eq!(
+                attr_prefix_remap(prefix).is_some(),
+                remaps,
+                "the path reader's verdict on {spelling}"
+            );
+            assert_eq!(
+                attr_prefix_has_bare_cfg(prefix),
+                bare_cfg,
+                "the cfg reader's verdict on {spelling}"
+            );
+        }
+    }
 
     #[test]
     fn deeply_nested_cfg_attr_paths_use_a_bounded_native_stack() {
@@ -540,5 +725,58 @@ mod tests {
 
         assert_eq!(eqs.len(), 3);
         assert!(eqs.windows(2).all(|pair| pair[0] < pair[1]), "{eqs:?}");
+    }
+
+    /// The attribute admitting applied metas is the BUILT-IN `cfg_attr`, whose path is exactly one
+    /// segment.
+    ///
+    /// **A qualified look-alike ends in the same word while being somebody else's attribute**, so
+    /// descending into it collects a target no build compiles — a module read that rustc never reads,
+    /// and any violation found there is reported over source the governed tree does not have. `r#`
+    /// changes an identifier's lexical spelling and not its name, so it must not split one segment into
+    /// separate events either.
+    ///
+    /// Negative run, against the reader that matched the bare identifier: both spellings yielded **two**
+    /// positions where one is right.
+    ///
+    /// The control is the other half: an unqualified `cfg_attr`, raw-spelled or not, IS the built-in, so
+    /// this must not cost a genuine nested group its applied metas.
+    #[test]
+    fn a_qualified_look_alike_is_not_the_built_in_cfg_attr() {
+        for (label, span) in [
+            (
+                "plain",
+                &b"(any(), foo::cfg_attr(a, path = \"bogus\"), path = \"real.rs\")"[..],
+            ),
+            (
+                "raw identifier",
+                &b"(any(), foo::r#cfg_attr(a, path = \"bogus\"), path = \"real.rs\")"[..],
+            ),
+        ] {
+            let mut eqs = Vec::new();
+            super::cfg_attr_prefix_collect_path_eqs(span, 0, &mut eqs);
+            assert_eq!(
+                eqs.len(),
+                1,
+                "{label}: only the applied target is a module path, got {eqs:?}"
+            );
+        }
+
+        // Control: an unqualified nested `cfg_attr` still contributes, in either spelling.
+        for (label, span) in [
+            ("plain", &b"(any(), cfg_attr(a, path = \"nested.rs\"))"[..]),
+            (
+                "raw identifier",
+                &b"(any(), r#cfg_attr(a, path = \"nested.rs\"))"[..],
+            ),
+        ] {
+            let mut eqs = Vec::new();
+            super::cfg_attr_prefix_collect_path_eqs(span, 0, &mut eqs);
+            assert_eq!(
+                eqs.len(),
+                1,
+                "{label}: an unqualified nested group keeps its applied metas, got {eqs:?}"
+            );
+        }
     }
 }

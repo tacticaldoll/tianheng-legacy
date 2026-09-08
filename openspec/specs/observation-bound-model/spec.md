@@ -65,10 +65,9 @@ Granularity SHALL be carried **only** by *reached, reacting exactly, bounded in 
 as an independent field on every extent. No declared bound is both out of reach and granularity-limited, so a
 model offering both on every value would invite a combination nothing exhibits.
 
-This sentence said *the sixth* until the value above it was inserted, which moved the one it means to seventh
-and left it naming a neighbour instead. A value SHALL therefore be referred to by what distinguishes it and
-not by its position in this list: an ordinal into a list that grows is a reference that a later insertion
-invalidates in silence, and nothing here can check one.
+A value SHALL be referred to by what distinguishes it and not by its position in this list. An insertion moves
+every ordinal below it while the sentence naming one does not move, so an ordinal into a list that grows is a
+reference a later insertion invalidates in silence — and nothing here can check one.
 
 #### Scenario: A never-reached shape cannot claim a reaction direction
 
@@ -224,13 +223,12 @@ untracked or gitignored `spec.md` entered this bijection and not the register's:
 judging different corpora, with nothing comparing them. The parse rules had already been converged and the
 corpus had not — the half a reader of the diff would not miss and a reader of the pair would.
 
-Independent slug derivation was previously required here, reasoning that sharing the id function would collapse
-the comparison to the same implementation on both sides. That was measured and did not hold: the two
-implementations were byte-identical, so they could only catch drift between themselves — a risk that existed
-solely because there were two — and the comparison has always been against a tracked file rather than against a
-second computation. It is recorded as refuted rather than deleted, so it is not re-derived from the same
-intuition. A requirement stated as an implementation count is defensible only by counting implementations,
-which is a text detector over source; the property above is stated so that a case can hold it instead.
+Independent slug derivation SHALL NOT be required here, and the reason is not that one implementation cannot
+drift from a second: two byte-identical derivations catch drift only between themselves, which is a risk that
+exists solely because there are two, and the comparison this reaction makes is against a **tracked file**
+rather than against a second computation. A requirement stated as an implementation count is defensible only
+by counting implementations, which is a text detector over source; the property above is stated so that a
+case can hold it instead.
 
 The id SHALL be the `<capability>/<scenario-slug>` form the register already derives, so this reaction
 introduces no second naming scheme and no lookup table.
@@ -278,7 +276,7 @@ below says why, and a guard fails if one ever appears there.
 #### Scenario: A spec declares a bound with no typed declaration
 
 - **WHEN** a bound scenario is added to a spec and no declaration is added in code
-- **THEN** the reaction fails, naming the id, because the qualifier slot it used to carry is gone and an
+- **THEN** the reaction fails, naming the id, because an id carries no qualifier slot of its own and an
   unclassified bound would otherwise pass silently
 
 #### Scenario: Code declares a bound no spec states

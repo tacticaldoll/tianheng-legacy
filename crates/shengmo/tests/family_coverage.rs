@@ -54,10 +54,48 @@ fn workspace_root() -> Option<PathBuf> {
     )
 }
 
+/// A `git` that answers about **this** repository, and about no configuration outside it.
+///
+/// The third of the three properties `kanhe::hermetic_git::tracked_records` owns, transcribed here with the
+/// other two because `shengmo` cannot reach that owner: `kanhe` depends on `shengmo`, so the edge would
+/// close a cycle. The first two — `-z`, and a strict decode — were transcribed when this enumeration was
+/// converged and **this one was not**, which is what a boundary-forced copy fails at: it inherits nothing,
+/// so it holds whatever was carried across by hand.
+///
+/// `GIT_DIR`, `GIT_WORK_TREE` and `GIT_INDEX_FILE` take precedence over discovery from `current_dir`, so a
+/// set variable moves which repository is enumerated and the corpus below is a different tree's. The
+/// `GIT_CONFIG_*` set closes the configuration channels in the same order the owner does; `GIT_CONFIG_COUNT`
+/// is pinned to `1` with index `0` taken, so an ambient key at any index is unreachable.
+fn hermetic_git() -> Command {
+    let mut command = Command::new("git");
+    command
+        .env("GIT_CONFIG_GLOBAL", "/dev/null")
+        .env("GIT_CONFIG_SYSTEM", "/dev/null")
+        .env("GIT_CONFIG_NOSYSTEM", "1")
+        .env("GIT_CONFIG_COUNT", "1")
+        .env("GIT_CONFIG_KEY_0", "core.excludesFile")
+        .env("GIT_CONFIG_VALUE_0", "/dev/null")
+        .env_remove("GIT_DIR")
+        .env_remove("GIT_WORK_TREE")
+        .env_remove("GIT_INDEX_FILE")
+        .env_remove("GIT_CONFIG_PARAMETERS")
+        .env_remove("GIT_CONFIG");
+    command
+}
+
 /// Every tracked path, so the corpora below come from the repository rather than from a walk of the worktree.
 fn tracked(root: &Path) -> Vec<String> {
-    let out = Command::new("git")
-        .args(["ls-files"])
+    // **`-z`, and no lossy decode — spelled here rather than shared.** `kanhe::hermetic_git::tracked_paths`
+    // owns this question, and `shengmo` cannot reach `kanhe`: `kanhe` depends on `shengmo`, so the edge
+    // would close a cycle. That is a fact about the dependency graph rather than a site anyone declined to
+    // converge, which is the disposition `one_spelling`'s own header gives the same shape for `MARKER`.
+    // What must not differ is the property, and it has **three** parts, not the two carried across first:
+    // git quotes a path it cannot write plainly, so a line-oriented read answers `"\344\270\255.md"` — a
+    // spelling that names no file; a lossy decode answers a name the repository does not hold; and a bare
+    // `git` inherits `GIT_DIR` and its siblings, so it enumerates whichever repository the environment
+    // names. `hermetic_git` above is that third part.
+    let out = hermetic_git()
+        .args(["ls-files", "-z"])
         .current_dir(root)
         .output()
         .expect("run git ls-files");
@@ -65,8 +103,11 @@ fn tracked(root: &Path) -> Vec<String> {
         out.status.success(),
         "`git ls-files` failed, and a failed enumeration is not a repository with no files"
     );
-    let files: Vec<String> = String::from_utf8_lossy(&out.stdout)
-        .lines()
+    let listing = String::from_utf8(out.stdout)
+        .expect("a tracked path this reader cannot represent is refused, not renamed");
+    let files: Vec<String> = listing
+        .split('\0')
+        .filter(|path| !path.is_empty())
         .map(str::to_string)
         .collect();
     assert!(
@@ -224,4 +265,126 @@ fn every_published_family_has_an_adopter_shaped_owner() {
         "these boundary types are exercised by an example or by the self-law and are not re-exported by the \
          composed shell, so the coverage they demonstrate is of a surface no adopter reaches: {unpublished:?}"
     );
+}
+
+/// The probe half of the behavioural case below, reached as a child process.
+///
+/// This half is what cannot be shared: it runs **this** builder. Everything around it — the inventory, the
+/// baseline, the injection, the report's shape and the judgement — belongs to `shengmo::hermetic_probe`.
+#[test]
+fn hermetic_channel_probe() {
+    let Some(judged) = std::env::var_os("SHENGMO_PROBE_JUDGED") else {
+        return;
+    };
+    let read = std::env::var("SHENGMO_PROBE_READ").expect("the parent names the observation");
+    let judged = std::path::Path::new(&judged);
+    let arguments = shengmo::hermetic_probe::arguments(&read);
+    let subject = |mut command: Command| {
+        let out = command
+            .args(&arguments)
+            .current_dir(judged)
+            .output()
+            .expect("run git");
+        (
+            out.status.code().unwrap_or(-1),
+            String::from_utf8_lossy(&out.stdout).trim().to_string(),
+            String::from_utf8_lossy(&out.stderr).trim().to_string(),
+        )
+    };
+    println!(
+        "{}",
+        shengmo::hermetic_probe::report(subject(hermetic_git()), subject(Command::new("git")))
+    );
+}
+
+/// No ambient channel moves what this builder reads — **asked of a run, one channel at a time**.
+///
+/// This copy holds the owner's isolation by transcription, because `shengmo` cannot reach `kanhe` without
+/// closing a dependency cycle. **The evidence is not transcribed with it.** The cases, the baseline, the
+/// injection and the judgement come from `shengmo::hermetic_probe`; what stays here is the builder, which
+/// runs in the child, and the fixtures it runs against. Written out per site, three runners each parsed the
+/// inventory, each checked it their own way and each assembled the environment by hand — and what drifted
+/// was the evidence rather than the builders.
+#[test]
+fn no_ambient_channel_moves_what_the_family_coverage_builder_reads() {
+    let Some(root_of) = workspace_root() else {
+        return;
+    };
+    let inventory = shengmo::hermetic_probe::read(&root_of);
+
+    let root =
+        std::env::temp_dir().join(format!("family-coverage-channels-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    // `xingbiao::claim_scratch` owns this elsewhere and `shengmo` cannot reach it without a dependency
+    // edge, so the property it holds — a scratch root that refuses to adopt a pre-existing path — is held
+    // here instead of dropped.
+    assert!(
+        std::fs::symlink_metadata(&root).is_err(),
+        "the scratch root must not exist before it is made"
+    );
+    std::fs::create_dir_all(&root).expect("create the fixture root");
+    let build = |name: &str| {
+        let dir = root.join(name);
+        std::fs::create_dir_all(&dir).expect("create the fixture repository");
+        for args in [
+            &["init", "-q", "."][..],
+            &["config", "user.email", "fixture@example.invalid"][..],
+            &["config", "user.name", name][..],
+        ] {
+            assert!(
+                hermetic_git()
+                    .args(args)
+                    .current_dir(&dir)
+                    .status()
+                    .expect("run git")
+                    .success(),
+                "the fixture repository is built"
+            );
+        }
+        std::fs::write(dir.join(format!("{name}.txt")), name).expect("write the fixture file");
+        for args in [&["add", "-A"][..], &["commit", "-qm", name][..]] {
+            assert!(
+                hermetic_git()
+                    .args(args)
+                    .current_dir(&dir)
+                    .status()
+                    .expect("run git")
+                    .success(),
+                "the fixture commit is made"
+            );
+        }
+        dir
+    };
+    let judged = build("judged");
+    let decoy = build("decoy");
+    let config = root.join("ambient.gitconfig");
+    std::fs::write(&config, "[probe]\n\tmarker = ambient-probe\n")
+        .expect("write the ambient config");
+
+    let mut readings = Vec::new();
+    for case in inventory.cases() {
+        let mut probe = Command::new(std::env::current_exe().expect("this test binary"));
+        probe.args([
+            "--exact",
+            "hermetic_channel_probe",
+            "--nocapture",
+            "--test-threads=1",
+        ]);
+        shengmo::hermetic_probe::prepare(&mut probe, &inventory, case, &decoy, &config);
+        let out = probe
+            .env("SHENGMO_PROBE_JUDGED", &judged)
+            .env("SHENGMO_PROBE_READ", &case.observation)
+            .output()
+            .expect("run the probe child");
+        readings.push((
+            case.clone(),
+            shengmo::hermetic_probe::reading(&String::from_utf8_lossy(&out.stdout), &case.channel),
+        ));
+    }
+
+    let _ = std::fs::remove_dir_all(&root);
+
+    for (case, reading) in readings {
+        shengmo::hermetic_probe::judge(&case, &reading);
+    }
 }

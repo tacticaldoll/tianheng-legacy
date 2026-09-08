@@ -99,7 +99,7 @@ For each semantic boundary, the system SHALL resolve the named governed module a
 #### Scenario: A cfg_attr-wrapped-path sibling reacts through its own file, not absorbed by another sibling's success
 
 - **WHEN** the anchored module `crate::foo` is declared as two mutually-exclusive `#[cfg]` branches — one `#[cfg_attr(<pred>, path = "weird.rs")] mod foo;` and the other a plain `mod foo;` — and only the `cfg_attr` branch's target file exposes a forbidden type
-- **THEN** the system reacts on that exposure — the `cfg_attr` branch's own resolution is never silently dropped merely because the OTHER, mutually-exclusive branch's plain declaration also resolved successfully (found on adversarial review: the prior fail-loud-only-when-completely-unresolvable check never fired once any sibling succeeded, so the `cfg_attr` branch's file vanished with no error and no reaction at all)
+- **THEN** the system reacts on that exposure — the `cfg_attr` branch's own resolution is never silently dropped merely because the OTHER, mutually-exclusive branch's plain declaration also resolved successfully
 
 ### Requirement: Public-signature observation governs exposure
 
@@ -314,7 +314,7 @@ A semantic violation report SHALL identify the governed anchor, the rule, the of
 
 ### Requirement: The syn dependency is quarantined
 
-The AST observation SHALL be implemented in the `hunyi` crate, which is the only crate permitted to depend on `syn`. The dependency-light static core (`guibiao`) MUST NOT acquire `syn`, and `hunyi` MUST NOT depend on the imperative shell `tianheng`. These invariants SHALL be enforced as `cargo test` self-governance gates.
+The AST observation SHALL be implemented in the `hunyi` crate, which is the only **packaged** crate that depends on `syn`. The dependency-light static core (`guibiao`) MUST NOT acquire `syn`, and `hunyi` MUST NOT depend on the imperative shell `tianheng`. These invariants SHALL be enforced as `cargo test` self-governance gates.
 
 #### Scenario: The core does not gain syn
 
@@ -549,6 +549,8 @@ A governed module anchor whose plain `mod name;` is backed by BOTH conventional 
 
 The system SHALL observe the contents of a **transparent control-flow macro** arm as real code: for a `cfg_if!` invocation in item position, each arm's items SHALL be collected exactly as if written at the invocation's own position, and a `mod` declaration inside an arm SHALL enter the module graph so its source file is scanned. A transparent macro wraps human-authored items without transforming identities, so treating its arms as macro-generated would leave a real, compiled item unobserved — an exposure written inside an arm would escape every single-module-anchored capability (signature-coupling, visibility, dyn/impl-trait, async-exposure) while the static dimension already reacts to the identical block, and a module declared only inside an arm would additionally hide its file's `unsafe` sites, forbidden markers, and trait impls from the crate-wide walk. Nested invocations SHALL recurse. An arm-declared module SHALL be treated as **cfg-conditional** for absent-file purposes — the arm's predicate gates it, every arm being conditionally compiled by construction — matching the static dimension's own rule rather than a re-derived one, while the ambiguity reaction (both conventional forms present) SHALL still fire regardless of arm membership. Transparency SHALL be gated on the macro **name** (`cfg_if`), and that gate is load-bearing rather than conservative: applied to an arbitrary macro invocation, arm extraction reads a nested `impl Foo { … }` body's braces as an arm and reports items the macro may never emit verbatim, a false positive. Three bounds SHALL therefore be stated rather than left silent — a body-wrapping macro under any **other** name is NOT covered and its contents remain unobserved; arms are unioned **cfg-blind**, so a violation written in an arm that the current configuration does not compile still reacts, since knowing which arm is live would require evaluating the whole feature and target resolution; and transparency applies to **item position** only, so an invocation written inside an `impl` or `trait` body (whose arms hold impl items rather than items, reached through a different set of walkers) is NOT flattened and its contents remain unobserved, a measured residual gap owned by its own change rather than silently absorbed into this one.
 
+**The macro name is the name it spells.** A raw-identifier invocation — `r#cfg_if! { … }` — SHALL be read as the same transparent macro, since `r#` changes an identifier's lexical spelling and not the name it spells and `cfg_if` is not a keyword. A **keyword** is the opposite case and SHALL NOT be folded into this rule: `r#mut` is an identifier named `mut` and is precisely not the keyword.
+
 #### Scenario: An exposure inside a cfg_if arm reacts
 
 - **WHEN** a governed module's body is `cfg_if! { if #[cfg(unix)] { pub fn leak() -> crate::forbidden::Thing { … } } else { … } }` and a boundary forbids `crate::forbidden::Thing`
@@ -568,6 +570,12 @@ The system SHALL observe the contents of a **transparent control-flow macro** ar
 
 - **WHEN** a forbidden exposure sits inside a `cfg_if!` invocation written inside another `cfg_if!` arm
 - **THEN** the system reports the exposure, recursing into the inner invocation
+
+#### Scenario: A raw-identifier spelling of the macro name is the same macro
+
+- **WHEN** the invocation is written `r#cfg_if! { if #[cfg(unix)] { pub fn leak() -> crate::forbidden::Thing { … } } }` and a boundary forbids `crate::forbidden::Thing`
+- **THEN** the system reports the exposure, because `r#` changes an identifier's lexical spelling and not the name it spells and `cfg_if` is not a keyword — measured under rustc 1.96.0, edition 2021, `--crate-type lib`, an item declared inside `r#cfg_if! { … }` is produced and can be referenced. This is not the rule for a keyword: `r#mut` is an identifier named `mut` and is precisely **not** the keyword, so a reader matching Rust keywords compares as written
+- **PINNED-BY** `all_three_dimensions_read_a_raw_identifier_spelling_of_the_macro_name`
 
 #### Scenario: A module declared inside a cfg_if arm is scanned
 

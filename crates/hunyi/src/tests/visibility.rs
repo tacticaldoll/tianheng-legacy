@@ -438,7 +438,7 @@ pub(super) fn distinct_trait_instantiations_for_one_self_type_stay_distinct_find
 
 #[test]
 pub(super) fn array_length_differing_trait_instantiations_stay_distinct() {
-    // Round-2 fix: the type renderer now includes an array length (`[u8; 4]` vs `[u8; 8]`), so
+    // The type renderer includes an array length (`[u8; 4]` vs `[u8; 8]`), so
     // instantiations differing only in a const array length stay distinct findings (the renderer
     // previously emitted `[u8; _]`, collapsing them).
     let out = locality_findings(
@@ -469,7 +469,7 @@ pub(super) fn array_length_differing_trait_instantiations_stay_distinct() {
 pub(super) fn complex_length_arrays_of_different_element_types_stay_distinct() {
     // When an array length is an unrenderable const
     // expression (`N + 1`), the renderer must keep the ELEMENT type and mark only the length `_`
-    // (`[u8; _]` / `[u16; _]`), never propagate `None` for the whole array. Round 2's Array arm
+    // (`[u8; _]` / `[u16; _]`), never propagate `None` for the whole array. An earlier Array arm
     // propagated `None`, routing both arrays into the caller's single shared `_` bucket — collapsing
     // even distinct element types into one finding so a baseline could mask the second exposure.
     let out = locality_findings(

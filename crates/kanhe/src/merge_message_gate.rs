@@ -202,6 +202,37 @@ fn is_a_bare_commit_list(body: &str, commits: &[String]) -> bool {
     saw_one
 }
 
+/// Whether `subject` is the release snapshot's, the one subject whose body the ritual requires to be empty.
+///
+/// Exactly `chore(release): X.Y.Z` with a well-formed version, because the exception is for that act and not
+/// for a subject that merely carries the scope. The retired `release: X.Y.Z` form remains readable in release
+/// history but cannot create another snapshot.
+/// The one message exception, identified by the squash it **is** rather than by what it says.
+///
+/// `AGENTS.md` states it as the *release-branch-to-`main`* squash, and fixes the branch's role as
+/// `release/X.Y.Z` against a subject reading `chore(release): X.Y.Z` — **one** version across the three, which is
+/// what makes them an identity rather than three shapes that happen to co-occur.
+///
+/// Three readings of this clause were each the narrowest thing that answered the finding in front of them,
+/// and each left the next one open: the **subject** alone, admitting any branch; the subject and the
+/// **destination**, admitting any source; the destination and a `release/` **prefix**, admitting
+/// `release/not-a-version` and admitting `release/0.4.0` carrying `release: 0.5.0` — a branch whose whole
+/// purpose is one version, squashing a message about another. What the contract named all along is the
+/// triple with its equality.
+fn is_release_snapshot(subject: &str, base: &str, head: &str) -> bool {
+    let Some(said) = crate::release_subject::canonical_version(subject) else {
+        return false;
+    };
+    let Some(branch) = head.trim().strip_prefix("release/") else {
+        return false;
+    };
+    // The role is `release/X.Y.Z` and the subject is `chore(release): X.Y.Z` — **one** `X.Y.Z`, which is what
+    // makes the triple an identity rather than three shapes that happen to co-occur. A prefix admitted
+    // `release/not-a-version`, and admitted `release/0.4.0` carrying `release: 0.5.0`: a branch whose whole
+    // purpose is one version, squashing a message about another.
+    base.trim() == "main" && branch == said
+}
+
 /// Judge a proposed squash message against the pull request it would record.
 ///
 /// Ordered most-specific first. A subject carrying a serial also differs from its title and is also still
@@ -212,6 +243,8 @@ pub fn judge(
     body: &str,
     title: &str,
     commits: &[String],
+    base: &str,
+    head: &str,
 ) -> Result<String, Refusal> {
     if title.trim().is_empty() {
         return Err(cannot_judge_at(
@@ -273,7 +306,15 @@ pub fn judge(
             ));
         }
     }
-    if body.trim().is_empty() {
+    // **The release snapshot is the one subject whose body is required to be empty, and this rule refused
+    // it.** `AGENTS.md` states the exception in its own words — the release-branch-to-`main` squash's subject
+    // is `chore(release): X.Y.Z` and *its body is deliberately empty*. The subject is conventional now; the
+    // exception reaches only the body, and only when branch, destination, and version form one identity.
+    //
+    // The exception is what lets that merge go *through* the wrapper, which is strictly more observation
+    // than it had: the subject shape, the attribution marks and the title match are all still judged. An
+    // empty body stays a violation for every other subject.
+    if body.trim().is_empty() && !is_release_snapshot(subject, base, head) {
         return Err(violation_at(
             "repository-checks#squash-body-is-empty",
             "the squash body is empty; a commit body carries why the change exists and what contract it \

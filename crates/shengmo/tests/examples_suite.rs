@@ -85,6 +85,88 @@ const EXAMPLES: [Example; 7] = [
     },
 ];
 
+/// One isolated quality gate an example must pass.
+///
+/// **The two properties beside `head` were decided by comparing `label` against a literal**, twelve and
+/// sixteen lines from where the label was written, in one expression. So `label` was at once the sentence
+/// an operator reads and the dispatch key for whether warnings fail the build — and renaming it in the
+/// table, which reads as a wording change, silently dropped `-D warnings`: clippy would still run, still
+/// exit `0`, and the gate would go green having stopped reacting. That is the shape the suite's own module
+/// doc names, one level up: *checking that an example merely builds says nothing about either — the
+/// reaction it demonstrates could be gone entirely.*
+///
+/// Declared, the label decides nothing, so a rename is a rename.
+///
+/// Negative run, against the tuple form with `"clippy"` renamed to `"lint"` in the table and the dispatch
+/// left comparing against `"clippy"` — which is what that edit does:
+///
+/// ```text
+/// test every_example_passes_its_isolated_quality_gates ... ok
+/// test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out
+/// ```
+///
+/// Green, with `-D warnings` gone from every example's clippy run. Nothing else in the tree references
+/// these labels, so nothing would have said so.
+struct Gate {
+    /// Names the gate in the assertion message, and nothing else.
+    label: &'static str,
+    head: &'static [&'static str],
+    /// Whether warnings must fail the build. `-D warnings` is the whole point of the clippy gate.
+    denies_warnings: bool,
+    /// Whether the example's family patch arguments apply. `fmt` reads the source and resolves nothing.
+    takes_the_family_patch: bool,
+}
+
+const GATES: [Gate; 3] = [
+    Gate {
+        label: "fmt",
+        head: &["fmt", "--all", "--check"],
+        denies_warnings: false,
+        takes_the_family_patch: false,
+    },
+    Gate {
+        label: "clippy",
+        head: &["clippy", "--all-targets"],
+        denies_warnings: true,
+        takes_the_family_patch: true,
+    },
+    Gate {
+        label: "doc",
+        head: &["doc", "--no-deps"],
+        denies_warnings: false,
+        takes_the_family_patch: true,
+    },
+];
+
+/// A `git` that answers about **this** repository, and about no configuration outside it.
+///
+/// The third of the three properties `kanhe::hermetic_git::tracked_records` owns, transcribed here with the
+/// other two because `shengmo` cannot reach that owner: `kanhe` depends on `shengmo`, so the edge would
+/// close a cycle. The first two — `-z`, and a strict decode — were transcribed when this enumeration was
+/// converged and **this one was not**, which is what a boundary-forced copy fails at: it inherits nothing,
+/// so it holds whatever was carried across by hand.
+///
+/// `GIT_DIR`, `GIT_WORK_TREE` and `GIT_INDEX_FILE` take precedence over discovery from `current_dir`, so a
+/// set variable moves which repository is enumerated and the corpus below is a different tree's. The
+/// `GIT_CONFIG_*` set closes the configuration channels in the same order the owner does; `GIT_CONFIG_COUNT`
+/// is pinned to `1` with index `0` taken, so an ambient key at any index is unreachable.
+fn hermetic_git() -> Command {
+    let mut command = Command::new("git");
+    command
+        .env("GIT_CONFIG_GLOBAL", "/dev/null")
+        .env("GIT_CONFIG_SYSTEM", "/dev/null")
+        .env("GIT_CONFIG_NOSYSTEM", "1")
+        .env("GIT_CONFIG_COUNT", "1")
+        .env("GIT_CONFIG_KEY_0", "core.excludesFile")
+        .env("GIT_CONFIG_VALUE_0", "/dev/null")
+        .env_remove("GIT_DIR")
+        .env_remove("GIT_WORK_TREE")
+        .env_remove("GIT_INDEX_FILE")
+        .env_remove("GIT_CONFIG_PARAMETERS")
+        .env_remove("GIT_CONFIG");
+    command
+}
+
 fn workspace_root() -> Option<PathBuf> {
     shengmo::workspace::locate(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."),
@@ -222,32 +304,38 @@ fn every_example_passes_its_isolated_quality_gates() {
         return;
     };
     if std::env::var_os("TIANHENG_EXAMPLES").is_none() {
+        // Said out loud, like its sibling above. A direction that returns green without running is
+        // indistinguishable from one that ran, and the reader who most needs to know is the one who set no
+        // variable and read `ok` — a local run, where the skip is the intended cost.
+        eprintln!(
+            "examples (isolated quality gates): skipped — set TIANHENG_EXAMPLES=1 to run it. It is named \
+             on its own line in the Definition of Done and in CI, so skipping here is a cost decision \
+             rather than a hole."
+        );
         return;
     }
     for example in &EXAMPLES {
         let dir = root.join("examples").join(example.name);
         let patch = patch_args(&root, example.family);
-        for (label, head) in [
-            ("fmt", vec!["fmt", "--all", "--check"]),
-            ("clippy", vec!["clippy", "--all-targets"]),
-            ("doc", vec!["doc", "--no-deps"]),
-        ] {
-            let tail: Vec<&str> = if label == "clippy" {
-                vec!["--", "-D", "warnings"]
+        for gate in &GATES {
+            let tail: &[&str] = if gate.denies_warnings {
+                &["--", "-D", "warnings"]
             } else {
-                vec![]
+                &[]
             };
-            let args = if label == "fmt" {
-                argv(&head, &[], &tail)
+            let none: [String; 0] = [];
+            let args = if gate.takes_the_family_patch {
+                argv(gate.head, &patch, tail)
             } else {
-                argv(&head, &patch, &tail)
+                argv(gate.head, &none, tail)
             };
             let (code, output) = cargo(&dir, &args);
             assert_eq!(
                 code,
                 Some(0),
-                "{}: isolated {label} fails:\n{output}",
-                example.name
+                "{}: isolated {} fails:\n{output}",
+                example.name,
+                gate.label
             );
         }
     }
@@ -275,8 +363,14 @@ fn every_tracked_example_is_declared_and_every_declaration_exists() {
     let Some(root) = workspace_root() else {
         return;
     };
-    let out = Command::new("git")
-        .args(["ls-files", "examples"])
+    // `-z`, a strict decode, and a `git` that answers about this repository only — the three properties
+    // `kanhe::hermetic_git::tracked_records` owns, spelled here because `shengmo` cannot reach `kanhe`
+    // without closing a dependency cycle. The third was missing when the first two were transcribed, which
+    // is the failure mode of a copy that inherits nothing: git quotes a path it cannot write plainly, a
+    // replaced byte names a path the repository does not hold, and a bare `git` enumerates whichever
+    // repository `GIT_DIR` names.
+    let out = hermetic_git()
+        .args(["ls-files", "-z", "examples"])
         .current_dir(&root)
         .output()
         .expect("run git ls-files examples");
@@ -284,8 +378,11 @@ fn every_tracked_example_is_declared_and_every_declaration_exists() {
         out.status.success(),
         "`git ls-files examples` failed, and a failed enumeration is not a repository with no examples"
     );
-    let tracked: std::collections::BTreeSet<String> = String::from_utf8_lossy(&out.stdout)
-        .lines()
+    let listing = String::from_utf8(out.stdout)
+        .expect("a tracked path this reader cannot represent is refused, not renamed");
+    let tracked: std::collections::BTreeSet<String> = listing
+        .split('\0')
+        .filter(|path| !path.is_empty())
         .filter(|path| path.ends_with("/Cargo.toml"))
         .filter_map(|path| path.strip_prefix("examples/"))
         .filter_map(|rest| rest.split_once('/'))
@@ -311,4 +408,125 @@ fn every_tracked_example_is_declared_and_every_declaration_exists() {
         "these declarations name no tracked example directory, so they read as coverage while defending \
          nothing: {absent:?}"
     );
+}
+
+/// The probe half of the behavioural case below, reached as a child process.
+///
+/// This half is what cannot be shared: it runs **this** builder. Everything around it — the inventory, the
+/// baseline, the injection, the report's shape and the judgement — belongs to `shengmo::hermetic_probe`.
+#[test]
+fn hermetic_channel_probe() {
+    let Some(judged) = std::env::var_os("SHENGMO_PROBE_JUDGED") else {
+        return;
+    };
+    let read = std::env::var("SHENGMO_PROBE_READ").expect("the parent names the observation");
+    let judged = std::path::Path::new(&judged);
+    let arguments = shengmo::hermetic_probe::arguments(&read);
+    let subject = |mut command: Command| {
+        let out = command
+            .args(&arguments)
+            .current_dir(judged)
+            .output()
+            .expect("run git");
+        (
+            out.status.code().unwrap_or(-1),
+            String::from_utf8_lossy(&out.stdout).trim().to_string(),
+            String::from_utf8_lossy(&out.stderr).trim().to_string(),
+        )
+    };
+    println!(
+        "{}",
+        shengmo::hermetic_probe::report(subject(hermetic_git()), subject(Command::new("git")))
+    );
+}
+
+/// No ambient channel moves what this builder reads — **asked of a run, one channel at a time**.
+///
+/// This copy holds the owner's isolation by transcription, because `shengmo` cannot reach `kanhe` without
+/// closing a dependency cycle. **The evidence is not transcribed with it.** The cases, the baseline, the
+/// injection and the judgement come from `shengmo::hermetic_probe`; what stays here is the builder, which
+/// runs in the child, and the fixtures it runs against. Written out per site, three runners each parsed the
+/// inventory, each checked it their own way and each assembled the environment by hand — and what drifted
+/// was the evidence rather than the builders.
+#[test]
+fn no_ambient_channel_moves_what_the_examples_suite_builder_reads() {
+    let Some(root_of) = workspace_root() else {
+        return;
+    };
+    let inventory = shengmo::hermetic_probe::read(&root_of);
+
+    let root = std::env::temp_dir().join(format!("examples-suite-channels-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    // `xingbiao::claim_scratch` owns this elsewhere and `shengmo` cannot reach it without a dependency
+    // edge, so the property it holds — a scratch root that refuses to adopt a pre-existing path — is held
+    // here instead of dropped.
+    assert!(
+        std::fs::symlink_metadata(&root).is_err(),
+        "the scratch root must not exist before it is made"
+    );
+    std::fs::create_dir_all(&root).expect("create the fixture root");
+    let build = |name: &str| {
+        let dir = root.join(name);
+        std::fs::create_dir_all(&dir).expect("create the fixture repository");
+        for args in [
+            &["init", "-q", "."][..],
+            &["config", "user.email", "fixture@example.invalid"][..],
+            &["config", "user.name", name][..],
+        ] {
+            assert!(
+                hermetic_git()
+                    .args(args)
+                    .current_dir(&dir)
+                    .status()
+                    .expect("run git")
+                    .success(),
+                "the fixture repository is built"
+            );
+        }
+        std::fs::write(dir.join(format!("{name}.txt")), name).expect("write the fixture file");
+        for args in [&["add", "-A"][..], &["commit", "-qm", name][..]] {
+            assert!(
+                hermetic_git()
+                    .args(args)
+                    .current_dir(&dir)
+                    .status()
+                    .expect("run git")
+                    .success(),
+                "the fixture commit is made"
+            );
+        }
+        dir
+    };
+    let judged = build("judged");
+    let decoy = build("decoy");
+    let config = root.join("ambient.gitconfig");
+    std::fs::write(&config, "[probe]\n\tmarker = ambient-probe\n")
+        .expect("write the ambient config");
+
+    let mut readings = Vec::new();
+    for case in inventory.cases() {
+        let mut probe = Command::new(std::env::current_exe().expect("this test binary"));
+        probe.args([
+            "--exact",
+            "hermetic_channel_probe",
+            "--nocapture",
+            "--test-threads=1",
+        ]);
+        shengmo::hermetic_probe::prepare(&mut probe, &inventory, case, &decoy, &config);
+        let out = probe
+            .env("SHENGMO_PROBE_JUDGED", &judged)
+            .env("SHENGMO_PROBE_READ", &case.observation)
+            .output()
+            .expect("run the probe child");
+        readings.push((
+            case.clone(),
+            shengmo::hermetic_probe::reading(&String::from_utf8_lossy(&out.stdout), &case.channel),
+        ));
+    }
+
+    let _ = std::fs::remove_dir_all(&root);
+
+    for (case, reading) in readings {
+        shengmo::hermetic_probe::judge(&case, &reading);
+    }
 }

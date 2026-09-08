@@ -3,7 +3,7 @@
 Where each declared **observation bound** stops the measure — not how far a scan walks (that is
 `ScanDepth`, an adopter's knob), but where this family's own reaction deliberately stops.
 
-**50 of 98 declared bounds are declared false negatives** — the reaction fires less than the truth, which is the one direction this family treats as a defect. That figure leads this document because a number in a footnote is not read, and each such bound names who must act:
+**56 of 105 declared bounds are declared false negatives** — the reaction fires less than the truth, which is the one direction this family treats as a defect. That figure leads this document because a number in a footnote is not read, and each such bound names who must act:
 
 - `external-crate-confinement/an-extern-crate-declaration-is-not-observed-a-stated-bound` — owner: engine
 - `inline-symbol-path-confinement/a-future-read-verb-outside-the-declared-set-is-a-documented-bound` — owner: adopter
@@ -25,9 +25,9 @@ Where each declared **observation bound** stops the measure — not how far a sc
 - `publish-source-integrity/the-tree-changing-after-the-gate-passed-is-not-observed-a-stated-bound` — owner: engine
 - `publish-source-integrity/whether-the-tag-s-signer-is-authorized-is-not-observed-a-stated-bound` — owner: inherited from the verification environment
 - `reference-integrity/a-path-already-wrong-when-a-dated-record-was-written-is-not-observed-a-stated-bound` — owner: engine
-- `reference-integrity/a-relative-phrase-in-non-record-markdown-is-not-observed-a-stated-bound` — owner: engine
 - `reference-integrity/a-rust-identifier-named-in-prose-is-not-resolved-a-stated-bound` — owner: engine
 - `reference-integrity/an-abbreviation-carrying-no-letter-or-no-digit-is-not-observed-a-stated-bound` — owner: engine
+- `reference-integrity/the-duration-phrase-in-non-record-markdown-is-not-observed-a-stated-bound` — owner: engine
 - `release-coherence/a-dated-release-section-names-a-gate-a-stated-bound` — owner: engine
 - `release-coherence/a-directory-named-without-its-trailing-slash-a-stated-bound` — owner: engine
 - `release-coherence/a-name-reached-only-through-a-url-a-stated-bound` — owner: engine
@@ -39,11 +39,17 @@ Where each declared **observation bound** stops the measure — not how far a sc
 - `repository-checks/a-count-written-in-a-sentence-no-census-declares-a-stated-bound` — owner: engine
 - `repository-checks/a-figure-written-in-words-at-one-hundred-or-above-is-not-matched-a-stated-bound` — owner: engine
 - `repository-checks/a-gate-reached-without-the-wrapper-a-stated-bound` — owner: engine
+- `repository-checks/a-git-constructed-inside-a-string-literal-is-not-read-a-stated-bound` — owner: engine
+- `repository-checks/a-git-constructed-through-a-name-bound-elsewhere-is-not-read-a-stated-bound` — owner: engine
+- `repository-checks/a-git-constructed-through-a-program-value-is-not-read-a-stated-bound` — owner: engine
+- `repository-checks/a-git-named-in-prose-is-not-read-a-stated-bound` — owner: engine
 - `repository-checks/a-marker-is-reached-through-some-other-primitive-a-stated-bound` — owner: engine
+- `repository-checks/a-paragraph-repeated-in-prose-is-not-read-a-stated-bound` — owner: engine
+- `repository-checks/a-paragraph-repeated-out-of-line-is-not-read-a-stated-bound` — owner: engine
 - `repository-checks/a-refusal-constructed-outside-the-register-s-corpus-is-not-triaged-a-stated-bound` — owner: engine
-- `repository-checks/a-title-edited-inside-the-re-read-itself-a-stated-bound` — owner: engine
 - `repository-checks/a-tool-configuration-set-in-the-environment-is-not-observed-a-stated-bound` — owner: engine
 - `repository-checks/a-whitespace-preceded-shell-marker-inside-quotes-is-cut-a-stated-bound` — owner: engine
+- `repository-checks/an-input-edited-inside-its-own-post-gate-re-read-a-stated-bound` — owner: engine
 - `repository-checks/files-no-capability-claims-a-stated-bound` — owner: engine
 - `repository-checks/the-consumer-stands-on-a-later-statement-a-stated-bound` — owner: engine
 - `repository-checks/whether-a-mention-compiles-anything-is-not-observed-a-stated-bound` — owner: engine
@@ -373,7 +379,7 @@ Generated from each dimension's `observation_bounds()` by `crates/kanhe/tests/ob
 
 > a code span in live prose carrying 4 to 40 lowercase hex characters with both a letter and a digit, which names something other than a commit
 
-- **because**: the reader decides by shape and nothing in the tree distinguishes a value with that shape from a citation without resolving it against an object database. Resolving was declined by measurement: CI checks out one commit, so the objects a citation names are absent there and the reader would either answer clean over all of them or refuse to judge at all. Measured over the live corpus: no span of this shape names anything but a commit, so the over-reaction is unrealised rather than tolerated
+- **because**: the reader decides by shape and nothing in the tree distinguishes a value with that shape from a citation without resolving it against an object database. Resolving is declined because the verdict would then depend on the object store rather than on the tracked text: the job running this reader checks out full history, but jobs checking out at the default depth would answer clean over every citation, so the reader would report clean for a reason unrelated to the content. Measured over the live corpus: no span of this shape names anything but a commit, so the over-reaction is unrealised rather than tolerated
 - **its defence must show**: reacts on a harmless shape
 - **unpinned**, tracked by: `BACKLOG.md` — *a code span shaped like an object that names none*
 
@@ -389,7 +395,7 @@ Generated from each dimension's `observation_bounds()` by `crates/kanhe/tests/ob
 
 > a catalog path differing from the member's directory only in case, on a case-insensitive filesystem
 
-- **because**: the comparison is component-wise and case-sensitive on every host, so it answers the same everywhere and is right only where the filesystem is. Closing it means asking the filesystem, since case folding is the volume's rule rather than the string's — and a release gate whose verdict over one tree differs by the machine it runs on is worse than a refusal an author can read and argue with. This reader is also handed no repository to ask. An earlier wording claimed canonicalizing would make `..` resolvable and move three other verdicts: review showed it can be confined to the accepted branch, leaving every refusal intact, so that reason was false and is not what keeps the bound
+- **because**: the comparison is component-wise and case-sensitive on every host, so it answers the same everywhere and is right only where the filesystem is. Closing it means asking the filesystem, since case folding is the volume's rule rather than the string's — and a release gate whose verdict over one tree differs by the machine it runs on is worse than a refusal an author can read and argue with. This reader is also handed no repository to ask. What does NOT keep the bound is the cost of canonicalizing: confined to the accepted branch it makes `..` resolvable and leaves every other verdict, and every refusal, exactly where it was -- measured, so the reason is the two above rather than a spread of consequences
 - **its defence must show**: reacts on a harmless shape
 - **unpinned**, tracked by: `BACKLOG.md` — *a pin may defend a direction its bound does not declare*
 
@@ -457,7 +463,17 @@ Generated from each dimension's `observation_bounds()` by `crates/kanhe/tests/ob
 - **its defence must show**: reacts on a harmless shape
 - **pinned by**: `a_pub_in_narrow_path_over_reacts_under_a_module_ceiling`
 
-## under-reacts (50)
+## refuses to judge (1)
+
+### `publish-source-integrity/whether-a-worktree-holding-an-undecodable-path-is-clean-is-not-observed-a-stated-bound`
+
+> a worktree holding a path that is a legal filename and not UTF-8, which `ls-files -z --others` and `status -z` both answer as its own bytes
+
+- **because**: a verdict is not owed on an input this reader cannot represent, and the alternative is worse than a refusal: collapsing the undecodable bytes to U+FFFD would make every comparison downstream against a name the repository does not hold, which is the property `xingbiao::path_identity` exists to keep. So the worktree read stops and the cleanliness judgement is never reached -- neither `clean` nor `dirty` for that tree. What it costs is that such a repository cannot be published through the wrapper until the path is renamed or removed, which is a refusal standing in front of an irreversible act rather than a pass over one
+- **its defence must show**: refuses to judge
+- **pinned by**: `a_worktree_holding_an_undecodable_path_is_not_judged_clean_or_dirty`
+
+## under-reacts (56)
 
 ### `external-crate-confinement/an-extern-crate-declaration-is-not-observed-a-stated-bound`
 
@@ -619,14 +635,6 @@ Generated from each dimension's `observation_bounds()` by `crates/kanhe/tests/ob
 - **its defence must show**: does not react
 - **pinned by**: `a_dated_changelog_section_keeps_its_paths_and_an_undated_one_does_not`
 
-### `reference-integrity/a-relative-phrase-in-non-record-markdown-is-not-observed-a-stated-bound`
-
-> one of the declared relative phrases, unanchored, in a tracked Markdown document outside the record set
-
-- **because**: extending the sweep to whole-document prose was measured against the tree it would judge, and most of what it would report is not an offence: some occurrences are `AGENTS.md`'s own row DECLARING the phrases, some are duration rather than pointer -- `admitted it for a window` narrates how long something lasted -- some are a generated projection's copy of either, and some are already anchored, by a commit or by naming the release. A reader over text separates none of those groups: telling a phrase that points at a moving window from one measuring a span is a judgement about the sentence, which is the prose instrument `AGENTS.md` records as designed, measured three times and rejected. How many fall in each group is not written here: this reason is itself in the corpus it describes, since a bound about a phrase has to quote the phrase, and its projection moves the figure again
-- **its defence must show**: does not react
-- **unpinned**, tracked by: `BACKLOG.md` — *a relative phrase in non-record Markdown*
-
 ### `reference-integrity/a-rust-identifier-named-in-prose-is-not-resolved-a-stated-bound`
 
 > a backticked snake_case name written in a doc comment's prose rather than as an intra-doc link
@@ -639,9 +647,17 @@ Generated from each dimension's `observation_bounds()` by `crates/kanhe/tests/ob
 
 > a live document citing an abbreviated commit object whose characters are all digits, or all letters
 
-- **because**: requiring both a letter and a digit is what keeps the reader off two shapes this tree actually holds -- a long run of digits written as a figure, and an English word spelled from the hex alphabet -- and the price is the abbreviations that carry only one kind of character. Over uniformly random seven-character abbreviations that is 3.8%. The direction is deliberate, and its reason is not the one first written here: the Core Contract names a **silent** false negative as the one forbidden bug, so a miss is not the cheaper direction by default. What makes this one admissible is that it is not silent -- it is this declaration, with an owner and a tracker -- and the alternative is refusing prose that cites nothing, which no declaration would cover
+- **because**: requiring both a letter and a digit is what keeps the reader off two shapes this tree actually holds -- a long run of digits written as a figure, and an English word spelled from the hex alphabet -- and the price is the abbreviations that carry only one kind of character. Over uniformly random seven-character abbreviations that is 3.8%. The direction is deliberate, and what makes it admissible is not that a miss is the cheaper direction: the Core Contract names a **silent** false negative as the one forbidden bug, so no miss is cheaper by default. This one is not silent -- it is this declaration, with an owner and a tracker -- and the alternative is refusing prose that cites nothing, which no declaration would cover
 - **its defence must show**: does not react
 - **unpinned**, tracked by: `BACKLOG.md` — *an abbreviation carrying no letter or no digit*
+
+### `reference-integrity/the-duration-phrase-in-non-record-markdown-is-not-observed-a-stated-bound`
+
+> the duration phrase `for a window`, unanchored, in a tracked Markdown document outside the record set
+
+- **because**: that phrase alone is the group a reader over text cannot separate: it is as often duration -- `admitted it for a window`, narrating how long something lasted -- as it is a pointer at a moving window, and telling the two apart is a judgement about the sentence, which is the prose instrument `AGENTS.md` records as designed, measured three times and rejected. It is the ground on which `the same window` is absent from the declared phrases entirely. Every other group a widened sweep reports is separable by SHAPE rather than by meaning, which is why none of them is here: a record carrier by path and by dated section, a marked quotation in backticks or single emphasis, and a generated projection's copy of either, which is a marked quotation by the same test. How many fall in each group is not written here: this reason is itself in the corpus it describes, and its projection moves the figure again
+- **its defence must show**: does not react
+- **unpinned**, tracked by: `BACKLOG.md` — *the duration phrase in non-record Markdown*
 
 ### `release-coherence/a-dated-release-section-names-a-gate-a-stated-bound`
 
@@ -695,7 +711,7 @@ Generated from each dimension's `observation_bounds()` by `crates/kanhe/tests/ob
 
 > a bare reference to a registered or unregistered constructor's name, where whether it names the constructor taken by value or a local variable sharing its spelling is not decidable from syntax
 
-- **because**: the register's reader used to be text over Rust and not exhaustive over the language, where a byte char literal, a raw string, or a two-line closure parameter list could desynchronise a character scan entirely -- invisible to both of its readings at once, the unsafe direction this bound named. Reading this repository's own Rust with a real parser instead of scanning it closed that floor; what remains is not lexical. Whether a bare reference names the constructor taken by value or a local sharing its spelling is not written down anywhere a parse tree carries, and answering it needs name resolution, which a reader of syntax alone does not have
+- **because**: what remains is not lexical, because the register's reader parses this repository's own Rust rather than scanning it. A character scan is the reading that leaves a lexical residue -- a byte char literal, a raw string or a two-line closure parameter list desynchronises one entirely, invisible to both of its readings at once, which is the unsafe direction. A parse carries none of those and does not carry this: whether a bare reference names the constructor taken by value or a local sharing its spelling is not written down anywhere a parse tree reaches, and answering it needs name resolution, which a reader of syntax alone does not have
 - **its defence must show**: does not react
 - **unpinned**, tracked by: `BACKLOG.md` — *a bare reference to a registered constructor's name cannot be told from a local variable sharing its spelling without name resolution*
 
@@ -731,13 +747,62 @@ Generated from each dimension's `observation_bounds()` by `crates/kanhe/tests/ob
 - **its defence must show**: does not react
 - **unpinned**, tracked by: `BACKLOG.md` — *a merge or publish made outside the wrapper is not observed*
 
+### `repository-checks/a-git-constructed-inside-a-string-literal-is-not-read-a-stated-bound`
+
+> a `git` construction written inside a string literal of either form, ordinary or raw, where a file that emits Rust and compiles it carries one
+
+- **because**: a literal is one token, so what it carries is that token's text and not a call. Reading lines, this split in two: an ordinary literal escaped its quotes and dropped out on its own, while a RAW string carried the spelling verbatim and was reported -- an over-report that reading tokens closed rather than declared. One stop remains, in both forms. No mutation record isolates it: a literal's contents are not a token stream, so reaching into them is a different reader rather than a perturbation of this one
+- **its defence must show**: does not react
+- **pinned by**: `a_construction_inside_an_ordinary_string_literal_is_not_read`
+- **pinned by**: `a_construction_inside_a_raw_string_is_not_read`
+
+### `repository-checks/a-git-constructed-through-a-name-bound-elsewhere-is-not-read-a-stated-bound`
+
+> a `git` constructed through a name this file does not bind to `Command` -- a rename in another module, a type alias, a re-export
+
+- **because**: a rename is decidable inside one file, where `use std::process::Command as Cmd` is written down, and this reader binds those. What a name means when it is bound somewhere else is not written down anywhere a parse tree carries, and answering it needs name resolution -- the same floor `a-construction-shape-the-register-s-reader-does-not-model-a-stated-bound` already names for this repository's other reader of its own Rust, reached here by the same road. The direction pinning it is the control that a name this file does not bind is not read
+- **its defence must show**: does not react
+- **pinned by**: `a_construction_through_a_rename_or_inside_a_macro_is_read`
+
+### `repository-checks/a-git-constructed-through-a-program-value-is-not-read-a-stated-bound`
+
+> a `git` constructed as `Command::new(<value>)` rather than with the program written out
+
+- **because**: whether a value names `git` is not decidable from the line that constructs it, and `gate_exit_classes`' own header records a detector keyed on how a spawn is written being one form short three rounds running. Measured across the tracked Rust: two sites take a program as a value, and one of them IS the builder every other read is routed through while the other names an `ssh-keygen` signature verifier. A site cannot be invisible either way -- `gate_exit_classes` requires any target spawning a process to be declared -- so what this stop leaves unclassified is which program that spawn is, not that it happens
+- **its defence must show**: does not react
+- **pinned by**: `a_construction_through_a_program_value_is_not_read`
+
+### `repository-checks/a-git-named-in-prose-is-not-read-a-stated-bound`
+
+> a `git` construction written inside a comment rather than executed
+
+- **because**: comments are what a lexer discards, and this reader asks one -- so the stop is what a token stream IS rather than an arm this check chose, which also closes the block-comment form a line-opening test could not see. What it costs is that a construction commented out rather than deleted is unread, and `unreachable_branch` is where commented-out code is the subject. No mutation record isolates it: perturbing it means giving this reader a text path back, which is the defect rather than a perturbation of it
+- **its defence must show**: does not react
+- **pinned by**: `a_construction_named_in_prose_is_not_read`
+
 ### `repository-checks/a-marker-is-reached-through-some-other-primitive-a-stated-bound`
 
-> a sequence of backtick-delimited names paired by hand through `split_once`, `strip_prefix`, `strip_suffix`, `trim_matches` or `matches`
+> a sequence of backtick-delimited names paired by hand through `split_once`, `strip_prefix`, `strip_suffix` or `trim_matches`
 
-- **because**: the reaction names two primitives, `split` and `find`, which are the two shapes `reading`'s own doc records replacing. The others are in live use for reading a SINGLE delimited value, where they are correct, and none of their live uses is a pairing -- so refusing them by name would refuse the honest use, and telling the two apart needs the expression's shape rather than the primitive's name
+- **because**: the reaction names the primitives whose shape settles the question: `split` and `find`, which are the two shapes `reading`'s own doc records replacing, and a marker count taken modulo two, which is a pairing whatever produced the count. These four remain because each is in live use for reading a SINGLE delimited value, where they are correct, so refusing them by name would refuse the honest use -- and what tells a pairing from a single read is the expression's shape rather than the primitive's name. Where the expression does settle it, the reaction takes it: that is the ground on which the parity of a `matches` count is refused rather than declared here
 - **its defence must show**: does not react
 - **unpinned**, tracked by: `BACKLOG.md` — *the backtick primitives the pairing reader names*
+
+### `repository-checks/a-paragraph-repeated-in-prose-is-not-read-a-stated-bound`
+
+> a paragraph repeated in a tracked file that is not Rust, including this repository's governance prose
+
+- **because**: the corpus is Rust comments, where an identical adjacent pair has one cause. Markdown repeats identical adjacent lines for its own reasons -- a table's rule row, two list items that read the same -- so the same rule there reports text its author wrote. The prose corpora carry the weight this check exists to protect, so the stop is the one worth revisiting first if a shape with no false positive is found for them
+- **its defence must show**: does not react
+- **pinned by**: `a_repeated_paragraph_in_a_prose_file_is_outside_the_corpus`
+
+### `repository-checks/a-paragraph-repeated-out-of-line-is-not-read-a-stated-bound`
+
+> a comment paragraph repeated somewhere other than immediately after itself -- twenty lines down, in another function, or in another file
+
+- **because**: adjacency is what a paste leaves behind, and it is also what can be judged without deciding whether a repetition is deliberate. Two paragraphs that read the same in different places are as often two sites documented alike as one pasted twice, and this repository keeps both -- so widening past adjacency would buy the rarer defect with a report the author has to argue with, which is the authoring tax `PROJECT.md` refuses
+- **its defence must show**: does not react
+- **pinned by**: `a_repetition_split_by_code_is_not_read`
 
 ### `repository-checks/a-refusal-constructed-outside-the-register-s-corpus-is-not-triaged-a-stated-bound`
 
@@ -746,14 +811,6 @@ Generated from each dimension's `observation_bounds()` by `crates/kanhe/tests/ob
 - **because**: the register reads `crates/kanhe/src`, where a construction is held by a named direction or declared unheld. A gate whose judgement and directions share a file has no answer to *which direction observes this branch*, because every direction in the file can see it -- so triaging it means first deciding where such gates belong, which is a question about their location rather than about this register
 - **its defence must show**: does not react
 - **unpinned**, tracked by: `BACKLOG.md` — *a gate that is its own test is outside the refusal register*
-
-### `repository-checks/a-title-edited-inside-the-re-read-itself-a-stated-bound`
-
-> a pull request title changing between the wrapper's post-gate re-read of it and `gh pr merge`
-
-- **because**: the wrapper pins two of its three judged inputs by construction -- the body travels as the value the gate judged, and the commit set is pinned through `--match-head-commit`, which the server decides atomically. `gh` offers no equivalent for the title, so a re-read shrinks the exposure from a whole `cargo test` to one API call rather than closing it
-- **its defence must show**: does not react
-- **unpinned**, tracked by: `BACKLOG.md` — *the title race the wrapper can only narrow*
 
 ### `repository-checks/a-tool-configuration-set-in-the-environment-is-not-observed-a-stated-bound`
 
@@ -770,6 +827,14 @@ Generated from each dimension's `observation_bounds()` by `crates/kanhe/tests/ob
 - **because**: executed text is deleted, so a property about it is judged over less than the line carries — the direction the Core Contract forbids, and one a sentence in the classifier recorded as reaching the Rust region alone while both run the same rule
 - **its defence must show**: does not react
 - **pinned by**: `a_shell_marker_inside_quotes_is_cut_from_the_region`
+
+### `repository-checks/an-input-edited-inside-its-own-post-gate-re-read-a-stated-bound`
+
+> an input the wrapper re-reads after the gate changing between that re-read and `gh pr merge`
+
+- **because**: the wrapper pins what the merge RECORDS by construction -- the body travels as the value the gate judged, and the commit set is pinned through `--match-head-commit`, which the server decides atomically. What the merge is JUDGED AGAINST has to be re-read instead, and `gh` offers no equivalent precondition for any of it, so a re-read shrinks the exposure rather than closing it. One bound rather than one per input: the stop is a property of a client-side re-read not being atomic with the act it precedes, so it is reached through whichever inputs are read that way -- which is why neither this subject nor this reason names them. It read as three while the reason said the count is not written, and a fourth was added to the re-read set with the enumeration left standing
+- **its defence must show**: does not react
+- **unpinned**, tracked by: `BACKLOG.md` — *the re-read races the wrapper can only narrow*
 
 ### `repository-checks/files-no-capability-claims-a-stated-bound`
 

@@ -3,7 +3,7 @@
 Every **observation bound** this family declares: a claim that a reaction deliberately stops at a
 named shape, so that shape is governed policy rather than a defect.
 
-**27 of 98 declared bounds have no pinning test.** That figure is the register's
+**27 of 105 declared bounds have no pinning test.** That figure is the register's
 audit backlog and leads the document because a number in a footnote is not read. Each such bound names
 the tracker that owns closing it.
 
@@ -151,7 +151,7 @@ fallback used where no manifest exists, which the register spec describes.
 
 ### `observation-bound-register/whether-a-citation-demonstrates-the-direction-its-bound-declares-a-stated-bound`
 
-> nothing reacts. `Extent::demonstrates()` names the direction a defence must show, and it reaches the projection's label and the contradiction classification beside it; no reader compares that prediction with what the cited test asserts. Reaching further means deciding what a test demonstrates from its source, which is a judgement over code of the same kind this repository has designed, measured and rejected over prose — and unlike a citation that never runs or never bites, there is no reaction here whose gap a fixture could exhibit. This is the sibling of *a rationale that contradicts its extent*, one step over: the prose beside an extent is already declared free to disagree with it, and so, until now silently, was the test beneath it
+> nothing reacts. `Extent::demonstrates()` names the direction a defence must show, and it reaches the projection's label and the contradiction classification beside it; no reader compares that prediction with what the cited test asserts. Reaching further means deciding what a test demonstrates from its source, which is a judgement over code of the same kind this repository has designed, measured and rejected over prose — and unlike a citation that never runs or never bites, there is no reaction here whose gap a fixture could exhibit. This is the sibling of *a rationale that contradicts its extent*, one step over: the prose beside an extent is declared free to disagree with it, and so is the test beneath it — this bound is what makes the second freedom stated rather than silent
 
 - **unpinned**, tracked by: `BACKLOG.md` — *a pin may defend a direction its bound does not declare*
 
@@ -251,13 +251,19 @@ fallback used where no manifest exists, which the register spec describes.
 
 - **pinned by**: `a_valid_signature_from_an_unauthorized_key_is_accepted`
 
+### `publish-source-integrity/whether-a-worktree-holding-an-undecodable-path-is-clean-is-not-observed-a-stated-bound`
+
+> the cleanliness judgement is never reached: the worktree read refuses as a cannot-judge, so the gate answers neither *clean* nor *dirty* for that tree. The stop is the reader's representation and not a choice this gate makes over the path — a verdict is not owed on an input it cannot represent, and every comparison the judgement would make downstream would be against a name the repository does not hold. What it costs is that such a repository cannot be published through the wrapper until the path is renamed or removed, which is a refusal in front of an irreversible act rather than a pass over one
+
+- **pinned by**: `a_worktree_holding_an_undecodable_path_is_not_judged_clean_or_dirty`
+
 ## reference-integrity
 
-### `reference-integrity/a-relative-phrase-in-non-record-markdown-is-not-observed-a-stated-bound`
+### `reference-integrity/the-duration-phrase-in-non-record-markdown-is-not-observed-a-stated-bound`
 
-> nothing reacts. Extending the sweep to whole-document prose was measured against the tree it would judge, and most of what it would report is not an offence: some occurrences are `AGENTS.md`'s own row **declaring** the phrases, some are duration rather than pointer — *admitted it for a window*, which narrates how long something lasted — some are a generated projection's copy of either, and some are already anchored, by a commit or by naming the release. A reader over text separates none of those groups: telling a phrase that points at a moving window from one that measures a span is a judgement about the sentence, which is the prose instrument `AGENTS.md` records as designed, measured three times and rejected
+> nothing reacts, because that phrase alone is the group a reader over text cannot separate: it is as often **duration** — *admitted it for a window*, narrating how long something lasted — as it is a pointer at a moving window, and telling the two apart is a judgement about the sentence, which is the prose instrument `AGENTS.md` records as designed, measured three times and rejected. It is the same ground on which *the same window* is absent from the declared phrases entirely
 
-- **unpinned**, tracked by: `BACKLOG.md` — *a relative phrase in non-record Markdown*
+- **unpinned**, tracked by: `BACKLOG.md` — *the duration phrase in non-record Markdown*
 
 ### `reference-integrity/a-code-span-shaped-like-an-object-is-refused-though-it-names-none-a-stated-bound`
 
@@ -337,7 +343,7 @@ fallback used where no manifest exists, which the register spec describes.
 
 ### `repository-checks/a-construction-shape-the-register-s-reader-does-not-model-a-stated-bound`
 
-> the reference is read as a construction, whichever it actually names. **This bound used to be wider.** The register's reader was text over Rust and not exhaustive over the language: a byte char literal, a raw string, or a closure whose parameter list spanned two lines could desynchronise a character-by-character scan entirely, producing a site the reader neither parsed nor counted as unparseable — invisible to both of its readings at once, which was the unsafe direction this bound named, since a missed citation fails loud while a missed construction reports clean over a site nothing holds. Reading this repository's own Rust with a real parser instead of scanning it closes that floor: every syntactically valid construction is seen by construction, not by an arm added the day a shape was found wrong. **What remains is not lexical.** Whether a bare reference names the constructor taken by value or a local variable that happens to share its spelling is not written down anywhere a parse tree carries — answering it needs name resolution, which a reader of syntax alone does not have
+> the reference is read as a construction, whichever it actually names. **The floor is name resolution and nothing narrower, and a real parser is what keeps it there.** A text scan over Rust is not exhaustive over the language: a byte char literal, a raw string, or a closure whose parameter list spans two lines desynchronises a character-by-character scan entirely, producing a site such a reader neither parses nor counts as unparseable — invisible to both of its readings at once, which is the unsafe direction, since a missed citation fails loud while a missed construction reports clean over a site nothing holds. Reading this repository's own Rust with a real parser closes that floor: every syntactically valid construction is seen by construction, not by an arm added the day a shape was found wrong. **What remains is not lexical.** Whether a bare reference names the constructor taken by value or a local variable that happens to share its spelling is not written down anywhere a parse tree carries — answering it needs name resolution, which a reader of syntax alone does not have
 
 - **unpinned**, tracked by: `BACKLOG.md` — *a bare reference to a registered constructor's name cannot be told from a local variable sharing its spelling without name resolution*
 
@@ -349,7 +355,7 @@ fallback used where no manifest exists, which the register spec describes.
 
 ### `repository-checks/a-marker-is-reached-through-some-other-primitive-a-stated-bound`
 
-> the reaction reports nothing. Those are in live use for reading a *single* delimited value rather than pairing a sequence, and none of their live uses is a pairing — so refusing them would refuse the honest use, and telling the two apart needs the expression's shape rather than the primitive's name
+> the reaction reports nothing. Those four are in live use for reading a *single* delimited value rather than pairing a sequence, and none of their live uses is a pairing — so refusing them by name would refuse the honest use, and telling the two apart needs the expression's shape rather than the primitive's name. Which is what the parity scenario above does for the one shape where the expression settles it: a count modulo two is a pairing whatever primitive produced the count
 
 - **unpinned**, tracked by: `BACKLOG.md` — *the backtick primitives the pairing reader names*
 
@@ -431,17 +437,54 @@ fallback used where no manifest exists, which the register spec describes.
 
 - **unpinned**, tracked by: `BACKLOG.md` — *a merge or publish made outside the wrapper is not observed*
 
-### `repository-checks/a-title-edited-inside-the-re-read-itself-a-stated-bound`
+### `repository-checks/an-input-edited-inside-its-own-post-gate-re-read-a-stated-bound`
 
-> nothing observes it, and the merge records the subject the gate approved against a title that has since moved. The wrapper judges three inputs and pins two of them by construction — the body travels as the value the gate judged, and the commit set is pinned through `--match-head-commit`, which GitHub decides atomically. `gh` offers no `--match-title`, so the third can only be re-read, which shrinks the exposure from a whole `cargo test` to one API call rather than closing it. Closing it needs a server-decided precondition this tool does not offer
+> nothing observes it, and the merge proceeds against the value the gate approved. What the merge records is pinned by construction — the body travels as the value the gate judged, and the commit set through `--match-head-commit`, which GitHub decides atomically. What it is judged against can only be re-read, `gh` offering no equivalent precondition for any of it, which shrinks the exposure rather than closing it. Closing it needs a server-decided precondition this tool does not offer
 
-- **unpinned**, tracked by: `BACKLOG.md` — *the title race the wrapper can only narrow*
+- **unpinned**, tracked by: `BACKLOG.md` — *the re-read races the wrapper can only narrow*
 
 ### `repository-checks/whether-a-mention-compiles-anything-is-not-observed-a-stated-bound`
 
 > the check counts it as named, a stated bound: deciding that a mention is load-bearing is a judgement over text, the instrument this repository has designed, measured and rejected, and what makes a mention bite is the compiler rather than this check. A comment-only mention still fails the reviewer reading the diff, which is the layer that owns it
 
 - **pinned by**: `a_member_named_only_in_a_comment_is_counted_as_named`
+
+### `repository-checks/a-git-constructed-through-a-program-value-is-not-read-a-stated-bound`
+
+> nothing reads it. Whether a value names `git` is not decidable from the line that constructs it, and a detector keyed on how a spawn is written is the shape `gate_exit_classes`' own header records being one form short three rounds running. Measured across the tracked Rust: two sites take a program as a value, and one of them **is** the builder every other read is routed through while the other names an `ssh-keygen` signature verifier. A site cannot be invisible either way — any target spawning a process is already declared — so what this stop leaves unclassified is *which program* that spawn is, not that it happens
+
+- **pinned by**: `a_construction_through_a_program_value_is_not_read`
+
+### `repository-checks/a-git-named-in-prose-is-not-read-a-stated-bound`
+
+> nothing reads it. This repository's own documentation names the shape it forbids in order to explain it, and a reader counting those sentences would refuse the rule's own statement of itself. What the stop costs is that a construction commented out rather than deleted is also unread, and `unreachable_branch` is where commented-out code is the subject
+
+- **pinned by**: `a_construction_named_in_prose_is_not_read`
+
+### `repository-checks/a-git-constructed-inside-a-string-literal-is-not-read-a-stated-bound`
+
+> nothing reads it: a literal is one token, so what it carries is that token's text and not a call
+
+- **pinned by**: `a_construction_inside_an_ordinary_string_literal_is_not_read`
+- **pinned by**: `a_construction_inside_a_raw_string_is_not_read`
+
+### `repository-checks/a-git-constructed-through-a-name-bound-elsewhere-is-not-read-a-stated-bound`
+
+> nothing reads it. A rename is decidable inside one file, where `use std::process::Command as Cmd` is written down, and the reader binds those; what a name means when it is bound somewhere else is not written down anywhere a parse tree carries, and answering it needs name resolution — the floor this repository's other reader of its own Rust already names, reached here by the same road
+
+- **pinned by**: `a_construction_through_a_rename_or_inside_a_macro_is_read`
+
+### `repository-checks/a-paragraph-repeated-out-of-line-is-not-read-a-stated-bound`
+
+> nothing reads it. Adjacency is what a paste leaves behind, and it is also what can be judged without deciding whether a repetition is deliberate: two paragraphs that read the same in different places are as often two sites documented alike as one pasted twice, and this repository keeps both. Widening past adjacency would buy the rarer defect with a report the author has to argue with, which is the permanent authoring tax this repository refuses
+
+- **pinned by**: `a_repetition_split_by_code_is_not_read`
+
+### `repository-checks/a-paragraph-repeated-in-prose-is-not-read-a-stated-bound`
+
+> nothing reads it. The corpus is Rust comments, where an identical adjacent pair has one cause; Markdown repeats identical adjacent lines for its own reasons — a table's rule row, two list items that read the same — so the same rule there reports text its author wrote. The prose corpora carry the weight this check exists to protect, which makes this the stop worth revisiting first if a shape with no false positive is found for them
+
+- **pinned by**: `a_repeated_paragraph_in_a_prose_file_is_outside_the_corpus`
 
 ## runtime-origin-assertion
 

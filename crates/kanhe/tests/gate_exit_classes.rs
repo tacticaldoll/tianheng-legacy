@@ -55,7 +55,7 @@ const WRAPPERS: [&str; 2] = ["scripts/merge-pr.sh", "scripts/publish.sh"];
 ///
 /// The purpose beside each path is prose with no producer: a reader's aid for whoever adds the next one,
 /// not a fact this direction holds. What it holds is membership.
-const TARGETS_SPAWNING_A_PROCESS: [(&str, &str); 25] = [
+const TARGETS_SPAWNING_A_PROCESS: [(&str, &str); 28] = [
     (
         "crates/kanhe/tests/bound_register.rs",
         "git: enumerates, and builds a scratch repository's tree",
@@ -74,6 +74,10 @@ const TARGETS_SPAWNING_A_PROCESS: [(&str, &str); 25] = [
         "crates/kanhe/tests/gate_exit_classes.rs",
         "git: two enumerations — the test targets this direction reads, and the tracked scripts the \
          wrapper direction beside it reads",
+    ),
+    (
+        "crates/kanhe/tests/hermetic_invocations.rs",
+        "git: enumerates the tracked Rust it reads; cargo, to run each declared site's proving direction",
     ),
     (
         "crates/kanhe/tests/gate_identity.rs",
@@ -122,6 +126,10 @@ const TARGETS_SPAWNING_A_PROCESS: [(&str, &str); 25] = [
     ),
     ("crates/kanhe/tests/refusal_register.rs", "git: enumerates"),
     (
+        "crates/kanhe/tests/repeated_paragraph.rs",
+        "git: enumerates the tracked Rust its sweep reads",
+    ),
+    (
         "crates/kanhe/tests/unreachable_branch.rs",
         "git: enumerates the tracked Rust sources its two sweeps read",
     ),
@@ -144,6 +152,10 @@ const TARGETS_SPAWNING_A_PROCESS: [(&str, &str); 25] = [
     (
         "crates/shengmo/tests/self_governance.rs",
         "cargo, as a program-as-value, to read this workspace's metadata",
+    ),
+    (
+        "crates/tianheng/tests/attribute_spelling_differential.rs",
+        "rustc, as the third party a differential over three readers cannot be: it decides whether a          generated spelling is legal Rust at all, and which file a live predicate makes the build contain",
     ),
     (
         "crates/tianheng/tests/baseline_cli.rs",
@@ -229,19 +241,15 @@ fn opens(line: &str, marker: &str) -> bool {
 }
 
 fn tracked_rust(root: &Path) -> Vec<String> {
-    let listing = std::process::Command::new("git")
-        .args(["ls-files", "-z", "crates"])
-        .current_dir(root)
-        .output()
-        .expect("git ls-files is runnable");
-    assert!(
-        listing.status.success(),
-        "could not enumerate the tracked Rust, so the directions over it would report clean over nothing"
-    );
-    let paths: Vec<String> = String::from_utf8_lossy(&listing.stdout)
-        .split('\0')
+    let listing = kanhe::hermetic_git::tracked_paths(root, &["crates"]).unwrap_or_else(|failure| {
+        panic!(
+            "could not enumerate the tracked Rust ({failure:?}), so the directions over it would report \
+             clean over nothing"
+        )
+    });
+    let paths: Vec<String> = listing
+        .into_iter()
         .filter(|path| path.ends_with(".rs"))
-        .map(str::to_string)
         .collect();
     assert!(
         !paths.is_empty(),
@@ -742,19 +750,12 @@ fn every_gate_running_wrapper_is_named() {
     let Some(root) = workspace_root() else {
         return;
     };
-    let out = std::process::Command::new("git")
-        .args(["ls-files", "scripts"])
-        .current_dir(&root)
-        .output()
-        .expect("run git ls-files");
-    assert!(
-        out.status.success(),
-        "`git ls-files scripts` failed, and a failed enumeration is not a repository with no wrappers"
-    );
-    let tracked: Vec<String> = String::from_utf8_lossy(&out.stdout)
-        .lines()
-        .map(str::to_string)
-        .collect();
+    let tracked = kanhe::hermetic_git::tracked_paths(&root, &["scripts"]).unwrap_or_else(|failure| {
+        panic!(
+            "`git ls-files scripts` did not answer ({failure:?}), and a failed enumeration is not a \
+             repository with no wrappers"
+        )
+    });
     assert!(
         !tracked.is_empty(),
         "no tracked script was enumerated, so this direction would hold over nothing"

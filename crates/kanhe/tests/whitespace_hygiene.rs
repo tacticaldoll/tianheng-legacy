@@ -11,7 +11,6 @@
 //! as a rule: a file this check claims to have inspected must have been read.
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 use kanhe::refusal::{Kind, Refusal, cannot_judge, violation};
 
@@ -32,11 +31,11 @@ fn workspace_root() -> Option<PathBuf> {
 /// tab-separated fields — so a change in that format sends every line down it, and without the caller's guard
 /// this check would assert nothing over nothing and report clean. The property is the two fields; how many
 /// lines carried them is a figure that moves with every tracked file.
-fn offences(root: &Path, listing: &str) -> (Vec<Refusal>, usize) {
+fn offences(root: &Path, listing: &[String]) -> (Vec<Refusal>, usize) {
     let mut offences = Vec::new();
     let mut inspected = 0usize;
 
-    for line in listing.lines() {
+    for line in listing {
         let Some((eol_info, path_str)) = line.split_once('\t') else {
             offences.push(cannot_judge(format!(
                 "`git ls-files --eol` produced `{line}`, which carries no tab before a path. A line this \
@@ -101,23 +100,14 @@ fn whitespace_hygiene_across_tracked_text_files() {
 
     // The enumeration itself is an input like any other: a `git` that could not run leaves this check with no
     // corpus, which is not a corpus without offences.
-    let output = Command::new("git")
-        .args(["ls-files", "--eol"])
-        .current_dir(&root)
-        .output()
-        .unwrap_or_else(|err| {
+    let listing = kanhe::hermetic_git::tracked_records(&root, &["--eol"], &[]).unwrap_or_else(
+        |failure| {
             panic!(
-                "CannotJudge: could not run `git ls-files --eol` ({err}), so no \
-                                      tracked file was inspected"
+                "CannotJudge: `git ls-files --eol` did not answer ({failure:?}), so no tracked file was \
+                 inspected"
             )
-        });
-    assert!(
-        output.status.success(),
-        "CannotJudge: `git ls-files --eol` failed, so no tracked file was inspected: {}",
-        String::from_utf8_lossy(&output.stderr)
+        },
     );
-
-    let listing = String::from_utf8_lossy(&output.stdout);
     let (offences, inspected) = offences(&root, &listing);
 
     // **Before the verdict, not after.** The shape every sibling here uses — `census::sweep`'s vacuity
@@ -127,8 +117,8 @@ fn whitespace_hygiene_across_tracked_text_files() {
     assert!(
         inspected > 0,
         "no tracked file was inspected, so this check would report clean over nothing — the vacuity \
-         direction. {} line(s) of `git ls-files --eol` were read",
-        listing.lines().count()
+         direction. {} record(s) of `git ls-files --eol` were read",
+        listing.len()
     );
 
     assert!(
@@ -156,8 +146,8 @@ fn an_unreadable_tracked_file_is_refused_rather_than_skipped() {
     let _ = std::fs::remove_dir_all(&scratch);
     xingbiao::claim_scratch(&scratch).expect("the scratch root is writable");
 
-    let listing = "i/lf\tzzz_absent_whitespace_probe.md\n";
-    let (offences, inspected) = offences(&scratch, listing);
+    let listing = vec!["i/lf\tzzz_absent_whitespace_probe.md".to_string()];
+    let (offences, inspected) = offences(&scratch, &listing);
     let _ = std::fs::remove_dir_all(&scratch);
 
     assert_eq!(
@@ -190,8 +180,10 @@ fn an_unreadable_tracked_file_is_refused_rather_than_skipped() {
 /// assert `offences.is_empty()` over zero files and report clean.
 #[test]
 fn a_listing_line_without_a_path_separator_is_refused() {
-    let (offences, inspected) =
-        offences(Path::new("/nonexistent"), "i/lf w/lf attr/ no-tab-here\n");
+    let (offences, inspected) = offences(
+        Path::new("/nonexistent"),
+        &["i/lf w/lf attr/ no-tab-here".to_string()],
+    );
     assert_eq!(offences.len(), 1, "{offences:?}");
     assert_eq!(offences[0].kind, Kind::CannotJudge);
     assert_eq!(inspected, 0);
@@ -221,7 +213,7 @@ fn each_offence_shape_is_named_when_it_is_shown() {
         ("blankend.md", "text\n\n", "blank line at end of file"),
     ] {
         std::fs::write(scratch.join(name), body).expect("write the probe");
-        let (offences, inspected) = offences(&scratch, &format!("i/lf\t{name}\n"));
+        let (offences, inspected) = offences(&scratch, &[format!("i/lf\t{name}")]);
         assert_eq!(inspected, 1, "{name} was not inspected");
         assert!(
             offences.iter().any(|refusal| {
@@ -234,7 +226,7 @@ fn each_offence_shape_is_named_when_it_is_shown() {
     // The control: a file with none of the three is silent, so the assertions above are about the offences
     // rather than about a judgement that reports everything.
     std::fs::write(scratch.join("clean.md"), "text\n").expect("write the control");
-    let (clean, inspected) = offences(&scratch, "i/lf\tclean.md\n");
+    let (clean, inspected) = offences(&scratch, &["i/lf\tclean.md".to_string()]);
     let _ = std::fs::remove_dir_all(&scratch);
     assert_eq!(inspected, 1);
     assert!(

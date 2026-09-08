@@ -12,6 +12,8 @@ signature this gate deliberately does not judge.
 - `crates/kanhe/tests/publish_source.rs`
 - `crates/kanhe/tests/publish_source_integrity.rs`
 - `crates/kanhe/src/publish_source_gate.rs`
+- `crates/kanhe/src/release_subject.rs`
+- `crates/kanhe/src/fixture/publish_source.rs`
 
 The gate runs as `cargo test -p kanhe --test publish_source`, invoked by `scripts/publish.sh`, so *violation*
 and *cannot-judge* below name values of its result type rather than process statuses.
@@ -32,6 +34,13 @@ having happened, not of the command having been issued.
 - **WHEN** the wrapper's gate invocation selects no test, or selects one that is ignored
 - **THEN** the publish is refused before `cargo publish` is reached, and the refusal says the gate did not run
   rather than reporting the source clean
+
+#### Scenario: A retired release subject reaches the publish boundary
+
+- **WHEN** `HEAD` has the retired `release: X.Y.Z` subject while the workspace version is `X.Y.Z`
+- **THEN** the publish is refused before any tag or upload judgement and names
+  `chore(release): X.Y.Z` as the required snapshot subject
+- **PINNED-BY** `a_retired_release_subject_is_not_a_publishable_snapshot`
 
 #### Scenario: The tag exists here and not on the remote
 
@@ -197,6 +206,18 @@ derived id, per `observation-bound-model`.
   closes it — giving CI an allowed-signers file is what would
 - **PINNED-BY** `a_valid_signature_from_an_unauthorized_key_is_accepted`
 
+#### Scenario: Whether a worktree holding an undecodable path is clean is not observed — a stated bound
+
+- **WHEN** the worktree under judgement holds a path that is a legal filename and not UTF-8 — `ls-files -z
+  --others` and `status -z` both answer it as its own bytes, verbatim and unquoted
+- **THEN** the cleanliness judgement is never reached: the worktree read refuses as a cannot-judge, so the
+  gate answers neither *clean* nor *dirty* for that tree. The stop is the reader's representation and not a
+  choice this gate makes over the path — a verdict is not owed on an input it cannot represent, and every
+  comparison the judgement would make downstream would be against a name the repository does not hold. What
+  it costs is that such a repository cannot be published through the wrapper until the path is renamed or
+  removed, which is a refusal in front of an irreversible act rather than a pass over one
+- **PINNED-BY** `a_worktree_holding_an_undecodable_path_is_not_judged_clean_or_dirty`
+
 ### Requirement: A path the gate classifies SHALL be the path it was given
 
 Every path the cleanliness judgement reads, compares, or asks git about SHALL be carried as raw bytes, using
@@ -214,6 +235,15 @@ pattern that happens to match the quoted spelling.
 A classification that could not be produced SHALL be a cannot-judge naming what went unclassified, never an
 empty classification. `check-ignore` exiting non-zero because it could not run is not the same fact as
 `check-ignore` matching nothing, and treating them alike lets a failed classifier read as an answer.
+
+**Three facts, not two, and the third is reachable while every path the gate asks about is text.** A
+classifier that ran, exited `0`, and answered bytes no `String` holds is a third state: `check-ignore -v`
+answers with the **pattern** that matched, and a `.gitignore` is arbitrary bytes, so an undecodable answer
+needs no undecodable question. Reproducible now: a `.gitignore` holding `f[o\xff]o` against an untracked
+`foo` answers `.gitignore\01\0f[o\xff]o\0foo\0` at exit `0`. The gate SHALL name that state as its own
+cannot-judge rather than as the classifier having failed to run — both are cannot-judge, so no exit class
+separates them, and what separates them is which subject an operator is sent to: a machine, or a
+`.gitignore` in the repository under judgement.
 
 That rule is about **every git read this gate makes whose answer is an exit status**, not about
 `check-ignore` alone. Where a subcommand answers with a status, the gate SHALL read the status that is the
@@ -246,6 +276,28 @@ outside the split that repair made.
 - **WHEN** `check-ignore` fails rather than reporting no match
 - **THEN** the gate refuses as a cannot-judge naming the paths it could not classify, rather than treating an
   unusable classifier as one that found nothing
+
+#### Scenario: The exclusion classifier refuses part-way through the conversation
+
+- **WHEN** `check-ignore` is fatal about a record and exits while the gate is still delivering the rest, so
+  the delivery reaches a pipe the child has already closed
+- **THEN** the answer is git's — an exit class carrying git's own words — and not this process's failed
+  write. The two are different facts about different processes, which is the rule this capability states
+  over its verifier read from the exit **code** rather than from a process status, met one layer down in
+  the runner that holds the conversation
+- **AND** the reading is possible because that runner drains **both** of the child's output pipes while the
+  delivery runs, rather than one: the stdout half was a measured deadlock and was closed with a reader of
+  its own, and stderr was left to a collection that happens after the delivery — the same shape one pipe
+  over, in the one runner standing in front of `cargo publish`
+- **PINNED-BY** `a_refusal_during_the_conversation_is_reported_as_the_refusal_it_is`
+
+#### Scenario: The exclusion classifier's answer is not text
+
+- **WHEN** `check-ignore` runs, exits `0`, and answers a pattern carrying bytes no `String` holds — a
+  `.gitignore` spelling one, with every path the gate asked about already decoded as text
+- **THEN** the gate refuses as its own cannot-judge, saying it could not read the answer rather than that the
+  classifier could not run, and never naming the replaced pattern the repository does not hold
+- **PINNED-BY** `an_exclusion_source_that_is_not_text_refuses_rather_than_naming_a_replaced_pattern`
 
 #### Scenario: The tracking read cannot be made
 

@@ -37,6 +37,8 @@ A type SHALL be governed by the boundary iff its **definition** is under the anc
 
 The system SHALL react when a governed type acquires a forbidden trait by **either** form: a `#[derive(T)]` on the type's declaration, **or** an `impl T for X` block anywhere in the crate whose self-type `X` resolves to a definition under the subtree. Covering both is required — a derive-only or impl-only rule would silently pass the other idiomatic form. A `#[cfg_attr(<pred>, derive(T))]` SHALL be read (the nested derive, cfg-agnostic), including a **nested** `#[cfg_attr(a, cfg_attr(b, derive(T)))]`.
 
+**A derive is the name it spells.** A raw-identifier spelling of `derive`, or of the `cfg_attr` wrapping one, SHALL be read as the built-in it names — `r#` changes an identifier's lexical spelling and not the name it spells, and neither is a keyword. A marker this reader does not see is one this capability cannot refuse, so the spelling is a false negative rather than a cosmetic gap.
+
 #### Scenario: A forbidden derive on a subtree type reacts
 
 - **WHEN** `crate::domain::order` declares `#[derive(serde::Serialize)] pub struct Order;` under a boundary forbidding `serde::Serialize` on `crate::domain`
@@ -61,6 +63,12 @@ The system SHALL react when a governed type acquires a forbidden trait by **eith
 
 - **WHEN** a governed type declares `#[cfg_attr(all(), cfg_attr(all(), derive(serde::Serialize)))] pub struct Order;`
 - **THEN** the system recurses into the nested `cfg_attr` and emits a violation, rather than silently dropping the derive
+
+#### Scenario: A raw-identifier spelling of derive or of its cfg_attr wrapper reacts
+
+- **WHEN** a governed type carries `#[r#derive(serde::Serialize)]`, `#[r#cfg_attr(unix, derive(serde::Serialize))]`, or `#[cfg_attr(unix, r#derive(serde::Serialize))]`, and `serde::Serialize` is forbidden on that subtree
+- **THEN** each reacts, because `r#` changes an identifier's lexical spelling and not the name it spells — measured under rustc 1.96.0, edition 2021, `--crate-type lib`, all three declarations apply the derive, and a marker this reader does not see is one this capability cannot refuse
+- **PINNED-BY** `a_raw_identifier_derive_reacts_in_every_spelling_rustc_applies`
 
 #### Scenario: A non-forbidden trait is clean
 
