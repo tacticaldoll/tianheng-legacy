@@ -49,7 +49,7 @@ fn scratch(name: &str) -> PathBuf {
 /// was not, because the unit of reading was the file and the unit of duplication is the
 /// pair — the same shape `hermetic_git`'s own header records twice about the two gate modules these two test
 /// targets belong to. Fifteen commit- and tag-creating calls went through it, three of them fresh
-/// `release: 9.9.9` commits taking both dates from the clock.
+/// `chore(release): 9.9.9` commits taking both dates from the clock.
 ///
 /// The two `hermetic("git")` reads that remain in this file are reads: they ask the repository a question
 /// and never write a commit, so a fixture date is not theirs to carry.
@@ -248,6 +248,32 @@ fn a_head_that_is_not_the_release_snapshot_is_a_violation() {
     );
 }
 
+/// A subject retained for reading old history cannot be the source of a new irreversible publish.
+#[test]
+fn a_retired_release_subject_is_not_a_publishable_snapshot() {
+    let root = scratch("legacy-subject");
+    let fixture = fixture::build(&root, "legacy-subject", "9.9.9");
+    git(
+        &fixture.repo,
+        &["commit", "-q", "--amend", "-m", "release: 9.9.9"],
+    );
+    git(&fixture.repo, &["push", "-qf", "origin", "main"]);
+    let verdict = judge(&fixture.repo, &fixture.remote.display().to_string());
+    let _ = std::fs::remove_dir_all(&root);
+    let refusal = verdict.expect_err("the retired subject must not reach publish");
+    refusal::expect(
+        "publish-source-integrity#head-is-not-the-release-snapshot",
+        &refusal,
+    );
+    assert!(
+        refusal
+            .message
+            .contains("expected \"chore(release): 9.9.9\""),
+        "{}",
+        refusal.message
+    );
+}
+
 #[test]
 fn an_untagged_snapshot_is_a_violation() {
     let root = scratch("untagged");
@@ -332,7 +358,7 @@ fn a_tag_pointing_elsewhere_than_head_is_a_violation() {
     git(&fixture.repo, &["add", "."]);
     git(
         &fixture.repo,
-        &["commit", "-q", "--amend", "-m", "release: 9.9.9"],
+        &["commit", "-q", "--amend", "-m", "chore(release): 9.9.9"],
     );
     git(&fixture.repo, &["push", "-qf", "origin", "main"]);
     let verdict = judge(&fixture.repo, &fixture.remote.display().to_string());
@@ -757,7 +783,7 @@ fn a_head_whose_ancestor_is_missing_cannot_have_its_subject_read() {
     let tagged = rev(&fixture.repo, "refs/tags/v9.9.9^{commit}");
     std::fs::write(fixture.repo.join("later.txt"), "later").expect("write");
     git(&fixture.repo, &["add", "."]);
-    git(&fixture.repo, &["commit", "-qm", "release: 9.9.9"]);
+    git(&fixture.repo, &["commit", "-qm", "chore(release): 9.9.9"]);
     drop_object(&fixture.repo, &tagged);
     let verdict = judge(&fixture.repo, &fixture.remote.display().to_string());
     let _ = std::fs::remove_dir_all(&root);
@@ -794,7 +820,7 @@ fn a_tag_whose_commit_is_missing_cannot_be_resolved() {
     )
     .expect("write");
     git(&fixture.repo, &["add", "-A"]);
-    git(&fixture.repo, &["commit", "-qm", "release: 9.9.9"]);
+    git(&fixture.repo, &["commit", "-qm", "chore(release): 9.9.9"]);
     drop_object(&fixture.repo, &tagged);
     let verdict = judge(&fixture.repo, &fixture.remote.display().to_string());
     let _ = std::fs::remove_dir_all(&root);
@@ -834,7 +860,7 @@ fn hiding(name: &str, tracked: &[(&str, &str)], stray: &str) -> (PathBuf, PathBu
         git(&repo, &["add", "-f", "--", path]);
     }
     if !tracked.is_empty() {
-        git(&repo, &["commit", "-qm", "release: 9.9.9"]);
+        git(&repo, &["commit", "-qm", "chore(release): 9.9.9"]);
     }
     std::fs::write(repo.join(stray), "stray").expect("write");
     (root, repo)

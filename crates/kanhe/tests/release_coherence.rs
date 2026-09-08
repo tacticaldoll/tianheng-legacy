@@ -133,7 +133,7 @@ fn a_snapshot_is_coherent() {
 ///
 /// **The value, not only the shape.** `is_iso_date` was hardened twice — parsed rather than counted, then
 /// ranged rather than digit-tested — and each step asked a sharper question about the shape while the value
-/// went unasked. Three releases carried a section date equal to their `release: X.Y.Z` commit's date because
+/// went unasked. Three releases carried a section date equal to their release commit's date because
 /// someone remembered; the fourth was prepared with a date four days behind the day it would be cut on, and
 /// nothing said so.
 ///
@@ -1552,7 +1552,7 @@ fn a_snapshot_whose_unreleased_carries_an_item_is_a_violation() {
     git(&fixture.repo, &["add", "."]);
     git(
         &fixture.repo,
-        &["commit", "-q", "--amend", "-m", "release: 0.2.0"],
+        &["commit", "-q", "--amend", "-m", "chore(release): 0.2.0"],
     );
     refusal::expect(
         "release-coherence#unreleased-not-empty-in-state",
@@ -1679,7 +1679,7 @@ fn a_snapshot_whose_version_disagrees_with_its_subject_is_a_violation() {
     git(&fixture.repo, &["add", "."]);
     git(
         &fixture.repo,
-        &["commit", "-q", "--amend", "-m", "release: 0.2.0"],
+        &["commit", "-q", "--amend", "-m", "chore(release): 0.2.0"],
     );
     refuse(
         &fixture.repo,
@@ -1701,6 +1701,25 @@ fn a_release_subject_with_no_space_is_a_violation() {
             &fixture.repo,
             Kind::Violation,
             "malformed release history subject",
+        ),
+    );
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn the_retired_subject_is_history_but_not_a_new_snapshot() {
+    let root = scratch("legacy-snapshot");
+    let fixture = fixture::build(&root, "legacy-snapshot", "0.2.0");
+    git(
+        &fixture.repo,
+        &["commit", "-q", "--amend", "-m", "release: 0.2.0"],
+    );
+    refusal::expect(
+        "release-coherence#release-snapshot-subject-is-legacy",
+        &refuse(
+            &fixture.repo,
+            Kind::Violation,
+            "expected chore(release): 0.2.0",
         ),
     );
     let _ = std::fs::remove_dir_all(&root);
@@ -4145,7 +4164,7 @@ fn a_lock_version_this_reader_cannot_take_stops_the_comparison() {
         ),
     )
     .expect("write");
-    commit(&fixture.repo, "release: 0.2.1");
+    commit(&fixture.repo, "chore(release): 0.2.1");
     refusal::expect(
         "release-coherence#lock-version-unreadable",
         &refuse(
@@ -4172,7 +4191,7 @@ fn a_release_snapshot_naming_another_version_is_a_violation() {
     // The release commit has to carry a change, and what it carries is beside the point: what this observes
     // is the subject of the commit HEAD sits on against the version the surfaces declare.
     std::fs::write(fixture.repo.join("NOTES.md"), "prepared\n").expect("write");
-    commit(&fixture.repo, "release: 0.3.0");
+    commit(&fixture.repo, "chore(release): 0.3.0");
     refusal::expect(
         "release-coherence#release-snapshot-version-disagrees",
         &refuse(

@@ -26,6 +26,15 @@ them.
 
 ### Governance
 
+- **Release snapshots now obey the same Conventional Commit grammar as every other commit on `main`.**
+  Their canonical subject is `chore(release): X.Y.Z`; only the empty body remains exceptional because a
+  snapshot records the whole release tree. The merge-message and publish-source gates accept only that form.
+
+  The release-spine reader also recognizes the retired `release: X.Y.Z` form as a historical predecessor.
+  That compatibility is directional: it lets an existing release branch classify itself against the old
+  spine, while a retired subject at `HEAD` is refused as a new snapshot. The three gates derive the canonical
+  rendering from one source so the merge, history, and publish boundaries cannot spell it differently.
+
 - **A defect's codename from the process that found it was standing in the code that fixed it.**
   `Round-9 finding:`, `Round-2 fix:`, `F2`, `F6`, `fix #6`, `fix #9`, `Apply-review finding 1` and
   `propose-review` opened comments across nine files. Each names *when* a defect was seen and by which pass,

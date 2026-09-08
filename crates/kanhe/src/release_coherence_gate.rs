@@ -404,7 +404,7 @@ pub enum State {
     /// The workspace version has moved forward for release preparation, so the dated section, the internal
     /// pins and every workspace entry in `Cargo.lock` must all name it.
     ReleaseReady,
-    /// The `release: X.Y.Z` commit itself, held to the same alignment as `ReleaseReady`.
+    /// The `chore(release): X.Y.Z` commit itself, held to the same alignment as `ReleaseReady`.
     Snapshot,
 }
 
@@ -429,7 +429,7 @@ const RELEASES: &str = "https://github.com/tacticaldoll/tianheng/releases/tag";
 struct Spine {
     /// Which phase the workspace is in, relative to the latest release commit.
     state: State,
-    /// The latest `release: X.Y.Z` subject's version.
+    /// The latest recognized release subject's version.
     release_version: String,
     /// That commit's own date, `YYYY-MM-DD`, which the dated section is held against at the snapshot.
     release_date: String,
@@ -439,8 +439,10 @@ struct Spine {
 
 /// Read the release spine out of the commit log and classify the workspace against it.
 ///
-/// A malformed `release:` subject is a **violation** — the history disagrees with its own form — while an
-/// absent spine is a **cannot-judge**, because a shallow clone cannot see one and that is not a disagreement.
+/// The retired `release: X.Y.Z` rendering remains part of the readable spine so the existing history can be
+/// the predecessor of its first `chore(release): X.Y.Z` snapshot. A malformed retired subject is a
+/// **violation** — the history disagrees with its own form — while an absent spine is a **cannot-judge**,
+/// because a shallow clone cannot see one and that is not a disagreement.
 fn release_spine(
     repo: &Path,
     version: &str,
@@ -457,7 +459,7 @@ fn release_spine(
                 format!("could not read the release history: {err}"),
             )
         })?;
-    let mut history: Vec<(String, String, String)> = Vec::new();
+    let mut history: Vec<(String, String, String, crate::release_subject::Form)> = Vec::new();
     // HEAD's own commit is the first line this log produced, so asking git for it again would be a second
     // read of something already in hand — and a refusal guarding that second read is a branch no input can
     // take. Taken here instead.
@@ -472,14 +474,20 @@ fn release_spine(
         if head.is_none() {
             head = Some(commit.to_string());
         }
-        if let Some(rest) = subject.strip_prefix("release: ") {
+        if let Some((form, release_version)) = crate::release_subject::parse(subject) {
+            history.push((
+                commit.to_string(),
+                date.to_string(),
+                release_version.to_string(),
+                form,
+            ));
+        } else if let Some(rest) = subject.strip_prefix(crate::release_subject::LEGACY_PREFIX) {
             if semver(rest).is_none() {
                 return Err(violation_at(
                     "release-coherence#release-history-version-malformed",
                     format!("malformed release history subject: {subject}"),
                 ));
             }
-            history.push((commit.to_string(), date.to_string(), rest.to_string()));
         } else if subject.starts_with("release:") {
             return Err(violation_at(
                 "release-coherence#release-history-subject-malformed",
@@ -487,14 +495,16 @@ fn release_spine(
             ));
         }
     }
-    let Some((release_commit, release_date, release_version)) = history.first().cloned() else {
+    let Some((release_commit, release_date, release_version, release_form)) =
+        history.first().cloned()
+    else {
         return Err(cannot_judge_at(
             "release-coherence#release-history-shallow",
-            "exact release history is unavailable; fetch full history containing release: X.Y.Z — a shallow \
-             clone cannot see the release spine, which is not the same as surfaces that disagree",
+            "exact release history is unavailable; fetch full history containing release snapshot commits \
+             — a shallow clone cannot see the release spine, which is not the same as surfaces that disagree",
         ));
     };
-    let previous_release = history.get(1).map(|(_, _, v)| v.clone());
+    let previous_release = history.get(1).map(|(_, _, v, _)| v.clone());
     // A release commit exists, so at least one line of the log parsed, so this is Some. Provable from the
     // loop above rather than assumed about git.
     let head =
@@ -544,7 +554,7 @@ fn release_spine(
             )
         })?;
     // **A release commit that carries no changelog is its own fact, not a modified checkout.** Absence at
-    // any other commit is unremarkable — a tree from before the file existed. At the exact `release: X.Y.Z`
+    // any other commit is unremarkable — a tree from before the file existed. At the exact release
     // commit it means the release shipped without the document it is narrated in, and reading that as *the
     // next cycle has begun* let it pass on the worktree's copy alone.
     let unmodified = if listed.trim().is_empty() {
@@ -575,6 +585,15 @@ fn release_spine(
         }
     };
     let state = if head == release_commit && unmodified {
+        if release_form != crate::release_subject::Form::Canonical {
+            return Err(violation_at(
+                "release-coherence#release-snapshot-subject-is-legacy",
+                format!(
+                    "release snapshot subject uses the retired form; expected {}",
+                    crate::release_subject::canonical(&release_version)
+                ),
+            ));
+        }
         if version != release_version {
             return Err(violation_at(
                 "release-coherence#release-snapshot-version-disagrees",
@@ -792,14 +811,14 @@ fn require_changelog_state(
             // a date four days behind the day it would be cut on, and nothing said so.
             //
             // Only at the snapshot, because that is the first moment the answer exists: before the
-            // `release: X.Y.Z` commit there is no release commit to be dated against, and a date written
+            // `chore(release): X.Y.Z` commit there is no release commit to be dated against, and a date written
             // during preparation is an intent rather than a claim. Held here rather than by the wrapper,
             // since the wrapper stands in front of the publish and this is a property of the commit.
             if spine.state == State::Snapshot && dated != spine.release_date {
                 return Err(violation_at(
                     "release-coherence#release-date-disagrees-with-its-commit",
                     format!(
-                        "CHANGELOG dates {version} at {dated} and its `release: {version}` commit was made \
+                        "CHANGELOG dates {version} at {dated} and its `chore(release): {version}` commit was made \
                          on {} — a reader takes the section's date for the day the release happened",
                         spine.release_date
                     ),

@@ -452,26 +452,19 @@ fn an_empty_body_is_a_violation() {
     refusal::expect("repository-checks#squash-body-is-empty", &refusal);
 }
 
-/// The release snapshot's empty body is the one the ritual requires, and the wrapper may now perform it.
+/// The canonical release snapshot has the empty body the ritual requires.
 ///
-/// **The trigger this closes fired on `release: 0.5.0`.** `AGENTS.md` states the exception in its own words —
-/// the release-branch-to-`main` squash's subject is `release: X.Y.Z` and *its body is deliberately empty* —
-/// while this gate refused exactly that. So the one merge the ritual cares about most could not go through
-/// the wrapper, and it was made around it; `BACKLOG.md`'s *a merge or publish made outside the wrapper is not
-/// observed* names that act as its trigger. Measured: `0.4.0`'s release commit carries an empty body too, so
-/// this has been true of every release.
+/// Its subject is already a Conventional Commit, so the exception applies only to the body. The base, head,
+/// and subject still carry one version, and the retired subject is explicitly outside this path.
 ///
-/// Letting it through is **more** observation, not less: the subject shape, the attribution marks and the
-/// title match are all still judged on that merge, where before none of them were.
-///
-/// Negative run: with the exception removed, the release row is refused as an empty body; with the version
-/// test dropped so any `release:` prefix passes, the malformed row stops being refused.
+/// Negative run: with the exception removed, the canonical row is refused as an empty body; with the version
+/// equality removed, the mismatched branch row passes; with legacy admitted, the retired row passes.
 #[test]
 fn the_release_snapshot_may_carry_the_empty_body_the_ritual_requires() {
     gate::judge(
-        "release: 0.5.0",
+        "chore(release): 0.5.0",
         "",
-        "release: 0.5.0",
+        "chore(release): 0.5.0",
         &["chore: x".to_string()],
         "main",
         "release/0.5.0",
@@ -481,9 +474,9 @@ fn the_release_snapshot_may_carry_the_empty_body_the_ritual_requires() {
     // **Both endpoints, because the contract names both.** A work branch onto `main` with the same subject
     // is not the release-branch-to-`main` squash, and taking only the destination left that door open.
     gate::judge(
-        "release: 0.5.0",
+        "chore(release): 0.5.0",
         "",
-        "release: 0.5.0",
+        "chore(release): 0.5.0",
         &["chore: x".to_string()],
         "main",
         "fix/some-repair",
@@ -493,9 +486,9 @@ fn the_release_snapshot_may_carry_the_empty_body_the_ritual_requires() {
     // **The role is `release/X.Y.Z`, and a prefix is not that role.** A branch named `release/` and anything
     // is not the one branch whose whole purpose is one version.
     gate::judge(
-        "release: 0.5.0",
+        "chore(release): 0.5.0",
         "",
-        "release: 0.5.0",
+        "chore(release): 0.5.0",
         &["chore: x".to_string()],
         "main",
         "release/not-a-version",
@@ -505,9 +498,9 @@ fn the_release_snapshot_may_carry_the_empty_body_the_ritual_requires() {
     // **And one version across the three, which is what makes them an identity.** A release branch squashing
     // a message about a different release is two claims, and the exception is for neither.
     gate::judge(
-        "release: 0.5.0",
+        "chore(release): 0.5.0",
         "",
-        "release: 0.5.0",
+        "chore(release): 0.5.0",
         &["chore: x".to_string()],
         "main",
         "release/0.4.0",
@@ -520,23 +513,31 @@ fn the_release_snapshot_may_carry_the_empty_body_the_ritual_requires() {
     // release-branch-to-`main` squash, so the same message onto any other base is an ordinary squash
     // claiming the exception's shape — and an empty body is a violation there.
     gate::judge(
-        "release: 0.5.0",
+        "chore(release): 0.5.0",
         "",
-        "release: 0.5.0",
+        "chore(release): 0.5.0",
         &["chore: x".to_string()],
         DEV_BASE,
         "release/0.5.0",
     )
     .expect_err("the exception is the release-branch-to-main squash, and this base is not main");
 
-    // **The exception is for that act, not for the word.** A malformed version is refused, and by the
-    // conventional-subject rule rather than the empty-body one — `release: not-a-version` is neither a
-    // Conventional Commit nor a release snapshot, so the first rule it fails is the one that answers. The
-    // release-history reader refuses the same line for the same reason, and the two must not disagree.
+    // **The exception is for that act, not for the scope.** A malformed version remains an ordinary
+    // Conventional Commit subject, so its empty body is refused rather than mistaken for a snapshot.
     let refusal = refuse(
-        "release: not-a-version",
+        "chore(release): not-a-version",
         "",
-        "release: not-a-version",
+        "chore(release): not-a-version",
+        Kind::Violation,
+        "body is empty",
+    );
+    refusal::expect("repository-checks#squash-body-is-empty", &refusal);
+
+    // The legacy form remains history input only; it cannot create a new snapshot.
+    let refusal = refuse(
+        "release: 0.5.0",
+        "",
+        "release: 0.5.0",
         Kind::Violation,
         "not a Conventional Commit",
     );

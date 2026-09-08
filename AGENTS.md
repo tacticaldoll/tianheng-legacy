@@ -722,7 +722,7 @@ gate forbids is not the available option. The sweep is.
 
 ## Commits & PRs
 
-- **Conventional Commits.** Every non-release subject is
+- **Conventional Commits.** Every subject, including a release snapshot, is
   `<type>(<scope>)!?: <imperative summary>` using a lowercase type and, when present, a lowercase
   package or workflow scope. Use the narrowest honest type: `feat`, `fix`, `refactor`, `docs`,
   `test`, `build`, `ci`, `perf`, or `chore`. Append `!` for a breaking change and name the migration
@@ -756,7 +756,7 @@ gate forbids is not the available option. The sweep is.
 
 ## Branching and release
 
-`main` is release-only: it carries nothing but linear, non-merge `release: X.Y.Z` snapshot
+`main` is release-only: it carries nothing but linear, non-merge `chore(release): X.Y.Z` snapshot
 commits, each tagged `vX.Y.Z`. The fine-grained development commits never land on `main` individually —
 they collapse through two squash stages on the way up: a development branch is squash-merged into
 `release/X.Y.Z`, and that release branch is squash-merged into `main`.
@@ -773,8 +773,8 @@ without an issue number, and never use a placeholder such as `spike` after inten
 takes no direct work — it is release-only.
 
 Both squashes are performed by a GitHub pull request's "Squash and merge", not a local merge. The
-release-branch-to-`main` squash is the sole message exception: its subject is `release: X.Y.Z` and
-its body is deliberately empty. A release snapshot's change is the whole tree; per-change why lives
+release-branch-to-`main` squash is the sole **body** exception: its Conventional Commit subject is
+`chore(release): X.Y.Z` and its body is deliberately empty. A release snapshot's change is the whole tree; per-change why lives
 in the curated commits and PRs below it. A PR that touches a steward-owned path
 (`.github/CODEOWNERS`) is merged by the steward. A release branch is archived once it merges; it
 carries no further work and is never a source of record for anything downstream.
@@ -786,7 +786,7 @@ branch. `cargo publish` stamps the sha1 of whatever `HEAD` it ran on into every 
 from the moment it lands. An identical tree does not make a release branch's tip an acceptable
 source: cargo records the **commit**, not the content, and the commit it would record belongs to a
 branch the ritual archives. `bash scripts/publish.sh` is that path — it runs
-`crates/kanhe/tests/publish_source.rs` (worktree clean; `HEAD` the `release: X.Y.Z` snapshot for the
+`crates/kanhe/tests/publish_source.rs` (worktree clean; `HEAD` the `chore(release): X.Y.Z` snapshot for the
 workspace version; `vX.Y.Z` annotated, signed, and pointing at it; `HEAD` the live tip of
 `origin/main`, read from the remote rather than a possibly-stale `refs/remotes/`) and only then
 `cargo publish --workspace`. The gate is a `cargo test`, so it distinguishes a **violation** — the source
@@ -803,7 +803,7 @@ what it is. Naming the parser rather than restating it is deliberate: a second l
 with the first, which is the shape an allowlist exists to avoid, and it had already fallen behind. Values go in
 the argument after the flag; one spelling each.
 
-**A published release snapshot is immutable.** Once a version is on crates.io, its `release: X.Y.Z`
+**A published release snapshot is immutable.** Once a version is on crates.io, its `chore(release): X.Y.Z`
 commit must never be amended or force-pushed away: the published artifact points at that sha1
 permanently, so replacing it orphans the pointer just as surely as publishing from the wrong branch
 does. `0.2.2` was published from `main` correctly and then force-pushed away an hour later, which the
@@ -818,16 +818,16 @@ published version records is asked of the tarball and the tag, by the command th
 `TIANHENG_WORKSPACE_TESTS=1 cargo test -p kanhe --test release_coherence` is the release-state check. During development it
 requires an adopter-facing `[Unreleased]` entry and aligned workspace/internal dependency versions,
 but deliberately tolerates historical lockfile drift. Once the workspace version moves forward for
-release preparation—and at the exact `release: X.Y.Z` snapshot—the dated CHANGELOG section,
+release preparation—and at the exact `chore(release): X.Y.Z` snapshot—the dated CHANGELOG section,
 internal pins, and every workspace package entry in `Cargo.lock` must all name that version. The
 check is read-only and needs full git history; it never bumps, commits, tags, or publishes.
 
 **Setting the dated section's date is the last edit before the cut, not a step during preparation.** At the
-snapshot the check holds that date against the `release: X.Y.Z` commit's own, so a date written days earlier
+snapshot the check holds that date against the `chore(release): X.Y.Z` commit's own, so a date written days earlier
 fails there — and it has: one release was prepared with a date four days behind the day it would be cut on,
 and nothing said so until the check was given that comparison. During preparation the date is an intent
 rather than a claim, so preparation may leave it stale for as long as it lasts; what must not happen is
-cutting without touching it. Write it on the day the `release: X.Y.Z` commit is made, immediately before
+cutting without touching it. Write it on the day the `chore(release): X.Y.Z` commit is made, immediately before
 making it.
 
 **`BACKLOG.md`'s promotion triggers are read against the window before the cut.** A live entry names what

@@ -10,7 +10,7 @@ use super::{commit, write};
 use crate::hermetic_git::fixture as run;
 
 /// A repository in the exact shape a publish runs from: `main` pushed to a bare remote, its tip a
-/// `release: <version>` snapshot, tagged with a signed annotated tag, worktree clean.
+/// `chore(release): <version>` snapshot, tagged with a signed annotated tag, worktree clean.
 ///
 /// The caller owns the root and its cleanup, because a builder that also decided lifetime would make a
 /// caller's single guard two.
@@ -74,7 +74,7 @@ pub fn build(root: &Path, name: &str, version: &str) -> Fixture {
         repo.join("Cargo.toml"),
         &format!("[workspace]\nmembers = []\n\n[workspace.package]\nversion = \"{version}\"\n"),
     );
-    commit(&repo, &format!("release: {version}"));
+    commit(&repo, &crate::release_subject::canonical(version));
     run(
         &repo,
         "git",

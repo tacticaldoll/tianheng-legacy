@@ -12,6 +12,7 @@ signature this gate deliberately does not judge.
 - `crates/kanhe/tests/publish_source.rs`
 - `crates/kanhe/tests/publish_source_integrity.rs`
 - `crates/kanhe/src/publish_source_gate.rs`
+- `crates/kanhe/src/release_subject.rs`
 - `crates/kanhe/src/fixture/publish_source.rs`
 
 The gate runs as `cargo test -p kanhe --test publish_source`, invoked by `scripts/publish.sh`, so *violation*
@@ -33,6 +34,13 @@ having happened, not of the command having been issued.
 - **WHEN** the wrapper's gate invocation selects no test, or selects one that is ignored
 - **THEN** the publish is refused before `cargo publish` is reached, and the refusal says the gate did not run
   rather than reporting the source clean
+
+#### Scenario: A retired release subject reaches the publish boundary
+
+- **WHEN** `HEAD` has the retired `release: X.Y.Z` subject while the workspace version is `X.Y.Z`
+- **THEN** the publish is refused before any tag or upload judgement and names
+  `chore(release): X.Y.Z` as the required snapshot subject
+- **PINNED-BY** `a_retired_release_subject_is_not_a_publishable_snapshot`
 
 #### Scenario: The tag exists here and not on the remote
 
