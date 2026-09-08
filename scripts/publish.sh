@@ -176,7 +176,7 @@ while (($#)); do
     # either way. They exist to say WHY, because a refusal an operator cannot act on is a refusal they
     # work around. Each pattern covers cargo's glued and equals forms of the same flag.
     --manifest-path | --manifest-path=*)
-        refuse "$1" "it moves cargo's workspace root away from the tree this gate judges, so the source gate would pass on $repo while cargo published something else. Publish from a checkout of the tagged \`release: X.Y.Z\` commit on origin/main instead — cargo stamps the commit it ran on into every tarball, permanently"
+        refuse "$1" "it moves cargo's workspace root away from the tree this gate judges, so the source gate would pass on $repo while cargo published something else. Publish from a checkout of the tagged \`chore(release): X.Y.Z\` commit on origin/main instead — cargo stamps the commit it ran on into every tarball, permanently"
         ;;
     --exclude | --exclude=* | --workspace)
         refuse "$1" "this script publishes the workspace and writes \`--workspace\` itself, so an argument that removes a crate from that set would have the invocation read as the whole workspace while publishing less. To publish part of it, name the parts with \`--package <spec>\`, which records what it did"

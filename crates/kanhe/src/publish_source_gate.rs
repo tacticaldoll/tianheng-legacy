@@ -515,12 +515,13 @@ pub fn judge(repo: &Path, remote: &str) -> Result<String, Refusal> {
             format!("could not read HEAD's subject: {err}"),
         )
     })?;
-    if head_subject != format!("release: {version}") {
+    let expected_subject = crate::release_subject::canonical(&version);
+    if head_subject != expected_subject {
         return Err(violation_at(
             "publish-source-integrity#head-is-not-the-release-snapshot",
             format!(
                 "HEAD is not this version's release snapshot: its subject is \"{head_subject}\", expected \
-             \"release: {version}\""
+             \"{expected_subject}\""
             ),
         ));
     }

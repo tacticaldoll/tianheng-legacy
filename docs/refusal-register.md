@@ -8,7 +8,7 @@ A site that no direction holds is **declared unheld**, with why, an owner and a 
 
 Generated from `crates/kanhe/src/**.rs` by `crates/kanhe/tests/refusal_register.rs`. **Do not edit by hand** — regenerate with `BLESS=1 TIANHENG_WORKSPACE_TESTS=1 cargo test -p kanhe --test refusal_register`. A stale projection fails that gate.
 
-**20 of 148 refusal sites are declared unheld.** 0 carry no identity at all, which is a state this repository does not keep — the register refuses a non-zero figure here.
+**20 of 149 refusal sites are declared unheld.** 0 carry no identity at all, which is a state this repository does not keep — the register refuses a non-zero figure here.
 
 ## Declared unheld
 
@@ -545,6 +545,11 @@ Generated from `crates/kanhe/src/**.rs` by `crates/kanhe/tests/refusal_register.
 - observed by `crates/kanhe/tests/release_coherence.rs`
 
 ### `release-coherence#release-history-version-malformed`
+
+- produced in `crates/kanhe/src/release_coherence_gate.rs`
+- observed by `crates/kanhe/tests/release_coherence.rs`
+
+### `release-coherence#release-snapshot-subject-is-legacy`
 
 - produced in `crates/kanhe/src/release_coherence_gate.rs`
 - observed by `crates/kanhe/tests/release_coherence.rs`

@@ -130,11 +130,12 @@ pub fn build(root: &Path, name: &str, version: &str) -> Fixture {
 
     workspace_files(&repo, "0.1.0");
     release_changelog(&repo, "0.1.0", "0.0.0");
+    // The predecessor uses the retired subject to prove the migration can read the existing spine.
     commit(&repo, "release: 0.1.0");
 
     workspace_files(&repo, version);
     release_changelog(&repo, version, "0.1.0");
-    commit(&repo, &format!("release: {version}"));
+    commit(&repo, &crate::release_subject::canonical(version));
 
     Fixture { repo }
 }

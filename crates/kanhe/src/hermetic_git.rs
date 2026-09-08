@@ -484,7 +484,7 @@ pub fn tracked_paths(repo: &Path, pathspec: &[&str]) -> Result<Vec<String>, Fail
 pub fn fixture(dir: &Path, program: &str, args: &[&str]) {
     // **A fixture's commits carry a fixed date**, so a direction can assert what a date is rather than only
     // what shape it has. `release_coherence` writes its dated release section as a literal and now holds it
-    // against the `release: X.Y.Z` commit's own date; with the date taken from the clock those two agree
+    // against the `chore(release): X.Y.Z` commit's own date; with the date taken from the clock those two agree
     // only until midnight, and the fixture would be asserting the machine rather than the subject.
     //
     // Both variables, because git takes the author date from one and the committer date from the other.

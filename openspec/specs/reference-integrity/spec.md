@@ -373,7 +373,7 @@ what the sentence means. A reaction was built for the Markdown half, needed **th
 describe what it could not decide, and caught nothing once the citations were swept — a narrow instrument
 defending a wide rule, which is the shape this repository removes rather than declares. It was withdrawn.
 
-`main` carries one commit per release: a whole development window squashes into a single `release: X.Y.Z`
+`main` carries one commit per release: a whole development window squashes into a single `chore(release): X.Y.Z`
 commit, so no development commit is reachable from it — not eventually, but by construction. A citation to
 such a commit in a document that is read *later, against the tree* is therefore dead the moment its window
 closes, and a hosting platform's serial was never in the tree at all. `AGENTS.md` already dispositions both

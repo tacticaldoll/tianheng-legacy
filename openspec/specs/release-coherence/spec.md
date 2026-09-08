@@ -10,17 +10,20 @@ surfaces, lock snapshot, and adopter-facing changelog coherent without time-base
 - `CHANGELOG.md`
 - `crates/kanhe/tests/release_coherence.rs`
 - `crates/kanhe/src/release_coherence_gate.rs`
+- `crates/kanhe/src/release_subject.rs`
 - `crates/kanhe/src/fixture/release_coherence.rs`
 
 ## Requirements
 
 ### Requirement: Repository state determines the release phase
 
-The repository SHALL classify its release phase solely from the latest exact `release: X.Y.Z`
+The repository SHALL classify its release phase solely from the latest exact release snapshot
 commit in git history, the position of `HEAD`, the current workspace version, and whether the
 `CHANGELOG.md` being judged is still the one that commit carries. A later commit at
 the same version SHALL be development; a strictly newer numeric `X.Y.Z` current version SHALL be
-release-ready; and the exact latest release commit SHALL be a release snapshot. A current version
+release-ready; and the exact latest canonical `chore(release): X.Y.Z` commit SHALL be a release snapshot.
+The history reader SHALL also recognize the retired `release: X.Y.Z` form as a predecessor, so the existing
+spine can lead into its first canonical snapshot, but SHALL NOT accept that retired form as a new snapshot. A current version
 older than the latest release, or missing or malformed release history, SHALL fail as an observable
 repository misconfiguration. Classification SHALL NOT depend on branch names, tags, wall-clock
 time, warning windows, or hosted-CI-only variables.
@@ -44,7 +47,7 @@ time, warning windows, or hosted-CI-only variables.
 
 #### Scenario: The release commit is a snapshot
 
-- **WHEN** `HEAD` is the latest exact `release: X.Y.Z` commit **and** the `CHANGELOG.md` being judged is the
+- **WHEN** `HEAD` is the latest exact `chore(release): X.Y.Z` commit **and** the `CHANGELOG.md` being judged is the
   one that commit carries
 - **THEN** the repository is checked as a release snapshot for `X.Y.Z`
 
@@ -71,7 +74,7 @@ time, warning windows, or hosted-CI-only variables.
 
 #### Scenario: A release commit whose own tree carries no changelog
 
-- **WHEN** `HEAD` is the exact `release: X.Y.Z` commit and its tree names no `CHANGELOG.md`, while the
+- **WHEN** `HEAD` is the exact release commit and its tree names no `CHANGELOG.md`, while the
   worktree carries a readable one
 - **THEN** the check refuses as a violation: the release it names is narrated nowhere a reader of that commit
   can reach, and the worktree's copy is not that commit's
@@ -83,6 +86,14 @@ time, warning windows, or hosted-CI-only variables.
   tree it could not read
 - **PINNED-BY** `a_release_commit_carrying_no_changelog_is_refused`
 - **PINNED-BY** `a_changelog_git_cannot_read_at_head_is_not_a_modified_worktree`
+
+#### Scenario: The retired subject is a predecessor only
+
+- **WHEN** a retired `release: X.Y.Z` commit precedes later work
+- **THEN** it supplies the released version used to classify that work as development or release-ready
+- **AND WHEN** that retired commit is itself `HEAD` with its own changelog
+- **THEN** the check refuses it as a new snapshot and names `chore(release): X.Y.Z` as the required subject
+- **PINNED-BY** `the_retired_subject_is_history_but_not_a_new_snapshot`
 
 #### Scenario: Shallow or absent history fails loud
 
@@ -251,7 +262,7 @@ above were reachable and the sentence about them was not.
 A release-ready repository SHALL carry an empty `[Unreleased]` section, a dated changelog section
 for the current workspace version, a comparison link for that version, matching internal workspace
 dependency pins, and matching `Cargo.lock` entries for every Tianheng workspace package. A release
-snapshot SHALL additionally have the exact subject `release: <workspace-version>`. Any divergence
+snapshot SHALL additionally have the exact subject `chore(release): <workspace-version>`. Any divergence
 SHALL fail and name the surface and expected version. The check SHALL observe repository state only
 and SHALL NOT perform a version bump, commit, merge, tag, or publish action.
 
@@ -870,7 +881,7 @@ was written in.
 ### Requirement: A release section is dated on the day its release commit was made
 
 At the release snapshot the dated section for the workspace version SHALL carry the date of the
-`release: X.Y.Z` commit itself. The check SHALL compare the value, not only the shape: a reader takes that
+`chore(release): X.Y.Z` commit itself. The check SHALL compare the value, not only the shape: a reader takes that
 date for the day the release happened, and `is_iso_date` answers whether the field is a calendar date and
 never which one.
 
